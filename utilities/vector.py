@@ -2,7 +2,7 @@
 # vectors and related staff
 
 # Changes : 
-# - file init
+# - test for commit 
 
 import math as o_math
 from utilities.math import math
