@@ -4,8 +4,10 @@
 import math as o_math
 from utilities.math import math
 
+# Git commit change
 
-# dsfsdfsdsdf
+class c_subclass:
+    x : int
 
 class vector:
     # 3D Vector class
