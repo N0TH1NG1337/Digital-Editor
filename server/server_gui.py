@@ -5,11 +5,7 @@ from protocols.network              import *
 from user_interface.application     import *
 from server.server_bl               import c_server_business_logic
 
-FONT_BOLD_PATH  = "C:\\Windows\\Fonts\\arialbd.ttf"
-FONT_PATH       = "C:\\Windows\\Fonts\\arial.ttf"
-
-ICON            = "C:\Users\mishs\Downloads\check.png"
-DEFAULT_PATH    = "C:\Users\mishs\Documents\Project"
+from utilities.paths                import *
 
 class c_server_gui:
 
@@ -42,13 +38,13 @@ class c_server_gui:
         self.__init_scenes( )
 
     def __init_assets( self ):
-        self._application.create_font( "Title",     FONT_BOLD_PATH, 50 )
+        self._application.create_font( "Title",     FONT_ARIAL_BOLD, 50 )
 
-        self._application.create_font( "Button",    FONT_BOLD_PATH, 20 )
-        self._application.create_font( "TextInput", FONT_BOLD_PATH, 20 )
-        self._application.create_font( "Editor",    FONT_PATH, 20 )
+        self._application.create_font( "Button",    FONT_ARIAL_BOLD, 20 )
+        self._application.create_font( "TextInput", FONT_ARIAL_BOLD, 20 )
+        self._application.create_font( "Editor",    FONT_ARIAL_REGULAR, 20 )
 
-        self._application.create_image( "Check",    ICON, vector( 40, 40 ) )
+        self._application.create_image( "Check",    IMAGE_CHECKMARK, vector( 40, 40 ) )
 
     def __init_config( self ):
 
@@ -83,7 +79,7 @@ class c_server_gui:
         self._elements[ "MoveToFiles" ] = c_button_dynamic( self._scene_start, vector( 50, 300 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Next", self.__complete_start_scene )
 
         self._elements[ "PathPicker" ] = c_file_dialog( self._scene_files, self._application.font( "Button" ), vector( 50, 150 ), vector( 500, 500 ), 40 )
-        self._elements[ "PathPicker" ].parse_path( DEFAULT_PATH )
+        self._elements[ "PathPicker" ].parse_path( DEFAULT_FOLDER_PATH )
         self._elements[ "MoveToConnection" ] = c_button_dynamic( self._scene_files, vector( 600, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Next", self.__complete_files_scene )
 
         self._elements[ "IpToList" ] = c_text_input( self._scene_connect, vector( 50, 150 ), 60, vector( 200, 30 ), False, self._application.image( "Check" ), self._application.font( "TextInput" ), "IP" )

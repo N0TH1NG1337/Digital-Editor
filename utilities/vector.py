@@ -3,8 +3,6 @@
 import math as o_math
 from utilities.math import math
 
-# Another check
-
 class vector:
     # 3D Vector class
 

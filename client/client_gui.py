@@ -6,11 +6,8 @@ from user_interface.application     import *
 from client.client_bl               import c_client_business_logic
 
 from utilities.base64               import base64
+from utilities.paths                import *
 
-FONT_BOLD_PATH  = "C:\\Windows\\Fonts\\arialbd.ttf"
-FONT_PATH       = "C:\\Windows\\Fonts\\arial.ttf"
-
-ICON            = "C:\Users\mishs\Downloads\check.png"
 
 class c_client_gui:
 
@@ -41,12 +38,12 @@ class c_client_gui:
         self.__init_scenes( )
 
     def __init_assets( self ):
-        self._application.create_font( "Title",     FONT_BOLD_PATH, 50 )
+        self._application.create_font( "Title",     FONT_ARIAL_BOLD, 50 )
 
-        self._application.create_font( "Button",    FONT_BOLD_PATH, 20 )
-        self._application.create_font( "TextInput", FONT_PATH, 20 )
+        self._application.create_font( "Button",    FONT_ARIAL_BOLD, 20 )
+        self._application.create_font( "TextInput", FONT_ARIAL_REGULAR, 20 )
 
-        self._application.create_image( "Check",    ICON, vector( 40, 40 ) )
+        self._application.create_image( "Check",    IMAGE_CHECKMARK, vector( 40, 40 ) )
 
     def __init_scenes( self ):
 
@@ -104,7 +101,8 @@ class c_client_gui:
 
     def __init_logic( self ):
 
-        self._logic = c_client_business_logic( )
+        #self._logic = c_client_business_logic( )
+        pass
 
     def __connect( self ):
 

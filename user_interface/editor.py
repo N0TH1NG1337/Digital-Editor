@@ -264,8 +264,8 @@ class c_editor:
 
 
     def __event_keyboard_input( self, event ):
-        if not self._is_typing:
-            return
+        
+        return
         
         key         = event( "key" )
         action      = event( "action" )
