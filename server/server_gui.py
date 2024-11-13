@@ -3,13 +3,10 @@
 from protocols.network              import *
 
 from user_interface.application     import *
-from server.server_bl               import c_server_business_logic
-
-from utilities.paths                import *
+from server.server_bl               import *
 
 class c_server_gui:
 
-    _network:       c_network_protocol
     _application:   c_application
     _logic:         c_server_business_logic
 
@@ -22,8 +19,8 @@ class c_server_gui:
 
     def __init__( self ):
         
+        self.__init_logic( )
         self.__init_application( )
-        #self.__init_logic( )
 
     # region : Initialize Application
 
@@ -87,6 +84,7 @@ class c_server_gui:
 
         self._elements[ "MoveToProject" ] = c_button_dynamic( self._scene_connect, vector( 600, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Next", self.__complete_connection_scene )
 
+        self._elements[ "StopServer" ] = c_button_dynamic( self._scene_project, vector( 50, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Stop Server", self._logic.terminate )
         #self._elements[ "Editor" ] = c_editor( self._scene_project, vector( 0, 150 ), vector( 500, 500 ), self._application.font( "Editor" ) )
         #self._elements[ "Editor" ].insert_line( "" )
 
@@ -145,9 +143,9 @@ class c_server_gui:
         files = os.listdir( path )
         drop = 0
 
-        for file in files:
-            self._application.render( ).text( button_font, vector( 50, 150 + drop ), color( 156, 140, 182 ) * fade, file )
-            drop += 24
+        #for file in files:
+        #    self._application.render( ).text( button_font, vector( 50, 150 + drop ), color( 156, 140, 182 ) * fade, file )
+        #    drop += 24
 
     # endregion
 
@@ -165,6 +163,18 @@ class c_server_gui:
 
         self._application.active_scene( self._scene_project.index( ) )
         self._application.maximize_window( )
+
+        ip_entry:   c_text_input = self._elements[ "IpToList" ]
+        port_entry: c_text_input = self._elements[ "PortToList" ]
+
+        self._logic.setup( ip_entry.get( ), int( port_entry.get( ) ) )
+        self._logic.start( )
+
+        print( self._logic.generate_project_code( ) )
+
+    def __init_logic( self ):
+
+        self._logic = c_server_business_logic( )
 
     # endregion
 

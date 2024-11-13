@@ -45,7 +45,7 @@ class c_client_business_logic:
 
     # region : Connection
 
-    def connect( self, project_code: str ):
+    def connect( self, project_code: str, username: str ):
         """
             Client connection to server event
         """
@@ -54,6 +54,8 @@ class c_client_business_logic:
 
         # NOTE ! We can use @safe_call here but i prefer to do in this way, 
         self._info[ "is_connected" ] = self.__try_to_connect( ip, port )
+
+        self.__attach_username( username )
 
         event: c_event = self._events[ "connect" ]
 
@@ -78,6 +80,14 @@ class c_client_business_logic:
 
             # TODO ! ADD DEBUG OPTIONS LATER
             return False
+
+    def __attach_username( self, username: str ):
+
+        if not self._info[ "is_connected" ]:
+            return
+        
+        msg = f"username::{username}"
+        self._network.send( msg )
     
     @safe_call( None )
     def __resolve_code( self, project_code: str ):

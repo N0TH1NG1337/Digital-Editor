@@ -22,10 +22,10 @@ class c_connection:
     _socket: socket
 
     def __init__( self ):
-        self._ip = INVALID
-        self._port = INVALID
+        self._ip        = INVALID
+        self._port      = INVALID
 
-        self._socket = INVALID
+        self._socket    = INVALID
 
     def start( self, type_socket: int, ip: str, port: int ) -> bool:
         self._ip    = ip
@@ -92,7 +92,7 @@ class c_network_protocol:
 
         self._connection( ).listen( )
 
-    def accept_connection( self, timeout: int = -1 ) -> tuple:
+    def accept_connection( self, timeout: float = -1 ) -> tuple:
         
         if timeout == -1:
             # Right away accept
@@ -102,13 +102,8 @@ class c_network_protocol:
                  
             self._connection( ).settimeout( timeout )
 
-            # Get status if anything is ready
-            ready, _, _ = select( [ self._connection( ) ], [ ], [ ], timeout )
-
-            if ready:
-                return self._connection( ).accept( )
-
-            return None, None
+            return self._connection( ).accept( )
+        
         except Exception as e:
 
             # If timed out
@@ -148,12 +143,13 @@ class c_network_protocol:
             total_sent = total_sent + size
 
     @safe_call( None )
-    def receive( self, timeout: int = 10 ):
+    def receive( self, timeout: int = -1 ):
 
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
 
-        self._connection( ).settimeout( timeout )
+        if timeout != -1:
+            self._connection( ).settimeout( timeout )
 
         length:     int     = int( self._connection( ).recv( HEADER_SIZE ).decode( ) )
         is_raw:     bool    = self._connection( ).recv( 1 ).decode( ) == "1"

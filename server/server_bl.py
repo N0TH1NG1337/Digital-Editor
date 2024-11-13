@@ -1,17 +1,23 @@
 # Server - Business Logic .py
 
-from protocols.network  import  *
-from utilities.event    import  c_event
-from utilities.base64   import  base64
+from protocols.network      import  *
+from protocols.file_manager import  *
+from utilities.event        import  c_event
+from utilities.base64       import  base64
+
+from utilities.paths        import *
 
 import threading
 
 class c_client_handle:
     
     _network:   c_network_protocol
-    _index:     int
 
-    _events:    dict
+    # Client information
+    _information:   dict
+    
+    _events:        dict
+    _thread:        threading.Thread
 
     def __init__( self ):
 
@@ -33,8 +39,10 @@ class c_client_handle:
             Finish all the setups that remain
         """
 
-        self._network = None
-        self._index = -1
+        self._network   = None
+        self._thread    = None
+
+        self._information = { }
 
     # region : Connection
 
@@ -49,6 +57,9 @@ class c_client_handle:
         event.attach( "address", address )
 
         event.invoke( )
+
+        self._thread = threading.Thread( target=self.__receive )
+        self._thread.start( )
 
     def disconnect( self, notify_the_client: bool = False ):
         """
@@ -84,6 +95,20 @@ class c_client_handle:
         # Create and attach the connection to the protocol
         self._network = c_network_protocol( new_connection )
 
+        self.__register_connection( )
+
+    def __register_connection( self ):
+        """
+            After client connects. It must send username :
+        """
+
+        first_information = self._network.receive( )
+        if not first_information.startswith( "username::" ):
+            return
+        
+        parse_username = first_information.split( "::" )
+        self._information[ "username" ] = parse_username[ 1 ]
+
     # endregion 
 
     # region : Communication
@@ -115,16 +140,6 @@ class c_client_handle:
 
     # region : Server access
 
-    def index( self, new_value: int = None ) -> int:
-        """
-            Returns / Sets current client index
-        """
-
-        if new_value is None:
-            return self._index
-        
-        self._index = new_value
-
     def set_event( self, event_type: str, callback: any, index: str ):
 
         if not event_type in self._events:
@@ -138,13 +153,13 @@ class c_client_handle:
 
 class c_server_business_logic:
     
-    _network:   c_network_protocol
+    _network:       c_network_protocol
+    _files:         c_file_manager_protocol
 
     _info:      dict
     _events:    dict
 
     _clients:   list
-    # TODO ! Set Mutex lock
 
     def __init__( self ):
 
@@ -160,7 +175,8 @@ class c_server_business_logic:
             Create Protocols
         """
 
-        self._network = c_network_protocol( )
+        self._network       = c_network_protocol( )
+        self._files         = c_file_manager_protocol( )
 
     
     def __init_events( self ):
@@ -188,6 +204,8 @@ class c_server_business_logic:
         self._info[ "last_error" ]  = ""        # Last error occured
         self._info[ "running" ]     = False     # Is server running
 
+        self._clients = [ ]
+
 
     def setup( self, ip: str, port: int ):
         """
@@ -209,19 +227,18 @@ class c_server_business_logic:
 
             self._info[ "success" ] = False
 
+    def __attach_process( self ):
+        
+        self._info[ "process_thread" ] = threading.Thread( target=self.__process )
+        self._info[ "process_thread" ].start( )
     
-    def process( self ):
+    def __process( self ):
         """
             Server process. Must be called inside a seperate thread from the main thread
         """
 
-        # Should we create a private thread inside this class and handle just with
-        # start and stop functions ?
-        # In the end of the day, we just call the start and stop functions.
-
         while self._info[ "running" ]:
-
-            client_socket, client_address = self._network.accept_connection( 0.5 )
+            client_socket, client_address = self._network.accept_connection( 1 )
 
             if client_socket and client_address:
                 
@@ -240,23 +257,28 @@ class c_server_business_logic:
 
         self._network.look_for_connections( )
 
+        self.__attach_process( )
+
 
     def terminate( self ):
         """
             Stop server execution
         """
 
+        # Set running flag to false
         self._info[ "running" ] = False
 
+        # Invoke server stop event
         event: c_event = self._events[ "server_stop" ]
         event.invoke( )
 
-        # TODO ! DISCONNECT ALL THE CLIENTS
+        # Disconnect all the remaining clients
         for client in self._clients:
             client: c_client_handle = client
 
-            #client.disconnect( )
+            client.disconnect( )
 
+        # Close connection
         self._network.end_connection( )
 
 
@@ -277,6 +299,57 @@ class c_server_business_logic:
 
     # endregion
 
+    # region : Files 
+
+    def register_project_path( self, path ):
+        """
+            Save the project files path.
+        """
+
+        self._info[ "original_path" ] = path
+
+        # Besides saving project path. Need also to set up copy files ?
+        # Option 1 : Create copy files and modify them
+        # Option 2 : Modify the original ones
+
+        self.__register_files( )
+
+
+    def __register_files( self ):
+        """
+            Register files by creating copy and saving in files manager
+        """
+
+        path = self._files.create_folder( DEFAULT_COPY_FOLDER, self._info[ "original_path" ] )
+        if path is None:
+            # TODO ! POP Some error
+            return
+        
+        self._info[ "project_path" ] = path
+
+        self.__dump_folder( path )
+    
+
+    def __dump_folder( self, path: str, folder_name: str = None ):
+
+        with os.scandir( path ) as entries:
+
+            for entry in entries:
+
+                if entry.is_file( ):
+                    # Is File
+
+                    pass
+                
+                elif entry.is_dir( ):
+                    # Is Folder
+
+                    # If it is folder, we need to call again to dump it
+
+                    pass
+
+    # endregion
+
     # region : Events
 
     def __event_client_connect( self, socket_obj: socket, address: str ):
@@ -289,7 +362,6 @@ class c_server_business_logic:
 
         # Save it
         self._clients.append( new_client )
-        new_client.index( self._clients.index( new_client ) )
 
         # Create connection
         new_client.connect( socket_obj, address )
@@ -305,6 +377,7 @@ class c_server_business_logic:
 
         event.invoke( )
 
+
     def __event_client_disconnect( self, event ):
         """
             Client disconnects event
@@ -317,16 +390,6 @@ class c_server_business_logic:
 
         # Delete it
         self._clients.remove( client )
-
-        # Since we removed this client, 
-        # All our indexes are incorrect
-
-        # Besides. Maybe remove the indexes. Like they are useless
-
-        # Fix indexs after shift
-        for client in self._clients:
-            client: c_client_handle = client
-            client.index( self._clients.index( client ) )
 
     # endregion
 

@@ -22,8 +22,9 @@ class c_client_gui:
 
     def __init__( self ):
         
-        self.__init_application( )
         self.__init_logic( )
+        self.__init_application( )
+        
 
     # region : Initialize Application
 
@@ -101,20 +102,21 @@ class c_client_gui:
 
     def __init_logic( self ):
 
-        #self._logic = c_client_business_logic( )
-        pass
+        self._logic = c_client_business_logic( )
 
     def __connect( self ):
 
         project_code_input: c_text_input = self._elements[ "ProjectCode" ]
-        #self._logic.connect( project_code_input.get( ) ) 
+        username_input:     c_text_input = self._elements[ "Username" ]
+        
+        self._logic.connect( project_code_input.get( ), username_input.get( ) ) 
 
-        #if self._logic( "is_connected" ):
-        #    self._application.next_scene( )
+        if self._logic( "is_connected" ):
+            self._application.next_scene( )
     
     def __disconnect( self ):
 
-        # self._logic.disconnect( )
+        self._logic.disconnect( )
         self._application.previous_scene( )
 
     # endregion
