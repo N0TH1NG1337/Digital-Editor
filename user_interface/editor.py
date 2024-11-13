@@ -55,12 +55,16 @@ class c_editor:
     _mouse_position:    vector  # Mouse relative position | No coords
 
     _is_hovered:        bool
-    _is_typing:         bool
+
+    # Will remove for now the interact with the text
+    # Need to crate a system to catch / request lines and edit them only
+
+    _selected:          vector  # Allowed to edit
+    # x -> start line index
+    # y -> last line index
+    # Used to determine the lines that are allowed to modify
 
     _cursor:            vector  # Pointer char position
-
-    _start_select:      vector
-    _end_select:        vector
 
     # endregiod
 
@@ -112,10 +116,10 @@ class c_editor:
         self._height_offset     = 0
         self._mouse_position    = vector( )
 
+        self._selected          = INVALID_POSITION.copy( ) # Avoid giving the object it self at any cost
         self._cursor            = vector( )
 
         self._is_hovered        = False
-        self._is_typing         = False
 
         self._line_height       = self._font.size( ).y + 4
 
@@ -212,16 +216,16 @@ class c_editor:
         self._mouse_position.x = x
         self._mouse_position.y = y
 
-        if self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y ):
+        # if self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y ):
 
-            self._is_hovered = self._parent.try_to_get_handle( self._index )
+        #    self._is_hovered = self._parent.try_to_get_handle( self._index )
 
-        else:
+        # else:
 
-            if self._parent.is_this_active( self._index ):
-                self._parent.release_handle( self._index )
+        #    if self._parent.is_this_active( self._index ):
+        #        self._parent.release_handle( self._index )
 
-            self._is_hovered = False
+        #    self._is_hovered = False
 
 
     def __event_mouse_input( self, event ):
@@ -229,13 +233,13 @@ class c_editor:
         button = event( "button" )
         action = event( "action" )
 
-        if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
+        #if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
             
-            if not self._is_typing and self._is_hovered:
-                self._is_typing = True
+        #    if not self._is_typing and self._is_hovered:
+        #        self._is_typing = True
 
-            if self._is_typing and not self._is_hovered:
-                self._is_typing = False
+        #    if self._is_typing and not self._is_hovered:
+        #        self._is_typing = False
 
 
     def __event_mouse_scroll( self, event ):
@@ -248,19 +252,15 @@ class c_editor:
 
     def __event_char_input( self, event ):
         
-        if not self._is_typing:
-            return
-        
-        received_char = event( "char" )
-
-        # Not relevant since this callback always called when there is a chr
-        #if received_char is None:
+        pass
+        #if not self._is_typing:
         #    return
         
-        char = chr( received_char )
+        #received_char = event( "char" )
+        #char = chr( received_char )
 
-        self.insert_at( self._cursor, char )
-        self._cursor += self.calculate_move( char )
+        #self.insert_at( self._cursor, char )
+        #self._cursor += self.calculate_move( char )
 
 
     def __event_keyboard_input( self, event ):
@@ -278,27 +278,27 @@ class c_editor:
         # Executable input handle for PRESS and REPEAT calls
 
         if key == glfw.KEY_BACKSPACE:
-            removed = self.remove( self._cursor - vector( 1, 0 ), self._cursor )
-            self._cursor = removed
+            # removed = self.remove( self._cursor - vector( 1, 0 ), self._cursor )
+            # self._cursor = removed
 
-            self.clamp_scroll( 0 )
+            # self.clamp_scroll( 0 )
 
             return 
         
         if key == glfw.KEY_TAB:
-            self.insert_at( self._cursor, "    " )
-            self._cursor += self.calculate_move( "    " )
+            #self.insert_at( self._cursor, "    " )
+            #self._cursor += self.calculate_move( "    " )
             return 
         
         if key == glfw.KEY_ENTER:
-            return self.__enter_handle( )
+            return #self.__enter_handle( )
         
         if key == glfw.KEY_LEFT:
-            self._cursor.x = math.clamp( self._cursor.x - 1, 0, len( self._lines[ self._cursor.y ] ) )
+            #self._cursor.x = math.clamp( self._cursor.x - 1, 0, len( self._lines[ self._cursor.y ] ) )
             return
 
         if key == glfw.KEY_RIGHT:
-            self._cursor.x = math.clamp( self._cursor.x + 1, 0, len( self._lines[ self._cursor.y ] ) )
+            #self._cursor.x = math.clamp( self._cursor.x + 1, 0, len( self._lines[ self._cursor.y ] ) )
             return
         
         if key == glfw.KEY_UP:
@@ -382,6 +382,7 @@ class c_editor:
 
         return result
 
+    """
     def select_text( self, start_position: vector, end_position: vector ):
         # Concats into a list all the indication what lines and what in lines is selected
         # start_vector and end_vector are char position in chars array. not relative position
@@ -494,16 +495,7 @@ class c_editor:
         # This is different from remove.
         # When you call .remove(...) you just delete the selected.
         
-        line = self._cursor.y
-        index = self._cursor.x
-
-        if line == 0 and index == 0:
-            return
-        
-        # Remove line
-        if index == 0:
-
-            saved_text = self._line[ line ]
+        pass
 
     def calculate_move( self, text: str ):
         # Calculates how much we need to move our cursor based on text
@@ -527,6 +519,8 @@ class c_editor:
         position.y = math.clamp( position.y, 0, len( self._lines ) - 1 )
 
         self.clamp_line( position )
+
+    """
 
     def clamp_scroll( self, add: float | int ):
 
@@ -557,7 +551,3 @@ class c_editor:
         self._size.y = new_value.y
     
     # endregion
-
-
-
-    
