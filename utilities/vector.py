@@ -1,12 +1,11 @@
 # Utils. Vector .py
 # vectors and related staff
 
-# Changes : 
-# - test for commit 
-
 import math as o_math
 from utilities.math import math
 
+
+# dsfsdfsdsdf
 
 class vector:
     # 3D Vector class
