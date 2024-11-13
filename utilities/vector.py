@@ -1,5 +1,4 @@
 # Utils. Vector .py
-# vectors and related staff
 
 import math as o_math
 from utilities.math import math
