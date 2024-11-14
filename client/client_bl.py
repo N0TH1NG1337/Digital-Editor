@@ -56,6 +56,7 @@ class c_client_business_logic:
         self._info[ "is_connected" ] = self.__try_to_connect( ip, port )
 
         self.__attach_username( username )
+        self.__attach_receive( )
 
         event: c_event = self._events[ "connect" ]
 
@@ -136,7 +137,42 @@ class c_client_business_logic:
             Forcly end connection with server, without notifing it
         """
 
+        print( "End connection" )
+
         self._network.end_connection( )
+
+    # endregion
+
+    # region : Handle messages
+
+    def __attach_receive( self ):
+        """
+            Attach receive function into standalone thread
+        """
+
+        self._info[ "thread" ] = threading.Thread( target=self.__receive )
+        self._info[ "thread" ].start( )
+
+    def __receive( self ):
+        """
+            Main function to receive messages from server
+        """
+
+        while self._network.is_valid( ):
+            rec = self._network.receive( 0.5 )
+
+            self.__handle_receive( rec )
+
+    def __handle_receive( self, receive: str ):
+        """
+            Handles messages.
+        """
+
+        if receive == DISCONNECT_MSG:
+            return self.__end_connection( )
+
+        return
+
 
     # endregion
 
