@@ -1,6 +1,6 @@
 # Protocols. Network .py
 
-from utilities.safe import safe_call
+from utilities.wrappers import safe_call
 import socket
 import select
 

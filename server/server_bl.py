@@ -4,29 +4,41 @@ from protocols.network      import  *
 from protocols.file_manager import  *
 from utilities.event        import  c_event
 from utilities.base64       import  base64
+from utilities.wrappers     import  safe_call, standalone_execute
 
 from utilities.paths        import *
 
 import threading
+import queue
+
+
+class c_cmd:
+    
+    pass
+
 
 class c_client_handle:
-    
-    _network:   c_network_protocol
 
-    # Client information
-    _information:   dict
-    
-    _events:        dict
-    _thread:        threading.Thread
+    _network:       c_network_protocol      # Clients handle network connection
+
+    _information:   dict                    # Clients information
+    _events:        dict                    # Each client events
+
+    # region : Initialize client handle
 
     def __init__( self ):
-
-        self.__create_events( )
-        self.__complete_setup( )
-
-    def __create_events( self ):
         """
-            Init events
+            Default constructor
+        """
+
+        self.__initialize_events( )
+
+        self.__initialize_information( )
+
+    
+    def __initialize_events( self ):
+        """
+            Initialize each client handle events
         """
 
         self._events = { }
@@ -34,34 +46,40 @@ class c_client_handle:
         self._events[ "connect" ]       = c_event( )
         self._events[ "disconnect" ]    = c_event( )
 
-    def __complete_setup( self ):
+        self._events[ "register_cmd" ]  = c_event( )
+    
+    def __initialize_information( self ):
         """
-            Finish all the setups that remain
+            Initialize client handle information handle
         """
 
-        self._network   = None
-        self._thread    = None
+        self._network       = None
 
-        self._information = { }
+        self._information   = { }
+
+    # endregion
 
     # region : Connection
 
     def connect( self, socket_object: socket, address: tuple ):
         """
-            Attach connection details
+            Attach client connection details
         """
 
+        # Attach connection
         self.__attach_connection( socket_object, address )
 
-        event: c_event = self._events[ "connect" ]
-        event.attach( "address", address )
+        # Register connection
+        self.__register_connection( )
 
-        event.invoke( )
+        # Call the event
+        self.__event_connect( address )
 
-        self._thread = threading.Thread( target=self.__receive )
-        self._thread.start( )
+        # Complete the connection by running the receive process attachment
+        self.__attach_receive_process( )
 
-    def disconnect( self, notify_the_client: bool = False ):
+
+    def disconnect( self, notify_the_client: bool = True ):
         """
             Close connection from the server to client
         """
@@ -69,19 +87,15 @@ class c_client_handle:
         # Potentially warn the client of closing connection
         if notify_the_client:
             self._network.send( DISCONNECT_MSG )
-            # Disconnect message is like warning 
 
         # Close connection
         self._network.end_connection( )
 
-        # Call the disconnect event 
-        event: c_event = self._events[ "disconnect" ]
-        event.attach( "client", self )
-
-        event.invoke( )
+        # Call the event
+        self.__event_disconnect( )
 
 
-    def __attach_connection( self, socket_obj: socket, address: tuple ):
+    def __attach_connection( self, socket_object: socket, address: tuple ):
         """
             Create new connection object and attach it in the network protocol
         """
@@ -90,61 +104,94 @@ class c_client_handle:
         new_connection = c_connection( )
 
         # Unlike the default .connect. Here we just give the information. 
-        new_connection.attach( address[0], address[1], socket_obj )
+        new_connection.attach( address[0], address[1], socket_object )
 
         # Create and attach the connection to the protocol
         self._network = c_network_protocol( new_connection )
+    
 
-        self.__register_connection( )
+    def __attach_receive_process( self ):
+        """
+            Receive process attachment
+        """
+
+        self._information[ "receive_thread" ] = threading.Thread( target=self.__receive_process )
+        self._information[ "receive_thread" ].start( )
+
 
     def __register_connection( self ):
         """
-            After client connects. It must send username :
+            Register the client with username.
         """
 
-        first_information = self._network.receive( )
-        if not first_information.startswith( "username::" ):
+        raw_msg: str = self._network.receive( )
+        if not raw_msg.startswith( "username::" ):
             return
         
-        parse_username = first_information.split( "::" )
+        parse_username = raw_msg.split( "::" )
         self._information[ "username" ] = parse_username[ 1 ]
 
-    # endregion 
+    # endregion
 
     # region : Communication
 
-    def __receive( self ):
+    def __receive_process( self ):
         """
             Main receive function
         """
 
-        # This function must be within a running thread
-        
-        while self._network.is_valid( ):
-            
-            # Get the message from client
+        while self._network.is_valid():
             res = self._network.receive( 0.5 )
 
-            # Deside what to do
-            self.__resolve_received( res )
-
-    def __resolve_received( self, recieve: str ):
-        # This function will get the received message from client, and it will solve what it doest
-
-        if recieve == DISCONNECT_MSG:
-            return self.disconnect( False )
-
-        pass
+            if res == DISCONNECT_MSG:
+                self.disconnect( False )
 
     # endregion
 
-    # region : Server access
+    # region : Events
+
+    def __event_connect( self, address: tuple ):
+        """
+            Event client connect to server
+        """
+
+        event: c_event = self._events[ "connect" ]
+        event.attach( "ip",     address[ 0 ] )
+        event.attach( "port",   address[ 1 ] )
+
+        event.invoke( )
+
+    
+    def __event_disconnect( self ):
+        """
+            Event client disconnect from the server
+        """
+
+        event: c_event = self._events[ "disconnect" ]
+        event.attach( "client", self )
+
+        event.invoke( )
+
+
+    def __event_register_cmd( self, command: c_cmd ):
+        """
+            Event register command to server
+        """
+
+        event: c_event = self._events[ "register_cmd" ]
+        event.attach( "command", command )
+
+        event.invoke( )
+
 
     def set_event( self, event_type: str, callback: any, index: str ):
+        """
+            Set specific event callback
+        """
 
         if not event_type in self._events:
             raise Exception( "Invalid event type" )
-
+        
         event: c_event = self._events[ event_type ]
         event.set( callback, index, True )
 
@@ -152,247 +199,292 @@ class c_client_handle:
 
 
 class c_server_business_logic:
-    
-    _network:       c_network_protocol
-    _files:         c_file_manager_protocol
 
-    _info:      dict
-    _events:    dict
+    _network:       c_network_protocol          # Network procotol class
+    _files:         c_file_manager_protocol     # Files manager protocol class
 
-    _clients:   list
+    _information:   dict                        # Server logic information
+    _events:        dict                        # Server behind the scenes events
+
+    _cmds_pool:     queue.Queue                 # Server command queue
+
+    _clients:       list                        # Clients list
+
+    # region : Initialize server logic
 
     def __init__( self ):
-
-        self.__init_protocols( )
-        self.__init_information( )
-
-        self.__init_events( )
-
-    # region : Setup Server
-
-    def __init_protocols( self ):
         """
-            Create Protocols
+            Default constructor
         """
+        
+        # Create the protocols
+        self.__initialize_protocols( )
 
-        self._network       = c_network_protocol( )
-        self._files         = c_file_manager_protocol( )
+        # Create events
+        self.__initialize_events( )
 
+        # Create information
+        self.__initialize_information( )
     
-    def __init_events( self ):
+
+    def __initialize_protocols( self ):
         """
-            Create and setup server events
+            Initialize protocols objects
         """
 
+        self._network   = c_network_protocol( )
+        self._files     = c_file_manager_protocol( )
+
+
+    def __initialize_events( self ):
+        """
+            Initialize server logic events
+        """
+
+        # Create dict for events
         self._events = { }
 
-        self._events[ "server_start" ]          = c_event( )
-        self._events[ "server_stop" ]           = c_event( )
+        # Default server events. Start and Stop.
+        self._events[ "server_start" ]      = c_event( )
+        self._events[ "server_stop" ]       = c_event( )
 
-        self._events[ "client_connect" ]        = c_event( )
-        self._events[ "client_disconnect" ]     = c_event( )
+        # For each new / old clients these are used to connect the gui and the bl
+        self._events[ "client_connect" ]    = c_event( )
+        self._events[ "client_disconnect" ] = c_event( )
 
-    
-    def __init_information( self ):
+
+    def __initialize_information( self ):
         """
-            Completes and creates default information for the server
+            Complete server logic setup
         """
 
-        self._info = { }
-        
-        self._info[ "success" ]     = False     # Is the setup process was successful
-        self._info[ "last_error" ]  = ""        # Last error occured
-        self._info[ "running" ]     = False     # Is server running
+        self._information = { }
 
+        self._information[ "success" ]      = False     # Is the setup process was successful
+        self._information[ "running" ]      = False     # Is server running
+
+        self._information[ "last_error" ]   = ""        # Last error occured
+
+        # Create clients list.
         self._clients = [ ]
 
+        # Create commands queue
+        self._cmds_pool = queue.Queue( )
+    
+    # endregion
 
-    def setup( self, ip: str, port: int ):
+    # region : Connection
+
+    def setup( self, ip: str, port: int ) -> None:
         """
             Setup server connection
         """
 
+        # I dont use @safe_call since I need to add debug options later on
+
         try:
+            
+            # Just save the information
+            self._information[ "ip" ]   = ip  # Does it really matter ?
+            self._information[ "port" ] = port
 
-            self._info[ "ip" ]      = ip
-            self._info[ "port" ]    = port
-
+            # Start connection using network protocol
             self._network.start_connection( CONNECTION_TYPE_SERVER, ip, port )
 
-            self._info[ "success" ] = True
-
-        except Exception as e:
-
-            self._info[ "last_error" ] = f"Error occured on .setup() : {e}"
-
-            self._info[ "success" ] = False
-
-    def __attach_process( self ):
+            # Set success setup flag to true
+            self._information[ "success" ] = True
         
-        self._info[ "process_thread" ] = threading.Thread( target=self.__process )
-        self._info[ "process_thread" ].start( )
+        except Exception as e:
+            
+            # In case of some error. Handle it
+            self._information[ "last_error" ]   = f"Error occured on .setup() : {e}"
+            self._information[ "success" ]      = False
+
     
-    def __process( self ):
+    def start( self ) -> bool:
         """
-            Server process. Must be called inside a seperate thread from the main thread
-        """
-
-        while self._info[ "running" ]:
-            client_socket, client_address = self._network.accept_connection( 1 )
-
-            if client_socket and client_address:
-                
-                self.__event_client_connect( client_socket, client_address )
-                
-    
-    def start( self ):
-        """
-            Start server execution
+            Start the server
         """
 
-        self._info[ "running" ] = True
+        # Check if we done .setup( ... )
+        if not self._information[ "success" ]:
+            self._information[ "last_error" ]   = f"Cannot start the server execution if it hasn't been setupped."
+            return False
+        
+        # Update is Running flag
+        self._information[ "running" ] = True
 
-        event: c_event = self._events[ "server_start" ]
-        event.invoke( )
-
+        # Call event
+        self.__event_server_start( )
+        
+        # Start to listen for new connections
         self._network.look_for_connections( )
 
+        # Start the server process
         self.__attach_process( )
 
+        return True
 
+    
     def terminate( self ):
         """
             Stop server execution
         """
 
-        # Set running flag to false
-        self._info[ "running" ] = False
+        # Update is Running flag
+        self._information[ "running" ] = False
 
-        # Invoke server stop event
-        event: c_event = self._events[ "server_stop" ]
-        event.invoke( )
+        # Call event
+        self.__event_server_stop( )
 
         # Disconnect all the remaining clients
         for client in self._clients:
             client: c_client_handle = client
 
-            client.disconnect( )
+            #client.disconnect( True )
+            pass
 
         # Close connection
         self._network.end_connection( )
 
 
-    def generate_project_code( self ):
+    def generate_code( self ) -> str:
         """
-            Generate Projece code.
-            This code can be shared with clients to connect
+            Generate project code
         """
 
         local_ip, local_port = self._network.get_address( )
 
         result = f"{ local_ip }:{ local_port }"
-
-        # TODO ?
         result = base64.encode( result )
 
         return result
 
-    # endregion
 
-    # region : Files 
-
-    def register_project_path( self, path ):
+    def __attach_process( self ):
         """
-            Save the project files path.
+            Create a threads for processes
         """
 
-        self._info[ "original_path" ] = path
+        self._information[ "connection_thread" ]    = threading.Thread( target=self.__process_connections )
+        #self._information[ "commands_thread" ]      = threading.Thread( target=self.__process_commands )
 
-        # Besides saving project path. Need also to set up copy files ?
-        # Option 1 : Create copy files and modify them
-        # Option 2 : Modify the original ones
-
-        self.__register_files( )
-
-
-    def __register_files( self ):
-        """
-            Register files by creating copy and saving in files manager
-        """
-
-        path = self._files.create_folder( DEFAULT_COPY_FOLDER, self._info[ "original_path" ] )
-        if path is None:
-            # TODO ! POP Some error
-            return
         
-        self._info[ "project_path" ] = path
+        self._information[ "connection_thread" ].start( )
+        #self._information[ "commands_thread" ].start( )
 
-        self.__dump_folder( path )
-    
 
-    def __dump_folder( self, path: str, folder_name: str = None ):
+    def __process_connections( self ):
+        """
+            Server process. Must be called inside a seperate thread from the main thread
+        """
 
-        with os.scandir( path ) as entries:
+        while self._information[ "running" ]:
 
-            for entry in entries:
+            client_socket, client_address = self._network.accept_connection( 0.5 )
 
-                if entry.is_file( ):
-                    # Is File
-
-                    pass
+            if client_socket and client_address:
                 
-                elif entry.is_dir( ):
-                    # Is Folder
-
-                    # If it is folder, we need to call again to dump it
-
-                    pass
+                self.__event_client_connect( client_socket, client_address )
 
     # endregion
 
-    # region : Events
+    # region : Commands
 
-    def __event_client_connect( self, socket_obj: socket, address: str ):
+    def add_command( self, command: c_cmd ):
         """
-            New Client connects to server event
+            Callback to add command for server commands pool
         """
 
-        # Create new client handle object
+        self._cmds_pool.put( command )
+
+    
+    def __process_commands( self ):
+        """
+            Server process. Handle commands pool
+        """
+
+        while self._information[ "running" ]:
+            
+            # Check if the command pool is not empty
+            if not self._cmds_pool.empty( ):
+
+                # Pull command
+                command: c_cmd = self._cmds_pool.get( block=False )
+
+                self.__handle_command( command )
+
+
+    def __handle_command( self, command: c_cmd ):
+        pass
+
+    # endregion
+
+    # region : Server Events
+
+    def __event_server_start( self ):
+        """
+            Event callback for server start
+        """
+
+        # Invoke the event
+        event: c_event = self._events[ "server_start" ]
+        event.invoke( )
+
+
+    def __event_server_stop( self ):
+        """
+            Event callback for server stop
+        """
+
+        # Invoke the event
+        event: c_event = self._events[ "server_stop" ]
+        event.invoke( )
+
+    
+    def __event_client_connect( self, socket_obj: socket, address: tuple ):
+        """
+            Event callback for new client connect
+        """
+
+        # Create new client handle
         new_client = c_client_handle( )
 
         # Save it
         self._clients.append( new_client )
 
-        # Create connection
+        # Complete the connection
         new_client.connect( socket_obj, address )
 
-        # Attach disconnect callback from the server
-        new_client.set_event( "disconnect", self.__event_client_disconnect, "Server_Disconnect_Callback" )
+        # Set for each client events
+        new_client.set_event( "disconnect",     self.__event_client_disconnect,     "Server_Disconnect_Callback" )
+        new_client.set_event( "register_cmd",   self.__event_client_register_cmd,   "Server_RegisterCommand_Callback" )
 
-        # Execute the event
+        # Call the event
         event: c_event = self._events[ "client_connect" ]
-
-        event.attach( "socket",     socket_obj )
-        event.attach( "address",    address )
-
         event.invoke( )
 
 
     def __event_client_disconnect( self, event ):
         """
-            Client disconnects event
+            Event callback for client disconnect
         """
 
-        # This callback will be executed from client handle, on disconnect event.
-        
-        # Receive the client that want to disconnect
         client: c_client_handle = event( "client" )
 
-        # Delete it
         self._clients.remove( client )
 
-    # endregion
+        # Call the event
+        event: c_event = self._events[ "client_disconnect" ]
+        event.invoke( )
 
-    # region : Utils
+
+    def __event_client_register_cmd( self, event ):
+        """
+            Event callback for client that registers command on server
+        """
+
+        command: c_cmd = event( "command" )
+        self.add_command( command )
 
     # endregion

@@ -1,6 +1,6 @@
 # Protocols. File manager .py
 
-from utilities.safe import safe_call
+from utilities.wrappers import safe_call
 
 import shutil
 import os

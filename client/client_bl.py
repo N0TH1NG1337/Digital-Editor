@@ -4,6 +4,8 @@ from protocols.network  import  *
 from utilities.event    import  c_event
 from utilities.base64   import  base64
 
+import threading
+
 class c_client_business_logic:
     
     _network:   c_network_protocol
@@ -127,19 +129,17 @@ class c_client_business_logic:
         # TODO ! Need later to add check if the client received a DISCONNECT_MSG from server while working, just end connection
         self.__end_connection( )
 
-        # Invoke post_disconnect event
-        # After we done with the connection, in some cases we will just need to clean up somethings.
-        event: c_event = self._events[ "post_disconnect" ]
-        event.invoke( )
-
     def __end_connection( self ):
         """
             Forcly end connection with server, without notifing it
         """
 
-        print( "End connection" )
-
         self._network.end_connection( )
+
+        # Invoke post_disconnect event
+        # After we done with the connection, in some cases we will just need to clean up somethings.
+        event: c_event = self._events[ "post_disconnect" ]
+        event.invoke( )
 
     # endregion
 

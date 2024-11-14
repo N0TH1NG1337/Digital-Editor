@@ -7,8 +7,8 @@ import  OpenGL.GL   as      gl
 from    PIL         import  Image
 import  numpy
 
-from utilities.vector import vector
-from utilities.safe   import safe_call
+from utilities.vector   import vector
+from utilities.wrappers import safe_call
 
 INVALID_ID = -1
 

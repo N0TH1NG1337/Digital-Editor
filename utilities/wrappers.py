@@ -3,7 +3,8 @@
 # Changes : 
 # - file init
 
-from functools import wraps
+from functools import   wraps
+import                  threading
 
 def safe_call( call_on_fail: any = None ):
     """
@@ -29,3 +30,13 @@ def safe_call( call_on_fail: any = None ):
         return safe_fn
 
     return decorator
+
+def standalone_execute( function ):
+
+    @wraps( function )
+    def execute( *args ):
+
+        thread = threading.Thread( target=function, args=args )
+        thread.start( )
+
+    return execute

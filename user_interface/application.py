@@ -11,7 +11,7 @@ from imgui.integrations.glfw import GlfwRenderer
 from utilities.color    import  color
 from utilities.vector   import  vector
 from utilities.math     import  math
-from utilities.safe     import  safe_call
+from utilities.wrappers import  safe_call
 from utilities.image    import  c_image
 from utilities.font     import  c_font
 from utilities.event    import  c_event

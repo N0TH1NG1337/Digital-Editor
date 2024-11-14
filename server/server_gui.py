@@ -84,7 +84,7 @@ class c_server_gui:
 
         self._elements[ "MoveToProject" ] = c_button_dynamic( self._scene_connect, vector( 600, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Next", self.__complete_connection_scene )
 
-        self._elements[ "StopServer" ] = c_button_dynamic( self._scene_project, vector( 50, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Stop Server", self._logic.terminate )
+        self._elements[ "StopServer" ] = c_button_dynamic( self._scene_project, vector( 50, 150 ), 60, self._application.font( "Button" ), self._application.image( "Check" ), "Stop Server", self.__complete_project_scene )
         #self._elements[ "Editor" ] = c_editor( self._scene_project, vector( 0, 150 ), vector( 500, 500 ), self._application.font( "Editor" ) )
         #self._elements[ "Editor" ].insert_line( "" )
 
@@ -170,7 +170,14 @@ class c_server_gui:
         self._logic.setup( ip_entry.get( ), int( port_entry.get( ) ) )
         self._logic.start( )
 
-        print( self._logic.generate_project_code( ) )
+        code = self._logic.generate_code( )
+        glfw.set_clipboard_string( None, code )
+
+    def __complete_project_scene( self ):
+
+        self._logic.terminate( )
+        
+        self._application.active_scene( self._scene_start.index( ) )
 
     def __init_logic( self ):
 
