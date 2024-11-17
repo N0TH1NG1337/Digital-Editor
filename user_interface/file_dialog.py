@@ -3,6 +3,8 @@
 # Will be used only once, in the server, the user will need to select a path to copy the files from it.
 # In this file, will be included, sub_file_clas, sub_folder_class that will be used only for the file dialog widget
 
+# TODO ! Add files visuals in the preview of the file dialog.
+
 import glfw
 import os
 
@@ -497,7 +499,7 @@ class c_file_dialog:
         return self._parent
     
     def get_path( self ) -> str:
-
+        
         return self._active_folder.absolute_path( )
     
     def get_files( self ) -> list:

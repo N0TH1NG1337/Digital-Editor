@@ -10,11 +10,54 @@ from utilities.paths        import *
 
 import threading
 import queue
+import time
+
+
+DEFAULT_FOLDER_NAME = "Digital Files"
 
 
 class c_cmd:
+    # Example:
     
-    pass
+    # cmd -> FILE_PROC::REG_COPY->c:\\files\\folder->test.py
+
+    # Protocol  : File Protocol
+    # Command   : Register copy file
+    # Arguments :   1. path
+    #               2. name
+    
+    _username:  str     # Clients username that requested the command
+    _raw:       str     # Raw message
+
+    _command:   str     # Command it self. 
+
+    _arguments: list    # Arguments
+
+    def __init__( self, username: str, raw: str ):
+
+        self._username  = username
+        self._raw = raw
+
+        self._command   = ""
+        self._arguments = [ ]
+
+    def username( self ) -> str:
+        return self._username
+    
+    def raw( self ) -> str:
+        return self._raw
+    
+    def command( self ) -> str:
+        return self._command
+    
+    def set_command( self, command: str ):
+        self._command = command
+    
+    def arguments( self ) -> list:
+        return self._arguments
+    
+    def add_argument( self, value: any ):
+        self._arguments.append( value )
 
 
 class c_client_handle:
@@ -146,6 +189,14 @@ class c_client_handle:
             if res == DISCONNECT_MSG:
                 self.disconnect( False )
 
+            # Manuall checks
+
+            # Create new command object
+            new_cmd = c_cmd( self._information[ "username" ], res )
+
+            # Pass it to the server command queue
+            self.__event_register_cmd( new_cmd )
+
     # endregion
 
     # region : Events
@@ -194,6 +245,20 @@ class c_client_handle:
         
         event: c_event = self._events[ event_type ]
         event.set( callback, index, True )
+
+    # endregion
+
+    # region : Utils
+
+    def __call__( self, index: str ) -> any:
+        """
+            Index clients information
+        """
+
+        if index in self._information:
+            return self._information[ index ]
+        
+        return None
 
     # endregion
 
@@ -367,11 +432,11 @@ class c_server_business_logic:
         """
 
         self._information[ "connection_thread" ]    = threading.Thread( target=self.__process_connections )
-        #self._information[ "commands_thread" ]      = threading.Thread( target=self.__process_commands )
+        self._information[ "commands_thread" ]      = threading.Thread( target=self.__process_commands )
 
         
         self._information[ "connection_thread" ].start( )
-        #self._information[ "commands_thread" ].start( )
+        self._information[ "commands_thread" ].start( )
 
 
     def __process_connections( self ):
@@ -413,10 +478,107 @@ class c_server_business_logic:
                 command: c_cmd = self._cmds_pool.get( block=False )
 
                 self.__handle_command( command )
+            else:
+
+                # If our command queue is empty, just sleep for 0.5 seconds.
+                # Othersize this thread will run million times per second.
+                time.sleep( 0.5 )
 
 
     def __handle_command( self, command: c_cmd ):
-        pass
+        """
+            Handle command request
+        """
+
+        username    = command.username( )
+        raw         = command.raw( )
+
+        client: c_client_handle = self.find_client( username )
+
+        if raw.startswith( self._files.get_header( ) ):
+            # File Protocol command
+            pass
+
+    # endregion
+
+    # region : Files
+
+    def initialize_path( self, path: str ):
+        """
+            Create and setup the project files path.
+        """
+
+        self._information[ "original_path" ]    = path
+        
+        self.__setup_path( )
+        self.__setup_files( )
+
+    def __setup_path( self ):
+        
+        original_path   = self._information[ "original_path" ]
+        normal_path     = f"{ original_path }\\{ DEFAULT_FOLDER_NAME }"
+
+        self._information[ "normal_path" ] = normal_path
+        
+        if not os.path.exists( normal_path ):
+            os.mkdir( normal_path )
+
+    def __setup_files( self ):
+
+        # Here need to make a copy of each file to the new path.
+        # Besides, create for each file another file that stores all the changes
+        original_path   = self._information[ "original_path" ]
+
+        self.__dump_path( original_path )
+
+    def __dump_path( self, path: str ):
+        
+        normal_path = self._information[ "normal_path" ]
+
+        with os.scandir( path ) as entries:
+
+            for entry in entries:
+
+                if entry.is_file( ):
+                    # Is File
+
+                    # Create the copy file it self
+
+                    file = self._files.create_new_file( entry.name )
+                    file.copy_from( path, normal_path )
+
+                    # Get file fixed name without type
+                    try:
+                        file_name, file_type = file.parse_name( )
+                    
+                        # Create file that will contain all the changes
+                        changes = self._files.create_new_file( f"{ file_name }_changes.txt" )
+                        changes.create_new( normal_path )
+
+                    except Exception:
+                        pass
+                
+                elif entry.is_dir( ) and entry.name != DEFAULT_FOLDER_NAME and not entry.name.startswith( "." ):
+                    # Is Folder
+
+                    self.__dump_path( f"{ path }\\{ entry.name }" )
+    
+    # endregion
+
+    # region : Clients operations
+
+    def find_client( self, username: str ) -> c_client_handle:
+        """
+            Tries to find client by username
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if client( "username" ) == username:
+                return client
+            
+        return None
 
     # endregion
 

@@ -136,17 +136,6 @@ class c_server_gui:
 
         self._application.render( ).text( title_font, vector( 50, 50 ), color( 156, 140, 182 ) * fade, "Project" )
 
-        file_dialog: c_file_dialog = self._elements[ "PathPicker" ]
-        path = file_dialog.get_path( )
-
-        # Need to find files
-        files = os.listdir( path )
-        drop = 0
-
-        #for file in files:
-        #    self._application.render( ).text( button_font, vector( 50, 150 + drop ), color( 156, 140, 182 ) * fade, file )
-        #    drop += 24
-
     # endregion
 
     # region : Initialize Server Logic
@@ -156,6 +145,10 @@ class c_server_gui:
         self._application.active_scene( self._scene_files.index( ) )
 
     def __complete_files_scene( self ):
+
+        file_dialog: c_file_dialog = self._elements[ "PathPicker" ]
+
+        self._logic.initialize_path( file_dialog.get_path( ) )
 
         self._application.active_scene( self._scene_connect.index( ) )
 

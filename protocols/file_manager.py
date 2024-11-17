@@ -17,13 +17,64 @@ FILE_MANAGER_HEADER = "FL_UNK"
 # Besides... Need to decide if the client saves the files or no.
 
 class c_file:
-    # Base class for each file, the application will need to handle
-    
-    _name:  str
-    _path:  str
+    # This class will have all the server files.
 
-    def __init__( self ):
-        pass
+    # Data, Users, Changes and more.
+    _name:              str     # File's name. Indcluding the type.
+
+    _original_path:     str     # Original file. DO NOT TOUCH
+    _normal_path:       str     # Project new folder path
+
+    def __init__( self, name: str ):
+        # Default constructor
+
+        self._name              = name
+        self._normal_path       = None
+
+    def create_new( self, path: str ):
+        # This will create new empty file
+        
+        file_path = f"{ path }\\{ self._name }"
+
+        try:
+            os.makedirs( os.path.dirname( file_path ), exist_ok=True )
+
+            with open( file_path, 'w' ) as f:
+                pass
+            
+            self._normal_path = path
+
+            return None
+        
+        except Exception as e:
+            return str( e )
+
+    def copy_from( self, path_from: str, path_to: str ):
+        # This will create new file and copy the content from other file
+        
+        file_path_from = f"{ path_from }\\{ self._name }"
+        file_path_to = f"{ path_to }\\{ self._name }"
+
+        if not os.path.exists( file_path_from ):
+            return f"Failed to find original file { file_path_from }"
+        
+        try:
+            shutil.copy( file_path_from, file_path_to )
+
+            self._normal_path = path_to
+        except Exception as e:
+            return str( e )
+        
+        return None
+
+    @safe_call( None )
+    def parse_name( self ) -> tuple:
+        # Convert the name with type into tuple
+
+        information = self._name.rsplit( ".", 1 )
+
+        return information[ 0 ], information[ 1 ]
+
 
 
 class c_file_manager_protocol:
@@ -31,35 +82,34 @@ class c_file_manager_protocol:
     _last_error:    str
     _files:         dict
 
+    # region : Initialize protocol
+
     def __init__( self ):
+        self._last_error = ""
         self._files = { }
 
-    def register_file( self, file_name: str, file_path: str ):
+    # endregion
 
-        self._files[ file_name ] = file_path
+    # region : Shared
 
+    # endregion
 
-    @safe_call( None )
-    def create_folder( self, name: str, path: str ) -> str:
-        
-        fixed_name = f"{ path }\\{ name }"
-        os.mkdir( fixed_name )
+    # region : Register
 
-        return fixed_name
-    
-    @safe_call( None )
-    def copy_file( self, path_from: str, path_to: str ) -> bool:
-        
-        if not os.path.exists( path_from ):
-            self._last_error = f"Failed to fine {path_from}"
-            raise Exception( self._last_error )
-        
-        shutil.copy( path_from, path_to )
+    def create_new_file( self, name: str ) -> c_file:
+        # Create file handle
 
-        return True
+        new_file = c_file( name )
+        self._files[ name ] = new_file
+
+        return new_file
+
+    # region : Utils
 
     def get_header( self ):
         return FILE_MANAGER_HEADER
     
     def get_last_error( self ):
         return self._last_error
+
+    # endregion
