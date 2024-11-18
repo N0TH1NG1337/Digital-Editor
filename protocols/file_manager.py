@@ -31,6 +31,9 @@ class c_file:
         self._name              = name
         self._normal_path       = None
 
+    def name( self ) -> str:
+        return self._name
+
     def create_new( self, path: str ):
         # This will create new empty file
         
@@ -91,6 +94,39 @@ class c_file_manager_protocol:
     # endregion
 
     # region : Shared
+
+    def get_files( self ) -> dict:
+        # Returns access the all the files
+
+        return self._files
+
+    def share_files( self ) -> list:
+        # Share each file.
+
+        files_list = [ ]
+
+        for file in self._files:
+            file: c_file = file
+
+            name = file.name( )
+            if not name.endswith( "_changes.txt" ):
+                files_list.append( name )
+
+        return self.format_message( "sync_files", files_list )
+
+    def format_message( self, message: str, arguments: list ):
+
+        return f"{ FILE_MANAGER_HEADER }::{message}->{ "->".join( arguments ) }"
+
+    def parse_message( self, message: str ):
+
+        first_parse = message.split( "::" )
+        
+        information = first_parse[ 1 ].split( "->" )
+        command = information[ 0 ]
+        information.pop( 0 )
+
+        return command, information
 
     # endregion
 

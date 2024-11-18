@@ -250,6 +250,13 @@ class c_client_handle:
 
     # region : Utils
 
+    def network( self ) -> c_network_protocol:
+        """
+            Access clients network connection
+        """
+
+        return self._network
+
     def __call__( self, index: str ) -> any:
         """
             Index clients information
@@ -513,6 +520,10 @@ class c_server_business_logic:
         self.__setup_path( )
         self.__setup_files( )
 
+    def __setup_files_for_client( self, client: c_client_handle ):
+        files = self._files.share_files( )
+        client.network( ).send( files )
+
     def __setup_path( self ):
         
         original_path   = self._information[ "original_path" ]
@@ -621,6 +632,8 @@ class c_server_business_logic:
         # Set for each client events
         new_client.set_event( "disconnect",     self.__event_client_disconnect,     "Server_Disconnect_Callback" )
         new_client.set_event( "register_cmd",   self.__event_client_register_cmd,   "Server_RegisterCommand_Callback" )
+
+        self.__setup_files_for_client( new_client )
 
         # Call the event
         event: c_event = self._events[ "client_connect" ]

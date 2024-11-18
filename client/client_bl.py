@@ -1,14 +1,16 @@
 # Client - Business Logic .py
 
-from protocols.network  import  *
-from utilities.event    import  c_event
-from utilities.base64   import  base64
+from protocols.network          import  *
+from protocols.file_manager     import  * 
+from utilities.event            import  c_event
+from utilities.base64           import  base64
 
 import threading
 
 class c_client_business_logic:
     
     _network:   c_network_protocol
+    _files:     c_file_manager_protocol
 
     _info:      dict
     _events:    dict
@@ -171,8 +173,14 @@ class c_client_business_logic:
         if receive == DISCONNECT_MSG:
             return self.__end_connection( )
 
-        return
+        if receive.startswith( self._files.get_header( ) ):
+            command, arguments = self._files.parse_message( receive )
+            if command == "sync_files":
 
+                for file_name in arguments:
+                    self._files.create_new_file( file_name )
+
+        return
 
     # endregion
 
