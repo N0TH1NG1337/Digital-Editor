@@ -1,0 +1,154 @@
+"""
+    project     : Digital Editor
+
+    type:       : Utility
+    file        : Color
+
+    description : Color class
+"""
+
+from utilities.math import math
+
+import imgui
+
+# Define function from imgui
+color32u = imgui.get_color_u32_rgba
+
+# RGBA Color class
+
+class color:
+
+    r: float    # Red   value
+    g: float    # Green value
+    b: float    # Blue  value
+    a: float    # Alpha value
+
+    # region : Initialize object
+
+    def __init__( self, r: int | float = 255, g: int | float = 255, b: int | float = 255, a: int | float = 255 ):
+        """
+            Color class constructor
+
+            Receives:   
+            - r [optional] - start value for red  
+            - g [optional] - start value for green
+            - b [optional] - start value for blue
+            - a [optional] - start value for alpha
+
+            Returns:    Color object
+        """
+
+        self.r = r
+        self.g = g 
+        self.b = b
+        self.a = a
+
+    # endregion
+
+    # region : Utilities
+
+    def copy( self ) -> any:
+        """
+            Create another instance of color object as the one called from
+
+            Receives:   None
+
+            Returns:    Color object
+        """
+
+        return color( self.r, self.g, self.b, self.a ) 
+    
+    
+    def unpack( self ) -> tuple:
+        """
+            Unpacks and returns tuple value from color object
+
+            Receives:   None
+
+            Returns:    Tuple
+        """
+
+        return self.r, self.g, self.b, self.a
+
+    # endregion
+
+    # region : Operations
+
+    def alpha_override( self, new_alpha: int | float ) -> any:
+        """
+            Create new instance of color object with new alpha
+
+            Receives:   
+            - new_alpha - new alpha value for new color
+
+            Returns:    Color object
+        """
+
+        return color( self.r, self.g, self.b, new_alpha )
+    
+
+    def lieaner( self, other: any, weight: float, hold: float = 0.01 ) -> any:
+        """
+            Linear interpolation between 2 colors
+        
+            Receives:   
+            - other             - other color
+            - weight            - weight between the 2 colors 
+            - hold [optional]   - breaks limit interpolation.
+
+            Returns:    New Color object
+        """
+
+        return color(
+            math.linear( self.r, other.r, weight, hold ),
+            math.linear( self.g, other.g, weight, hold ),
+            math.linear( self.b, other.b, weight, hold ),
+            math.linear( self.a, other.a, weight, hold )
+        )
+
+    # endregion
+
+    # region : Operators overload
+
+    def __str__( self ):
+        """
+            Override ToString function for color object
+        
+            Receives:   None
+
+            Returns:    string representing color
+        """
+
+        return f"color({ self.r }, { self.g }, { self.b }, { self.a })"
+
+
+    def __mul__( self, over_alpha: int | float ) -> any:
+        """
+            Override Multipy operator to adjust alpha value
+
+            Receives:   
+            - over_alpha - from 0 or 1 value adjust
+
+            Returns:    Color object
+        """
+
+        return color( self.r, self.g, self.b, self.a * over_alpha )
+    
+
+    def __call__( self ):
+        """
+            Function to return an u32 color type for ImGui Render
+
+            Receives:   None
+
+            Returns:    ImColor object
+        """
+
+        return color32u(
+            self.r / 255,
+            self.g / 255,
+            self.b / 255,
+            self.a / 255
+        )
+
+    # endregion
