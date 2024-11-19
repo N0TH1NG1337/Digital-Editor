@@ -6,3 +6,6 @@
 
     description : Window class
 """
+
+class c_window:
+    pass
