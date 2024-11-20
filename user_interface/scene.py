@@ -11,10 +11,7 @@ import OpenGL.GL as gl
 import glfw
 import imgui
 
-# Import renderer backend
-from imgui.integrations.glfw import GlfwRenderer
-
-# Import utilities for application
+# Import utilities
 from utilities.color    import color
 from utilities.vector   import vector
 from utilities.math     import math
@@ -145,7 +142,7 @@ class c_scene:
 
         event: c_event = self._events[ "draw" ]
 
-        event.attach( "scene", self )
+        event.attach( "parent", self )
 
         event.invoke( )
 
@@ -163,6 +160,10 @@ class c_scene:
 
             Returns:    None
         """
+
+        if self.is_any_window_active( ):
+            return self.last_window( ).event_keyboard_input( window, key, scancode, action, mods )
+        
 
         event: c_event = self._events[ "keyboard_input" ]
 
@@ -186,6 +187,9 @@ class c_scene:
             Returns:    None
         """
 
+        if self.is_any_window_active( ):
+            return self.last_window( ).event_char_input( window, char )
+
         event: c_event = self._events[ "char_input" ]
 
         event.attach( "window",      window )
@@ -205,6 +209,9 @@ class c_scene:
 
             Returns:    None
         """
+
+        if self.is_any_window_active( ):
+            return self.last_window( ).event_mouse_position( window, x, y )
 
         event: c_event = self._events[ "mouse_position" ]
 
@@ -228,6 +235,9 @@ class c_scene:
             Returns:    None
         """
 
+        if self.is_any_window_active( ):
+            return self.last_window( ).event_mouse_input( window, button, action, mods )
+
         event: c_event = self._events[ "mouse_input" ]
 
         event.attach( "window",      window )
@@ -249,6 +259,9 @@ class c_scene:
 
             Returns:    None
         """
+
+        if self.is_any_window_active( ):
+            return self.last_window( ).event_mouse_scroll( window, x_offset, y_offset )
 
         event: c_event = self._events[ "mouse_scroll" ]
 
@@ -312,6 +325,19 @@ class c_scene:
         window.index( self._windows.index( window ) )
 
     
+    def deattach_window( self, window: c_window ) -> None:
+        """
+            De Attach window from the scene
+
+            Receive : 
+            - window - Window object to remove from the scene
+
+            Returns :   None
+        """
+
+        self._windows.remove( window )
+
+    
     def is_any_window_active( self ) -> bool:
         """
             Is there any attached window 
@@ -334,6 +360,24 @@ class c_scene:
         """
 
         return self._windows[ len( self._windows ) - 1 ]
+
+    # endregion
+
+    # region : Elements
+
+    def attach_element( self, item: any ) -> int:
+        """
+            Attach new element to this scene
+
+            Receive :   
+            - item - item object
+
+            Returns : Item index
+        """
+
+        self._elements.append( item )
+
+        return self._elements.append( item )
 
     # endregion
 
@@ -404,8 +448,16 @@ class c_scene:
 
         self.__event_draw( )
 
+        # Render elemements
         for item in self._elements:
             item.draw( fade )
+
+        # Render windows
+        for window in self._windows:
+            window: c_window = window
+
+            window.show( self._show )
+            window.draw( )
         
     # endregion
 

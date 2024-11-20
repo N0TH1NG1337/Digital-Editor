@@ -6,7 +6,7 @@
 
     description : Main Application class
 """
-
+ 
 import OpenGL.GL as gl
 import glfw
 import imgui
@@ -54,19 +54,24 @@ class c_application:
 
     _last_error:        str             # Last application error
 
+    _config:            application_config_t
+
     # region : Initialize object
 
-    def __init__( self ):
+    def __init__( self, config: application_config_t = None ):
         """
             Default constructor for application
 
-            Receives:   None
+            Receives:   
+            - config [optional] - Application config
 
             Returns:    Application object
         """
 
         # Application handle must be at first None
         self._app           = None
+
+        self._config = config is None and application_config_t( ) or config
 
         # Create render object
         self._render        = c_renderer( )
@@ -114,7 +119,6 @@ class c_application:
         
         # 4. Init backend
         if not self.__init_backend( ):
-            self.close_window( )    # If error occured in self.__init_backend( ). It will just return None
             return False
         
 
@@ -123,22 +127,6 @@ class c_application:
         self._data[ "images" ]  = { }
 
         return True
-
-    
-    def close_window( self ) -> None:
-        """
-            Close application window.
-            Moreover, cleans up the leftover
-
-            Receives:   None
-
-            Returns:    None
-        """
-
-        if self._app is not None:
-            glfw.set_window_should_close( self._app, True )
-
-        glfw.terminate( )
 
 
     @safe_call( None )
@@ -641,5 +629,204 @@ class c_application:
         event.attach( "paths",      paths )
 
         event.invoke( )
+
+    # endregion
+
+    # region : Run Time
+
+    def run( self ) -> None:
+        """
+            Main application window loop execution
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        # Check if we have window initialized
+        if not self._app:
+            raise Exception( "Failed to find application window. make sure you have first called .create_window()" )
+        
+        # Check if initialized events
+        if not "is_events_initialize" in self._data:
+            raise Exception( "Failed to verify events initialize. make sure you have first called .initialize_events() before .run()" )
+        
+        # Loop while application is running
+        while not glfw.window_should_close( self._app ):
+
+
+            # Process window events
+            self.__process_input( )
+
+            # Create new frame
+            self.__pre_new_frame( )
+
+            # Update our render
+            self._render.update( )
+
+            # MAIN STAFF HERE
+            self.__draw_background( )
+            self.__draw_scenes( )
+
+            # Clear color buffer
+            self.__clean_buffer( )
+
+            # Complete creation of new frame
+            self.__post_new_frame( )
+
+            # Swap buffers
+            glfw.swap_buffers( self._app )
+
+        # Exit application
+        self.__unload( )
+
+
+    def __draw_background( self ) -> None:
+        """
+            Render background for application
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        size:       vector  = self.window_size( )
+
+        self._render.gradiant(
+            vector( ), size, 
+            self._config.back_color_1,
+            self._config.back_color_2,
+            self._config.back_color_3,
+            self._config.back_color_4
+        )
+
+
+    def __draw_scenes( self ) -> None:
+        """
+            Draw all scenes
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        for scene in self._scenes:
+            scene: c_scene = scene
+
+            scene.show( scene.index( ) == self._active_scene )
+            scene.draw( )
+
+
+    def __process_input( self ) -> None:
+        """
+            Pulls and process window events and input
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        glfw.poll_events( )
+        self._impl.process_inputs( )
+
+
+    def __pre_new_frame( self ) -> None:
+        """
+            Before .new_frame was called
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "pre_draw" ]
+        event.attach( "application", self )
+
+        event.invoke( )
+
+        imgui.new_frame( )
+
+
+    def __post_new_frame( self ) -> None:
+        """
+            After new frame was done, render it
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        imgui.render( )
+        self._impl.render( imgui.get_draw_data( ) )
+
+        event: c_event = self._events[ "post_draw" ]
+        event.attach( "application", self )
+
+        event.invoke( )
+
+
+    def __clean_buffer( self ) -> None:
+        """
+            Clears color buffer
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        gl.glClearColor( 1, 1, 1, 1 )
+        gl.glClear( gl.GL_COLOR_BUFFER_BIT )
+
+
+    def __unload( self ) -> None:
+        """
+            Application unload function
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "unload" ]
+        event.attach( "ui", self )
+
+        event.invoke( )
+
+        self._impl.shutdown( )
+        glfw.terminate( )
+
+    # endregion
+
+    # region : Utilities
+
+    def window_size( self ) -> vector:
+        """
+            Get window size.
+            Note ! Doesnt include the top bar windows adds.
+
+            Receive :   None
+
+            Returns :   Vector object
+        """
+
+        return vector( ).raw( glfw.get_window_size( self._app ) )
+
+
+    def close_window( self, avoid_glfw_terminate: bool = False ) -> None:
+        """
+            Close application window.
+            Moreover, cleans up the leftover
+
+            Receives:   
+            - avoid_glfw_terminate [optional] - Dont terminate glfw context on call
+
+            Returns:    None
+        """
+
+        if self._app is not None:
+            glfw.set_window_should_close( self._app, True )
+
+        if not avoid_glfw_terminate:
+            glfw.terminate( )
 
     # endregion
