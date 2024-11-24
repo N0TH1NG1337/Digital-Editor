@@ -4,7 +4,10 @@
     type:       : User Interface
     file        : Application
 
-    description : Main Application class
+    description : Main Application class.
+
+    TODO ! Change the mouse possition change callback. 
+    Better to track each frame everything at the time, rather than call only the action scene.
 """
  
 import OpenGL.GL as gl
@@ -147,7 +150,7 @@ class c_application:
         
         return True
     
-    
+
     @safe_call( None )
     def __init_window( self ) -> bool:
         """

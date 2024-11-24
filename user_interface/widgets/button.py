@@ -60,7 +60,8 @@ class c_button:
 
     # Private button data 
     _is_hovered:            bool
-    _width:                 int
+    _width:                 float
+    _icon_width:            int
     _text_size:             vector
 
     # region : Initialize button
@@ -131,7 +132,8 @@ class c_button:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Width",   0 )
+        self._animations.prepare( "Add",    0 )
+        self._animations.prepare( "Width",  0 )
         self._animations.prepare( "Hover",  0 )
 
 
@@ -146,6 +148,7 @@ class c_button:
 
         self._is_hovered        = False
         self._width             = 0
+        self._icon_width        = self._icon.size( ).x + 2 * self._config.pad
         self._text_size         = vector( )
 
         self._relative_position = self._position.copy( )
@@ -169,9 +172,7 @@ class c_button:
 
         self.__draw_background( fade )
 
-        self.__draw_text_and_icon( fade )
-
-        self._render.pop_clip_rect( )
+        self.__draw( fade )
 
 
     def __preform( self ):
@@ -187,7 +188,7 @@ class c_button:
         seperate:           int     = self._config.seperate
 
         self._text_size:    vector  = self._render.measure_text( self._font, self._text )
-        self._width:        int     = pad * 4 + self._icon.size( ).x + self._text_size.x + seperate
+        self._width:        float   = self._animations.value( "Add" ) + self._text_size.x + pad * 2 
 
         # Do position staff.
         # I could use self._render.push_position, but I dont want.
@@ -207,61 +208,50 @@ class c_button:
 
         self._animations.update( )
 
-        speed:  int = self._config.speed
-        pad:    int = self._config.pad
-
-        compresed_size = pad * 2 + self._text_size.x
+        seperate:   int     = self._config.seperate
+        speed:      int     = self._config.speed
+        pad:        int     = self._config.pad
         
         self._animations.preform( "Hover",  self._is_hovered and 1 or 0, speed )
-        self._animations.preform( "Width",   self._is_hovered and self._width or compresed_size, speed )
+        self._animations.preform( "Add",    self._is_hovered and self._icon_width + seperate or 0, speed, 0.5 )
 
 
     def __draw_background( self, fade: float ):
         """
             Draw buttons background. 
 
-            Receive :   None
+            Receive :   
+            - fade - Parent background fade factor
 
             Returns :   None
         """
-
-       
-        seperate:       int     = self._config.seperate
-        pad:            int     = self._config.pad
-        roundness:      int     = self._config.roundness
-
-        seperate_color: color   = self._config.seperate_color
-        back_color:     color   = self._config.back_color
-
-        part_height:    int     = ( self._height - 10 ) / 2
+        if not self._config.show_back:
+            return
         
-        width:          float   = self._animations.value( "Width" )
+
+        roundness:      int     = self._config.roundness
+        back_color:     color   = self._config.back_color
         hover:          float   = self._animations.value( "Hover" ) * fade
 
-        if self._config.show_back:
-            self._render.rect_outline(
-                self._position,
-                self._position + vector( width, self._height ),
-                back_color * hover,
-                3,
-                roundness
-            )
-
-
-        seperate_position = self._position + vector( pad * 2 + self._text_size.x, self._height / 2 )
-        self._render.rect( 
-            seperate_position + vector( 0, -part_height * hover ),
-            seperate_position + vector( seperate, part_height * hover ),
-            seperate_color * fade * hover,
-            seperate / 2
+        self._render.gradiant(
+            self._position,
+            self._position + vector( self._width, self._height ),
+            back_color * 0,
+            back_color * hover,
+            back_color * 0,
+            back_color * hover,
+            roundness
         )
 
-        self._render.push_clip_rect( self._position, self._position + vector( width, self._height ) )
 
-
-    def __draw_text_and_icon( self, fade: float ):
+    def __draw( self, fade: float ):
         """
             Draw buttons text and icon.
+
+            Receive : 
+            - fade - Parent background fade factor
+
+            Returns :   None
         """
 
         seperate:       int     = self._config.seperate
@@ -269,14 +259,34 @@ class c_button:
         text_color:     color   = self._config.text_color
         icon_color:     color   = self._config.icon_color
 
-        hover:          float   = self._animations.value( "Hover" )
+        seperate_color: color   = self._config.seperate_color
+
+        part_height:    int     = ( self._height - 10 ) / 2
+
+        hover:          float   = self._animations.value( "Hover" ) * fade
+        add:            float   = self._animations.value( "Add" )
         hover_text:     float   = max( hover, 0.3 ) * fade
 
-        text_position:  vector  = vector( self._position.x + pad, self._position.y + ( self._height - self._text_size.y ) / 2 )
-        icon_position:  vector  = vector( self._position.x + pad * 2 + self._text_size.x + seperate + pad * hover, self._position.y + ( self._height - self._icon.size( ).y ) / 2 )
-        self._render.text( self._font, text_position, text_color * hover_text, self._text )
+        hovered_pad:    float   = pad * hover
 
-        self._render.image( self._icon, icon_position, icon_color * fade )
+        text_position:      vector  = vector( self._position.x + pad + add, self._position.y + ( self._height - self._text_size.y ) / 2 )
+        icon_position:      vector  = vector( self._position.x + hovered_pad, self._position.y + ( self._height - self._icon.size( ).y ) / 2 )
+        seperate_position:  vector  = self._position + vector( self._icon_width, self._height / 2 )
+        
+        self._render.push_clip_rect( self._position, vector( text_position.x, self._position.y + self._height ) )
+
+        self._render.image( self._icon, icon_position, icon_color * hover )
+
+        self._render.rect( 
+            seperate_position + vector( 0, -part_height * hover ),
+            seperate_position + vector( seperate, part_height * hover ),
+            seperate_color * fade * hover,
+            seperate / 2
+        )
+
+        self._render.pop_clip_rect( )
+
+        self._render.text( self._font, text_position, text_color * hover_text, self._text )
 
     # endregion
 
@@ -299,9 +309,8 @@ class c_button:
             return
         
         mouse_positon:  vector  = vector( x, y )
-        width:          float   = self._animations.value( "Width" )
 
-        if mouse_positon.is_in_bounds( self._relative_position, width, self._height ):
+        if mouse_positon.is_in_bounds( self._relative_position, self._width, self._height ):
             
             # Check if we hovered and can have the handle. Also register self object
             self._is_hovered = self._parent.try_to_get_handle( self._index )
@@ -370,6 +379,6 @@ class c_button:
             Returns :   Vector object
         """
 
-        return vector( self._animations.value( "Width" ), self._height )
+        return vector( self._width, self._height )
 
     # endregion
