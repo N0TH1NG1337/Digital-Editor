@@ -10,6 +10,7 @@
 import OpenGL.GL as gl
 import glfw
 import imgui
+import random
 
 # Import utilities
 from utilities.color    import color
@@ -23,11 +24,17 @@ from utilities.event    import c_event
 # Import user interface related things
 from user_interface.render      import c_renderer
 from user_interface.animations  import c_animations
-from user_interface.window      import c_window
+from user_interface.window      import c_window, window_config_t
 
 
 class scene_config_t:
-    speed: int = 7
+    speed:              int     = 8
+
+    animate_entrance:   bool    = True
+
+    enable_stars:       bool    = True
+    stars_speed:        int     = 20
+    stars_count:        int     = 200
 
 
 # Scene class
@@ -45,6 +52,8 @@ class c_scene:
     _animations:    c_animations    # Animations handle
 
     _config:        scene_config_t  # Scene config settings
+
+    _stars:         list            # Special
 
     _active_handle: int             # Active element handle
 
@@ -73,6 +82,9 @@ class c_scene:
 
         # Setup events
         self.__initialize_events( )
+
+        if self._config.enable_stars:
+            self.__initialize_stars( )
 
 
     def __initialize_default_values( self ) -> None:
@@ -106,6 +118,10 @@ class c_scene:
         self._animations    = c_animations( )
 
         self._animations.prepare( "Fade", 0 )
+        self._animations.prepare( "Slide", -50 )
+
+        if self._config.enable_stars:
+            self._animations.prepare( "StarsVelocity", vector( ) )
 
 
     def __initialize_events( self ) -> None:
@@ -127,6 +143,40 @@ class c_scene:
         self._events[ "mouse_input" ]       = c_event( )
         self._events[ "mouse_scroll" ]      = c_event( )
     
+
+    def __initialize_stars( self ) -> None:
+        """
+            Setup stars for the scene
+            
+            Receives:   None
+
+            Returns:    None
+        """
+
+        self._stars = [ ]
+
+        screen_size: vector = self._parent.window_size( )
+
+        for i in range( self._config.stars_count ):
+
+            star = [ vector( ), vector( ), 0, 0 ]
+
+            # position
+            star[ 0 ].x = random.randint( 0, screen_size.x )
+            star[ 0 ].y = random.randint( 0, screen_size.y )
+
+            # alpha
+            star[ 2 ] = random.uniform( 0.2, 0.5 )
+
+            # size
+            star[ 3 ] = random.uniform( 1, 2 )
+
+            # velocity
+            star[ 1 ].x = random.uniform( -2, 2 ) * self._config.stars_speed
+            star[ 1 ].y = random.uniform( -2, 2 ) * self._config.stars_speed
+
+            self._stars.append( star )
+
     # endregion
 
     # region : Events
@@ -295,16 +345,19 @@ class c_scene:
 
     # region : Pop up windows
 
-    def create_window( self ) -> c_window:
+    def create_window( self, position: vector, size: vector, config: window_config_t = None ) -> c_window:
         """
             Create new pop up window and attach it
             
-            Receives:   None
+            Receives:   
+            - position              - Window position
+            - size                  - Window size
+            - config [optional]     - Window config
 
             Returns:    Window object
         """
 
-        new_window = c_window( )
+        new_window = c_window( self, position, size, config )
 
         self.attach_window( new_window )
 
@@ -336,6 +389,23 @@ class c_scene:
         """
 
         self._windows.remove( window )
+
+
+    def disable_window( self, window: c_window = None ) -> None:
+        """
+            Disables window in the windows list.
+            If None provided, disables the last window
+
+            Receive :   
+            - window [optional] - window to disable
+
+            Returns :   None
+        """
+
+        if window is None:
+            window = self._windows[ len( self._windows ) - 1 ]
+
+        window.show( False )
 
     
     def is_any_window_active( self ) -> bool:
@@ -377,7 +447,7 @@ class c_scene:
 
         self._elements.append( item )
 
-        return self._elements.append( item )
+        return self._elements.index( item )
 
     # endregion
 
@@ -444,7 +514,19 @@ class c_scene:
 
         self._animations.update( )
 
-        fade: float = self._animations.preform( "Fade", self._show and 1 or 0, self._config.speed )
+        if self._show:
+            fade:       float   = self._animations.preform( "Fade",     1, self._config.speed )
+            slide:      float   = self._animations.preform( "Slide",    0, self._config.speed, 1 )
+        else:
+            fade:       float   = self._animations.preform( "Fade",     0, self._config.speed )
+            slide:      float   = self._animations.preform( "Slide",    -50, self._config.speed )
+
+        animate:    bool    = self._config.animate_entrance
+
+        self.__draw_background( fade )
+
+        if animate:
+            self._render.push_position( vector( slide, 0 ) )
 
         self.__event_draw( )
 
@@ -456,9 +538,48 @@ class c_scene:
         for window in self._windows:
             window: c_window = window
 
-            window.show( self._show )
+            window.show( window.show( ) and self._show )
             window.draw( )
+
+        if animate:
+            self._render.pop_position( )
         
+
+    def __draw_background( self, fade: float ) -> None:
+        """
+            Render stars background.
+
+            Receive :   
+            - fade - Scene fade factor
+
+            Returns :   None
+        """
+
+        if not self._config.enable_stars:
+            return
+        
+        frame_time:     float   = self._animations.interpolation( )
+        velocity:       vector  = self._animations.value( "StarsVelocity" )
+        screen_size:    vector  = self._parent.window_size( )
+
+        for star in self._stars:
+            
+            velocity.x = star[ 1 ].x * frame_time
+            velocity.y = star[ 1 ].y * frame_time
+
+            if star[ 0 ].x + velocity.x > screen_size.x or star[ 0 ].x + velocity.x < 0:
+                star[ 1 ].x = -star[ 1 ].x
+                velocity.x = -velocity.x
+
+            if star[ 0 ].y + velocity.y > screen_size.y or star[ 0 ].y + velocity.y < 0:
+                star[ 1 ].y = -star[ 1 ].y
+                velocity.y = -velocity.y
+
+            star[ 0 ].x = star[ 0 ].x + velocity.x
+            star[ 0 ].y = star[ 0 ].y + velocity.y
+
+            self._render.circle( star[ 0 ], color( ) * star[ 2 ] * fade, star[ 3 ] )
+
     # endregion
 
     # region : Utilities
@@ -530,4 +651,32 @@ class c_scene:
 
         return self._animations
 
+
+    def element( self, index: int ) -> any:
+        """
+            Search and find specific Element that were attached.
+
+            Receive :  
+            - index - Element index in list
+
+            Returns : Any type of element
+        """
+
+        if index in self._elements:
+            return self._elements[ index ]
+        
+        return None
+    
+
+    def relative_position( self ) -> vector:
+        """
+            Returns relative position on the screen size.
+
+            Receive :   None
+
+            Returns :   Vector object
+        """
+
+        return vector( )
+    
     # endregion

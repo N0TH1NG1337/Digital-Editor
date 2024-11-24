@@ -26,16 +26,17 @@ from utilities.event    import c_event
 # Import user interface related things
 from user_interface.render      import c_renderer
 from user_interface.animations  import c_animations
-from user_interface.scene       import c_scene, scene_config_t
+from user_interface.scene       import *
 
 # Import Widgets
+from user_interface.widgets.button import *
 
 
 class application_config_t:
-    back_color_1 = color( 203, 185, 213 )
-    back_color_2 = color( 253, 231, 236 )
-    back_color_3 = color( 156, 140, 182 )
-    back_color_4 = color( 224, 205, 224 )
+    back_color_1 = color( 20, 20, 24 ) #( 203, 185, 213 )
+    back_color_2 = color( 21, 21, 28 ) #( 253, 231, 236 )
+    back_color_3 = color( 22, 22, 28 ) #( 156, 140, 182 )
+    back_color_4 = color( 34, 34, 48 ) #( 224, 205, 224 )
 
 
 # Main application class
@@ -108,8 +109,8 @@ class c_application:
         self._data = { }
 
         # Save received arguments
-        self._data[ "position" ]    = position
-        self._data[ "size" ]        = size
+        self._data[ "position" ]    = position.copy( )
+        self._data[ "size" ]        = size.copy( )
         self._data[ "title" ]       = title
         self._data[ "vsync" ]       = vsync
 
@@ -146,7 +147,7 @@ class c_application:
         
         return True
     
-
+    
     @safe_call( None )
     def __init_window( self ) -> bool:
         """
@@ -172,11 +173,14 @@ class c_application:
 
         # Validate
         if not self._app:
-            self.close_window( )
+            glfw.terminate( )
 
             self._last_error = "Could not initialize Application"
             return False
         
+        # Without this line... OPEN GL CANNOT LOAD ??????
+        glfw.make_context_current( self._app )
+
         # Disable vsync if need
         if not self._data[ "vsync" ]:
             glfw.swap_interval( 0 )
@@ -692,6 +696,12 @@ class c_application:
 
         size:       vector  = self.window_size( )
 
+        self._render.rect(
+            vector( ),
+            size,
+            self._config.back_color_1
+        )
+
         self._render.gradiant(
             vector( ), size, 
             self._config.back_color_1,
@@ -799,6 +809,17 @@ class c_application:
 
     # region : Utilities
 
+    def render( self ) -> c_renderer:
+        """
+            Access application render functions.
+
+            Receive :   None
+
+            Returns :   Render object
+        """
+
+        return self._render
+
     def window_size( self ) -> vector:
         """
             Get window size.
@@ -810,6 +831,30 @@ class c_application:
         """
 
         return vector( ).raw( glfw.get_window_size( self._app ) )
+    
+
+    def maximize_window( self ) -> None:
+        """
+            Set window to be maximized or disable it.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        glfw.maximize_window( self._app )
+
+    
+    def restore_window( self ) -> None:
+        """
+            Disable maximize or other staff.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        glfw.restore_window( self._app )
 
 
     def close_window( self, avoid_glfw_terminate: bool = False ) -> None:

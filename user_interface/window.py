@@ -31,7 +31,10 @@ class window_config_t:
 
     show_bar:           bool    = False
 
-    background_color:   color   = color( )
+    back_color_1:       color   = color( 20, 20, 24 )
+    back_color_2:       color   = color( 21, 21, 28 )
+    back_color_3:       color   = color( 34, 34, 48 )
+    back_color_4:       color   = color( 34, 34, 48 )
     bar_color:          color   = color( )
 
 
@@ -46,6 +49,9 @@ class c_window:
 
     _show:          bool            # Should show wind
 
+    _position:      vector          # Window position in the scene
+    _size:          vector          # Window size
+
     _render:        c_renderer      # Render functions
     _animations:    c_animations    # Animations handle
 
@@ -55,19 +61,25 @@ class c_window:
 
     # region : Initialize window
 
-    def __init__( self, parent: any, config: window_config_t = None ):
+    def __init__( self, parent: any, position: vector, size: vector, config: window_config_t = None ):
         """
             Default constructor for window object
 
             Receives:   
             - parent            - Scene to attach to
+            - position          - Window position
+            - size              - Window size
             - config [optional] - Custom window config
 
             Returns:    Window object
         """
 
-        self._parent = parent
-        self._config = config is None and window_config_t( ) or config
+        self._parent    = parent
+
+        self._position  = position.copy( )
+        self._size      = size.copy( )
+
+        self._config    = config is None and window_config_t( ) or config
 
         # Setup default values
         self.__initialize_default_values( )
@@ -89,7 +101,7 @@ class c_window:
         """
 
         self._index         = -1
-        self._show          = False
+        self._show          = True
 
         self._elements      = [ ]
 
@@ -147,11 +159,42 @@ class c_window:
 
         fade: float = self._animations.preform( "Fade", self._show and 1 or 0, self._config.speed )
 
+        self._render.push_position( self._position + vector( -50 + 50 * fade, 0 ) )
+
+        self.__draw_background( fade )
+
         self.__event_draw( )
 
         # Render elemements
         for item in self._elements:
             item.draw( fade )
+
+        self._render.pop_position( )
+
+        self.__unload_window( )
+
+
+    def __draw_background( self, fade: float ) -> None:
+        """
+            Render windows background.
+        """
+
+        #self._render.rect( 
+        #    self._position, 
+        #    self._position + self._size, 
+        #    self._config.background_color * fade, 
+        #    self._config.roundness 
+        #)
+
+        self._render.gradiant(
+            vector( ), 
+            self._size, 
+            self._config.back_color_1 * fade,
+            self._config.back_color_2 * fade,
+            self._config.back_color_3 * fade,
+            self._config.back_color_4 * fade,
+            self._config.roundness 
+        )
 
     # endregion
 
@@ -317,7 +360,7 @@ class c_window:
 
         self._elements.append( item )
 
-        return self._elements.append( item )
+        return self._elements.index( item )
 
     # endregion
 
@@ -439,12 +482,40 @@ class c_window:
         """
 
         return self._animations
+    
+
+    def element( self, index: int ) -> any:
+        """
+            Search and find specific Element that were attached.
+
+            Receive :  
+            - index - Element index in list
+
+            Returns : Any type of element
+        """
+
+        if index in self._elements:
+            return self._elements[ index ]
+        
+        return None
+
+
+    def relative_position( self ) -> vector:
+        """
+            Returns relative position on the screen size.
+
+            Receive :   None
+
+            Returns :   Vector object
+        """
+
+        return self._position.copy( )
 
     # endregion
 
     # region : Uninitialize
 
-    def unload_window( self ):
+    def __unload_window( self ):
         """
             Unloads window from the scene.
 

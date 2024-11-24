@@ -356,7 +356,86 @@ class c_renderer:
             # FIXME ! (I am not sure if possible) when we move it, some pixels reset and doesnt register as corners
             # TODO ! Try to optimize the code, a lot of trash here
 
-            pass
+            # Calculate points for the corners
+            corenr_tl_x = position.x + roundness
+            corenr_tl_y = position.y + roundness
+
+            corenr_tr_x = end_position.x - roundness
+            corenr_tr_y = position.y + roundness
+
+            corner_bl_x = position.x + roundness
+            corner_bl_y = end_position.y - roundness
+
+            corner_br_x = end_position.x - roundness
+            corner_br_y = end_position.y - roundness
+
+            # Render rounded corners
+            self._draw_list.path_clear( )
+            self._draw_list.path_line_to( corenr_tl_x, corenr_tl_y )
+            self._draw_list.path_arc_to_fast( corenr_tl_x, corenr_tl_y, roundness, 6, 9 )
+            self._draw_list.path_fill_convex( clr_up_left( ) )
+
+            self._draw_list.path_clear( )
+            self._draw_list.path_line_to( corenr_tr_x, corenr_tr_y )
+            self._draw_list.path_arc_to_fast( corenr_tr_x, corenr_tr_y, roundness, 9, 12 )
+            self._draw_list.path_fill_convex( clr_up_right( ) )
+
+            self._draw_list.path_clear( )
+            self._draw_list.path_line_to( corner_bl_x, corner_bl_y )
+            self._draw_list.path_arc_to_fast( corner_bl_x, corner_bl_y, roundness, 3, 6 )
+            self._draw_list.path_fill_convex( clr_bot_left( ) )
+
+            self._draw_list.path_clear( )
+            self._draw_list.path_line_to( corner_br_x, corner_br_y )
+            self._draw_list.path_arc_to_fast( corner_br_x, corner_br_y, roundness, 0, 3 )
+            self._draw_list.path_fill_convex( clr_bot_right( ) )
+
+            # Render background
+            self._draw_list.add_rect_filled_multicolor(
+                corenr_tl_x, corenr_tl_y,
+                corner_br_x, corner_br_y,
+                clr_up_left( ),
+                clr_up_right( ),
+                clr_bot_right( ),
+                clr_bot_left( )
+            )
+
+            # Render outline
+            self._draw_list.add_rect_filled_multicolor(
+                position.x, corenr_tl_y,
+                corenr_tl_x, corner_br_y,
+                clr_up_left( ),
+                clr_up_left( ),
+                clr_bot_left( ),
+                clr_bot_left( )
+            )
+
+            self._draw_list.add_rect_filled_multicolor(
+                corenr_tl_x, corner_bl_y,
+                corner_br_x, end_position.y,
+                clr_bot_left( ),
+                clr_bot_right( ),
+                clr_bot_right( ),
+                clr_bot_left( )
+            )
+
+            self._draw_list.add_rect_filled_multicolor(
+                corenr_tl_x, position.y,
+                corner_br_x, corenr_tl_y,
+                clr_up_left( ),
+                clr_up_right( ),
+                clr_up_right( ),
+                clr_up_left( )
+            )
+
+            self._draw_list.add_rect_filled_multicolor(
+                corner_br_x, corenr_tl_y,
+                end_position.x, corner_br_y,
+                clr_up_right( ),
+                clr_up_right( ),
+                clr_bot_right( ),
+                clr_bot_right( )
+            )
 
 
     def line( self, position: vector, end_position: vector, clr: color, thickness: float = 1 ):
@@ -381,6 +460,56 @@ class c_renderer:
             end_position.x, end_position.y,     # Unpack end position
             clr( ),                             # Convert color
             thickness                           # Set line thickness
+        )
+
+    
+    def circle( self, position: vector, clr: color, radius: float, segments: int = 0 ):
+        """
+            Render circle.
+        
+            Receives:   
+            - position              - Start position
+            - clr                   - Color
+            - radius                - Circle radius
+            - segments [optional]   - Segments count
+
+            Returns:    None
+        """
+
+        add_position    = self.__get_last_position( )
+        position        = position + add_position
+
+        self._draw_list.add_circle_filled(
+            position.x, position.y,     # Unpack position
+            radius,                     # Set radius
+            clr( ),                     # Convert color
+            segments                    # Set segments [0 - auto segments calculation]
+        )
+
+
+    def circle_outline( self, position: vector, clr: color, radius: float, segments: int = 0, thickness: float = 1 ):
+        """
+            Render outline circle.
+        
+            Receives:   
+            - position              - Start position
+            - clr                   - Color
+            - radius                - Circle radius
+            - segments [optional]   - Segments count
+            - thickness [optional]  - Thinkness of the line
+
+            Returns:    None
+        """
+
+        add_position    = self.__get_last_position( )
+        position        = position + add_position
+
+        self._draw_list.add_circle(
+            position.x, position.y,     # Unpack position
+            radius,                     # Set radius
+            clr( ),                     # Convert color
+            segments,                   # Set segments
+            thickness                   # Set outline thickness
         )
 
     # endregion
