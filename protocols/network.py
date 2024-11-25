@@ -223,10 +223,10 @@ class c_network_protocol:
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
         
-        result: str     = self.value_format( value, False )
-        result: bytes   = result.encode( )
-
-        self._connection( ).send( result )
+        result: list     = self.value_format( value, False )
+        
+        for i in result:
+            self._connection( ).send( i )
 
     def send_raw( self, raw: bytes ):
 
@@ -244,7 +244,9 @@ class c_network_protocol:
 
             format_value = self.value_format( chunk, total_sent + size < raw_size )
 
-            self._connection( ).send( format_value.encode( ) )
+            for i in format_value:
+                self._connection( ).send( i )
+                
             total_sent = total_sent + size
 
     @safe_call( None )
@@ -262,7 +264,7 @@ class c_network_protocol:
         while has_next:
             has_next:   bool    = self._connection( ).recv( 1 ).decode( ) == "1"
             length:     int     = int( self._connection( ).recv( HEADER_SIZE ).decode( ) )
-
+            
             data += self.__receive_fixed( length )
 
         return data
@@ -279,11 +281,21 @@ class c_network_protocol:
 
         return received_raw_data
 
-    def value_format( self, value: str | bytes, has_next: bool = False ):
-
+    def value_format( self, value: str | bytes, has_next: bool = False ) -> list:
         length = str( len( value ) ).zfill( HEADER_SIZE )
+        
+        result = [ ]
 
-        return f"{ has_next and 1 or 0 }{ length }{ value }"
+        result.append( ( has_next and "1" or "0" ).encode( ) )
+        result.append( length.encode( ) )
+
+        if type( value ) == bytes:
+            result.append( value )
+
+        else:
+            result.append( value.encode( ) ) 
+           
+        return result
     
     def is_valid( self ) -> bool:
 
