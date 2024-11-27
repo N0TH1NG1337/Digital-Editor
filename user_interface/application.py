@@ -32,7 +32,8 @@ from user_interface.animations  import c_animations
 from user_interface.scene       import *
 
 # Import Widgets
-from user_interface.widgets.button import *
+from user_interface.widgets.button      import *
+from user_interface.widgets.text_input  import *
 
 
 class application_config_t:
@@ -56,7 +57,7 @@ class c_application:
     _events:            dict            # Application events
     _data:              dict            # Application private data
 
-    _last_error:        str             # Last application error
+    _last_error:        str             # Last application error      
 
     _config:            application_config_t
 
@@ -73,19 +74,21 @@ class c_application:
         """
 
         # Application handle must be at first None
-        self._app           = None
+        self._app               = None
 
-        self._config = config is None and application_config_t( ) or config
+        self._config            = config is None and application_config_t( ) or config
 
         # Create render object
-        self._render        = c_renderer( )
+        self._render            = c_renderer( )
 
         # Set up scenes handlers
-        self._scenes        = [ ]
-        self._active_scene  = 0
+        self._scenes            = [ ]
+        self._active_scene      = 0
 
         # On init last error is None
-        self._last_error    = "None"
+        self._last_error        = "None"
+
+
 
     # endregion
 

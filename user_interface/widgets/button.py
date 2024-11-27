@@ -275,6 +275,7 @@ class c_button:
         
         self._render.push_clip_rect( self._position, vector( text_position.x, self._position.y + self._height ) )
 
+        # self._render.rect( icon_position, icon_position + self._icon.size( ), color( 100, 100, 100, 50 * hover ), 10 )
         self._render.image( self._icon, icon_position, icon_color * hover )
 
         self._render.rect( 

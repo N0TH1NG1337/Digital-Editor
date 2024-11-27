@@ -217,7 +217,12 @@ class c_network_protocol:
 
     def send( self, value: str ):
         """
+            Send string value.
 
+            Receive : 
+            - value - Text willing to send
+
+            Returns :   None
         """
 
         if self._connection( ) is INVALID:
@@ -228,26 +233,51 @@ class c_network_protocol:
         for i in result:
             self._connection( ).send( i )
 
-    def send_raw( self, raw: bytes ):
+    def get_raw_details( self, length: int ) -> list:
+        """
+            Convert raw bytes length into config for sending it by chunks.
 
-        if self._connection( ) is INVALID:
-            raise Exception( "Invalid connection. make sure you have established connection" )
-        
-        raw_size: int = len( raw )
+            Receive :
+            - length - Raw bytes amount
 
-        total_sent = 0
+            Returns :   List
+        """
 
-        while total_sent < raw_size:
-            remaining = raw[ total_sent: ]
-            size = min( CHUNK_SIZE, len( remaining ) )
-            chunk = remaining[ :size ]
+        result = [ ]
 
-            format_value = self.value_format( chunk, total_sent + size < raw_size )
+        total = 0
 
-            for i in format_value:
-                self._connection( ).send( i )
-                
-            total_sent = total_sent + size
+        while total < length:
+            start = total
+            
+            remain = length - total
+            size = min( CHUNK_SIZE, remain )
+
+            end = total + size
+
+            current_chunk = [ start, end, total + size < length ]
+            result.append( current_chunk )
+
+            total = total + size
+
+        return result
+    
+    def send_raw( self, raw_chunk: bytes, has_next: bool ):
+        """
+            Send raw bytes chunk.
+
+            Receive :
+            - raw_chunk - Just chunk of bytes selected after .get_raw_details( ) was called.
+            - has_next  - Has more chunks go send after this one.
+
+            Returns :   None
+        """
+
+        correct_value = self.value_format( raw_chunk, has_next )
+
+        for i in correct_value:
+            self._connection( ).send( i )
+
 
     @safe_call( None )
     def receive( self, timeout: int = -1 ) -> bytes:

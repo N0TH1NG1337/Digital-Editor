@@ -31,10 +31,9 @@ class window_config_t:
 
     show_bar:           bool    = False
 
-    back_color_1:       color   = color( 20, 20, 24 )
-    back_color_2:       color   = color( 21, 21, 28 )
-    back_color_3:       color   = color( 34, 34, 48 )
-    back_color_4:       color   = color( 34, 34, 48 )
+    back_color:         color   = color( 20, 20, 24 )
+    outline_color:      color   = color( 100, 100, 100, 150 )
+
     bar_color:          color   = color( )
 
 
@@ -51,6 +50,7 @@ class c_window:
 
     _position:      vector          # Window position in the scene
     _size:          vector          # Window size
+    _close:         vector          # Close button position
 
     _render:        c_renderer      # Render functions
     _animations:    c_animations    # Animations handle
@@ -104,6 +104,7 @@ class c_window:
         self._show          = True
 
         self._elements      = [ ]
+        self._close         = vector( )
 
         self._active_handle = -1
 
@@ -177,25 +178,41 @@ class c_window:
     def __draw_background( self, fade: float ) -> None:
         """
             Render windows background.
+
+            Receive : 
+            - fade      - Fade factor of the window
+
+            Returns :   None
         """
 
-        #self._render.rect( 
-        #    self._position, 
-        #    self._position + self._size, 
-        #    self._config.background_color * fade, 
-        #    self._config.roundness 
-        #)
+        remove_height: int = 0
+        self._close = vector( self._size.x - 20, -20 )
 
-        self._render.gradiant(
-            vector( ), 
+        if self._config.show_bar:
+            remove_height = - 30
+
+        self._render.rect( 
+            vector( 0, remove_height ), 
             self._size, 
-            self._config.back_color_1 * fade,
-            self._config.back_color_2 * fade,
-            self._config.back_color_3 * fade,
-            self._config.back_color_4 * fade,
+            self._config.back_color * fade, 
             self._config.roundness 
         )
 
+        self._render.rect_outline( 
+            vector( 0, remove_height ),
+            self._size, 
+            self._config.outline_color * fade,
+            1,
+            self._config.roundness 
+        )
+
+        if self._config.show_bar:
+
+            self._render.line( vector( 10, 0 ), vector( self._size.x - 10, 0 ), self._config.outline_color * fade, 1 )
+
+            self._render.line( self._close + vector( 0, 0 ), self._close + vector( 10, 10 ), color( ) * fade, 2 )
+            self._render.line( self._close + vector( 0, 10 ), self._close + vector( 10, 0 ), color( ) * fade, 2 )
+        
     # endregion
 
     # region : Events

@@ -110,7 +110,7 @@ class vector:
             Returns:    Float value
         """
 
-        assert( type( other_vector ) == vector, "other_vector must be a vector" )
+        # assert( type( other_vector ) == vector, "other_vector must be a vector" )
 
         return original_math.sqrt( ( other_vector.x - self.x )**2 + ( other_vector.y - self.y ) **2 )
     
@@ -127,7 +127,7 @@ class vector:
             Returns:    New Vector object
         """
 
-        assert( type( other ) == vector, "other must be a vector" )
+        # assert( type( other ) == vector, "other must be a vector" )
 
         return vector(
             math.linear( self.x, other.x, weight, hold ),
