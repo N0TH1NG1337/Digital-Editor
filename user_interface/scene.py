@@ -31,10 +31,17 @@ class scene_config_t:
     speed:              int     = 8
 
     animate_entrance:   bool    = True
+    animate_movement:   bool    = False
 
-    enable_stars:       bool    = True
-    stars_speed:        int     = 20
+    enable_background:  bool    = True
+    stars_speed:        int     = 10
     stars_count:        int     = 200
+
+    background_image:   c_image = None
+    background_descale: float   = 1.2
+    background_color:   color   = color( 21, 21, 25 )
+
+    movement_factor:    int     = 0.02
 
 
 # Scene class
@@ -56,6 +63,8 @@ class c_scene:
     _stars:         list            # Special
 
     _active_handle: int             # Active element handle
+
+    _mouse_position: vector
 
     # region : Initialize scene
 
@@ -83,7 +92,7 @@ class c_scene:
         # Setup events
         self.__initialize_events( )
 
-        if self._config.enable_stars:
+        if self._config.enable_background:
             self.__initialize_stars( )
 
 
@@ -104,6 +113,8 @@ class c_scene:
 
         self._active_handle = -1
 
+        self._mouse_position = vector( )
+
     
     def __initialize_draw( self ) -> None:
         """
@@ -119,8 +130,9 @@ class c_scene:
 
         self._animations.prepare( "Fade", 0 )
         self._animations.prepare( "Slide", -50 )
+        self._animations.prepare( "Mouse", vector( ) )
 
-        if self._config.enable_stars:
+        if self._config.enable_background:
             self._animations.prepare( "StarsVelocity", vector( ) )
 
 
@@ -166,7 +178,7 @@ class c_scene:
             star[ 0 ].y = random.randint( 0, screen_size.y )
 
             # alpha
-            star[ 2 ] = random.uniform( 0.2, 0.5 )
+            star[ 2 ] = random.uniform( 0.1, 0.2 )
 
             # size
             star[ 3 ] = random.uniform( 1, 2 )
@@ -262,6 +274,9 @@ class c_scene:
 
         if self.is_any_window_active( ):
             return self.last_window( ).event_mouse_position( window, x, y )
+        
+        self._mouse_position.x = x
+        self._mouse_position.y = y
 
         event: c_event = self._events[ "mouse_position" ]
 
@@ -512,21 +527,29 @@ class c_scene:
             Returns:    None
         """
 
-        self._animations.update( )
+        self.__animations( )
 
-        if self._show:
-            fade:       float   = self._animations.preform( "Fade",     1, self._config.speed )
-            slide:      float   = self._animations.preform( "Slide",    0, self._config.speed, 1 )
-        else:
-            fade:       float   = self._animations.preform( "Fade",     0, self._config.speed )
-            slide:      float   = self._animations.preform( "Slide",    -50, self._config.speed )
+        fade:       float   = self._animations.value( "Fade" )
+        slide:      float   = self._animations.value( "Slide" )
+        mouse:      vector  = self._animations.value( "Mouse" )
 
         animate:    bool    = self._config.animate_entrance
 
+        if animate:
+            self._render.push_position( mouse + vector( 0, slide ) )
+        else:
+            self._render.push_position( mouse )
+
         self.__draw_background( fade )
 
+        self._render.pop_position( )
+
+        self.__draw_city( fade )
+
         if animate:
-            self._render.push_position( vector( slide, 0 ) )
+            self._render.push_position( mouse + vector( 0, slide ) )
+        else:
+            self._render.push_position( mouse )
 
         self.__event_draw( )
 
@@ -541,13 +564,12 @@ class c_scene:
             window.show( window.show( ) and self._show )
             window.draw( )
 
-        if animate:
-            self._render.pop_position( )
-        
+        self._render.pop_position( )
+
 
     def __draw_background( self, fade: float ) -> None:
         """
-            Render stars background.
+            Render background things.
 
             Receive :   
             - fade - Scene fade factor
@@ -555,7 +577,7 @@ class c_scene:
             Returns :   None
         """
 
-        if not self._config.enable_stars:
+        if not self._config.enable_background:
             return
         
         frame_time:     float   = self._animations.interpolation( )
@@ -579,6 +601,41 @@ class c_scene:
             star[ 0 ].y = star[ 0 ].y + velocity.y
 
             self._render.circle( star[ 0 ], color( ) * star[ 2 ] * fade, star[ 3 ] )
+    
+
+    def __draw_city( self, fade: float ):
+
+        image = self._config.background_image
+        
+        screen = self._parent.window_size( )
+        image_size = screen / self._config.background_descale
+
+        if image is not None:
+            self._render.image( image, screen - image_size, self._config.background_color * fade, image_size )
+
+
+    def __animations( self ):
+        """
+        """
+
+        self._animations.update( )
+        
+        speed: int = self._config.speed
+
+        if self._show:
+            fade    = self._animations.preform( "Fade",     1, speed )
+            slide   = self._animations.preform( "Slide",    0, speed, 1 )
+        else:
+            fade    = self._animations.preform( "Fade",     0, speed )
+            slide   = self._animations.preform( "Slide",    -50, speed )
+
+        if not self._config.animate_movement or self._active_handle != -1:
+            return
+        
+        center = self._parent.window_size( ) / 2
+        delta = ( center - self._mouse_position ) * self._config.movement_factor
+        
+        self._animations.preform( "Mouse", delta * fade, speed )
 
     # endregion
 
@@ -677,6 +734,6 @@ class c_scene:
             Returns :   Vector object
         """
 
-        return vector( )
+        return self._animations.value( "Mouse" )
     
     # endregion

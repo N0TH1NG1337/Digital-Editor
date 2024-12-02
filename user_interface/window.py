@@ -40,24 +40,26 @@ class window_config_t:
 # Window class
 class c_window:
     
-    _parent:        any             # c_scene object
-    _index:         int             # Window index in scene object
+    _parent:            any             # c_scene object
+    _index:             int             # Window index in scene object
 
-    _events:        dict            # Window events
-    _elements:      list            # Window attached elements
+    _events:            dict            # Window events
+    _elements:          list            # Window attached elements
 
-    _show:          bool            # Should show wind
+    _show:              bool            # Should show wind
 
-    _position:      vector          # Window position in the scene
-    _size:          vector          # Window size
-    _close:         vector          # Close button position
+    _position:          vector          # Window position in the scene
+    _size:              vector          # Window size
+    _close:             vector          # Close button position
 
-    _render:        c_renderer      # Render functions
-    _animations:    c_animations    # Animations handle
+    _render:            c_renderer      # Render functions
+    _animations:        c_animations    # Animations handle
 
-    _config:        window_config_t # Scene config settings
+    _config:            window_config_t # Scene config settings
 
-    _active_handle: int             # Active element handle
+    _active_handle:     int             # Active element handle
+
+    _mouse_position:    vector
 
     # region : Initialize window
 
@@ -100,13 +102,14 @@ class c_window:
             Returns:    None
         """
 
-        self._index         = -1
-        self._show          = True
+        self._index             = -1
+        self._show              = True
 
-        self._elements      = [ ]
-        self._close         = vector( )
+        self._elements          = [ ]
+        self._close             = vector( )
+        self._mouse_position    = vector( )
 
-        self._active_handle = -1
+        self._active_handle     = -1
 
     
     def __initialize_draw( self ) -> None:
@@ -288,6 +291,9 @@ class c_window:
 
             Returns:    None
         """
+        
+        self._mouse_position.x = x
+        self._mouse_position.y = y
 
         event: c_event = self._events[ "mouse_position" ]
 
@@ -310,6 +316,12 @@ class c_window:
 
             Returns:    None
         """
+
+        if self._config.show_bar:
+            is_on_close = self._mouse_position.is_in_bounds( self._position + self._close, 10, 10 )
+            if is_on_close and button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS and self._active_handle == -1:
+                # Close
+                self.show( False )
 
         event: c_event = self._events[ "mouse_input" ]
 

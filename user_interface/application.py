@@ -34,13 +34,15 @@ from user_interface.scene       import *
 # Import Widgets
 from user_interface.widgets.button      import *
 from user_interface.widgets.text_input  import *
+from user_interface.widgets.select_list import *
+from user_interface.widgets.path_select import *
 
 
 class application_config_t:
     back_color_1 = color( 20, 20, 24 ) #( 203, 185, 213 )
-    back_color_2 = color( 21, 21, 28 ) #( 253, 231, 236 )
+    back_color_2 = color( 30, 30, 70 ) #( 253, 231, 236 )
     back_color_3 = color( 22, 22, 28 ) #( 156, 140, 182 )
-    back_color_4 = color( 34, 34, 48 ) #( 224, 205, 224 )
+    back_color_4 = color( 20, 20, 24 ) #( 224, 205, 224 )
 
 
 # Main application class
@@ -814,6 +816,18 @@ class c_application:
     # endregion
 
     # region : Utilities
+
+    def config( self ) -> application_config_t:
+        """
+            Access the application config.
+
+            Receive :   None
+
+            Returns :   Config object
+        """
+
+        return self._config
+
 
     def render( self ) -> c_renderer:
         """

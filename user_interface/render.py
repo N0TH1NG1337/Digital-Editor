@@ -18,6 +18,8 @@ from utilities.font     import  c_font
 # Wraps Imgui DrawList options with some other custom ones,
 # Each function must be called each frame since the render type is immediate mode
 
+# TODO ! Rework the push_position. Since now it only get the last added. But we can do so it will sum all the positions.
+
 class c_renderer:
 
     _draw_list:         any     # ImDrawList*

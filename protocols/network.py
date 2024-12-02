@@ -228,6 +228,9 @@ class c_network_protocol:
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
         
+        # TODO ! Add length check. Since not every text can be sent.
+        # Better solution will be to convert the text into bytes and send chunks.
+        
         result: list     = self.value_format( value, False )
         
         for i in result:
@@ -281,6 +284,17 @@ class c_network_protocol:
 
     @safe_call( None )
     def receive( self, timeout: int = -1 ) -> bytes:
+        """
+            Pop bytes from buffer. 
+
+            Receive : 
+            - timeout [optional] - Timeout for receiving something.
+
+            Returns :   Bytes
+        """
+
+        # TODO ! Although this works, for large amount of bytes files it can be a problem.
+        # Bytes are premetive type and therefore they are copying and not just passing as refrence.
 
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
@@ -300,6 +314,14 @@ class c_network_protocol:
         return data
         
     def __receive_fixed( self, length: int ) -> bytes:
+        """
+            Utility to pop from buffer fixed length of data.
+
+            Receive : 
+            - length - Length of the bytes seq
+
+            Returns :   Bytes
+        """
 
         received_raw_data = b''
 
@@ -312,6 +334,16 @@ class c_network_protocol:
         return received_raw_data
 
     def value_format( self, value: str | bytes, has_next: bool = False ) -> list:
+        """
+            Format the value for a config to send.
+
+            Reecive : 
+            - value                 - Value willing to send
+            - has_next [optional]   - If there is something else afterwards to receive
+
+            Returns :   List 
+        """
+
         length = str( len( value ) ).zfill( HEADER_SIZE )
         
         result = [ ]
@@ -328,11 +360,26 @@ class c_network_protocol:
         return result
     
     def is_valid( self ) -> bool:
+        """
+            Is connection still valid.
+
+            Receive :   None
+
+            Returns :   Result
+        """
 
         return self._connection( ) is not INVALID
 
     def get_address( self ) -> tuple:
+        """
+            Get address of current connection.
 
+            Receive :   None
+
+            Returns :   Tuple ( ip, port )
+        """
+
+        # Use this method to get ip since for server we specify 0.0.0.0
         host_name = socket.gethostname( )
         ip_addr = socket.gethostbyname( host_name )
 

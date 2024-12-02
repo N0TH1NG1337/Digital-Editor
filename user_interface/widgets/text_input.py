@@ -2,7 +2,7 @@
     project     : Digital Editor
 
     type:       : User Interface - Widget
-    file        : Text Inpit
+    file        : Text Input
 
     description : Text input classes
 """
@@ -932,3 +932,33 @@ class c_text_input:
 
     # endregion
 
+    # region : Utilities
+
+    def position( self, new_value: vector = None ) -> vector | None:
+        """
+            Access / Update text input's position.
+
+            Receive :
+            - new_value - New position in the parent
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._position
+        
+        self._position.x = new_value.x
+        self._position.y = new_value.y
+
+
+    def size( self ) -> vector:
+        """
+            Access the text input size.
+
+            Receive :   None
+
+            Returns :   Vector object
+        """
+
+        return vector( self._animations.value( "Width" ), self._height )
+    # endregion
