@@ -41,7 +41,7 @@ from user_interface.widgets.path_select import *
 class application_config_t:
     back_color_1 = color( 20, 20, 24 ) #( 203, 185, 213 )
     back_color_2 = color( 30, 30, 70 ) #( 253, 231, 236 )
-    back_color_3 = color( 22, 22, 28 ) #( 156, 140, 182 )
+    back_color_3 = color( 30, 30, 60 ) #( 156, 140, 182 )
     back_color_4 = color( 20, 20, 24 ) #( 224, 205, 224 )
 
 

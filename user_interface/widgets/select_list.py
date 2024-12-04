@@ -47,6 +47,8 @@ class c_list_item:
 
     position:   vector
 
+    callback:   any
+
 
 class c_list:
 
@@ -73,7 +75,7 @@ class c_list:
     
     # region : Initialize list
 
-    def __init__( self, parent: any, position: vector, width: int, font: c_font, items: dict, config: list_config_t = None ):
+    def __init__( self, parent: any, position: vector, width: int, font: c_font, config: list_config_t = None ):
         """
             Default constructor for list object.
 
@@ -96,8 +98,9 @@ class c_list:
         self._width     = width
         self._font      = font
 
+        self._items = [ ]
+
         self.__initialize_animations( )
-        self.__initialize_items( items )
         self.__initialize_values( )
 
 
@@ -120,35 +123,6 @@ class c_list:
         this_id = f"List::{ self._index }"
         self._parent.set_event( "mouse_position",   self.__event_mouse_position,    this_id )
         self._parent.set_event( "mouse_input",      self.__event_mouse_input,       this_id )
-
-    
-    def __initialize_items( self, items: dict ):
-        """
-            Initialize items in the list.
-
-            Receive : 
-            - items - Item name and its image
-
-            Returns :   None
-        """
-        
-        self._items = [ ]
-
-        for item in items:
-            new_item = c_list_item( )
-
-            new_item.text = item
-            new_item.icon = items[ item ]
-
-            new_item.is_enable      = False
-            new_item.is_hovered     = False
-
-            new_item.position       = vector( )
-
-            self._animations.prepare( f"Item_{ item }_hover",   0 )
-            self._animations.prepare( f"Item_{ item }_enable",  0 )
-
-            self._items.append( new_item )
 
 
     def __initialize_animations( self ):
@@ -179,6 +153,36 @@ class c_list:
 
         self._offset                = 0 
         self._someone_enabled       = False
+
+    
+    def add_item( self, index: str, icon: c_image, callback: any = None ):
+        """
+            Add new item for list.
+
+            Receive :
+            - index                 - Value index
+            - icon                  - Index icon
+            - callback [optional]   - Callback to be called on item press
+
+            Returns :   None
+        """
+
+        new_item = c_list_item( )
+
+        new_item.text = index
+        new_item.icon = icon
+
+        new_item.callback = callback is None and None or callback
+
+        new_item.is_enable      = False
+        new_item.is_hovered     = False
+
+        new_item.position       = vector( )
+
+        self._animations.prepare( f"Item_{ index }_hover",   0 )
+        self._animations.prepare( f"Item_{ index }_enable",  0 )
+
+        self._items.append( new_item )
 
     # endregion
 
@@ -367,7 +371,11 @@ class c_list:
 
                         self.__new_values( False, item )
 
+                if item.callback is not None:
+                    item.callback( )
+
                 return
+            
     # endregion
 
     # region : Utilities
@@ -420,4 +428,31 @@ class c_list:
 
                 return
 
+    def get( self, index: str = None ) -> str | bool:
+        """
+            Get value from list.
+
+            Receive :
+            - index [optional] - Index in multi select
+
+            Returns :   String index or Boolean
+        """
+
+        is_multiselect = self._config.is_mutliselect
+
+        for item in self._items:
+            item: c_list_item = item
+
+            if is_multiselect:
+
+                if item.text == index:
+                    return item.is_enable
+            
+            else:
+
+                if item.is_enable:
+                    return item.text
+                
+        return False
+    
     # endregion

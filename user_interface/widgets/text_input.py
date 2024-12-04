@@ -961,4 +961,16 @@ class c_text_input:
         """
 
         return vector( self._animations.value( "Width" ), self._height )
+
+    def get( self ) -> str:
+        """
+            Get value.
+
+            Receive :   None
+
+            Returns :   String value
+        """
+
+        return self._handle.get( )
+    
     # endregion

@@ -41,7 +41,7 @@ class scene_config_t:
     background_descale: float   = 1.2
     background_color:   color   = color( 21, 21, 25 )
 
-    movement_factor:    int     = 0.02
+    movement_factor:    int     = 0.1
 
 
 # Scene class
@@ -546,11 +546,6 @@ class c_scene:
 
         self.__draw_city( fade )
 
-        if animate:
-            self._render.push_position( mouse + vector( 0, slide ) )
-        else:
-            self._render.push_position( mouse )
-
         self.__event_draw( )
 
         # Render elemements
@@ -564,7 +559,7 @@ class c_scene:
             window.show( window.show( ) and self._show )
             window.draw( )
 
-        self._render.pop_position( )
+
 
 
     def __draw_background( self, fade: float ) -> None:
@@ -734,6 +729,6 @@ class c_scene:
             Returns :   Vector object
         """
 
-        return self._animations.value( "Mouse" )
+        return vector( )
     
     # endregion
