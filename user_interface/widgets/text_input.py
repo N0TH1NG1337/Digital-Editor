@@ -645,7 +645,7 @@ class c_text_input:
 
     # region : Initialize text input
 
-    def __init__( self, parent: any, position: vector, height: int, size_of_input: vector, icon: c_image, font: c_font, text: str, is_password: bool = False, config: text_input_config_t = None ):
+    def __init__( self, parent: any, position: vector, height: int, size_of_input: vector, icon: c_image, font: c_font, text: str, is_password: bool = False, default_value: str = "", config: text_input_config_t = None ):
         """
             Default constructor for text input.
 
@@ -673,7 +673,7 @@ class c_text_input:
         self._icon = icon
         self._text = text
 
-        self._handle = c_single_input_logic( self._parent, position, font, size_of_input, is_password, "", self._config )
+        self._handle = c_single_input_logic( self._parent, position, font, size_of_input, is_password, default_value, self._config )
 
         self.__initialize_parent( )
         self.__initialize_animations( )

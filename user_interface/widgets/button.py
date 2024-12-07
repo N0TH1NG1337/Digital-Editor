@@ -32,7 +32,7 @@ class button_config_t:
 
     show_back:      bool    = False
 
-    back_color:     color   = color( 110, 110, 110, 50 )
+    back_color:     color   = color( 30, 30, 30 )
     seperate_color: color   = color( 150, 150, 255 )
     text_color:     color   = color( 255, 255, 255 )
     icon_color:     color   = color( 255, 255, 255 )
@@ -230,18 +230,26 @@ class c_button:
         
 
         roundness:      int     = self._config.roundness
+        pad:            int     = self._config.pad / 2
         back_color:     color   = self._config.back_color
+        seperate_color: color   = self._config.seperate_color
         hover:          float   = self._animations.value( "Hover" ) * fade
 
-        self._render.gradiant(
+        self._render.rect(
             self._position,
-            self._position + vector( self._width, self._height ),
-            back_color * 0,
-            back_color * hover,
-            back_color * 0,
-            back_color * hover,
+            self._position + vector( self._width + pad, self._height ),
+            seperate_color * hover,
             roundness
         )
+
+        self._render.rect(
+            self._position,
+            self._position + vector( self._width, self._height ),
+            back_color * fade,
+            roundness
+        )
+            
+        
 
 
     def __draw( self, fade: float ):

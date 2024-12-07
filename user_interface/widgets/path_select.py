@@ -904,4 +904,16 @@ class c_path_select:
         self._size.x = new_value.x
         self._size.y = new_value.y
 
+    
+    def get_path( self ) -> str:
+        """
+            Get selected path.
+
+            Receive :   None
+
+            Returns :   String value
+        """
+        
+        return self._active_folder.absolute_path( )
+
     # endregion

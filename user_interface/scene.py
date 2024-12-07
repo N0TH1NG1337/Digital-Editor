@@ -178,7 +178,7 @@ class c_scene:
             star[ 0 ].y = random.randint( 0, screen_size.y )
 
             # alpha
-            star[ 2 ] = random.uniform( 0.1, 0.2 )
+            star[ 2 ] = random.uniform( 0.1, 0.5 )
 
             # size
             star[ 3 ] = random.uniform( 1, 2 )

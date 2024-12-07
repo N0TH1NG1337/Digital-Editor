@@ -14,6 +14,7 @@ ICON_VISIBLE    = "\\resources\\visible.png"
 ICON_CLOSE      = "\\resources\\close.png"
 ICON_LISTEN     = "\\resources\\listen.png"
 ICON_NET_MAN    = "\\resources\\network_manager.png"
+ICON_COPY       = "\\resources\\copy.png"
 
 ICON_BACK       = "\\resources\\back.png"
 ICON_FOLDER     = "\\resources\\folder.png"

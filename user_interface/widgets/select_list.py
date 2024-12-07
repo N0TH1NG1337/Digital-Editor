@@ -72,6 +72,8 @@ class c_list:
 
     _offset:                float
     _someone_enabled:       bool
+    _rect:                  list
+    _is_hovered:            bool
     
     # region : Initialize list
 
@@ -123,6 +125,7 @@ class c_list:
         this_id = f"List::{ self._index }"
         self._parent.set_event( "mouse_position",   self.__event_mouse_position,    this_id )
         self._parent.set_event( "mouse_input",      self.__event_mouse_input,       this_id )
+        self._parent.set_event( "mouse_scroll",     self.__event_mouse_scroll,      this_id )
 
 
     def __initialize_animations( self ):
@@ -136,6 +139,7 @@ class c_list:
 
         self._animations = c_animations( )
 
+        self._animations.prepare( "Scroll", 0 )
         self._animations.prepare( "AddOnEnable", 0 )
 
 
@@ -153,6 +157,8 @@ class c_list:
 
         self._offset                = 0 
         self._someone_enabled       = False
+        self._is_hovered            = False
+        self._rect                  = [ vector( ), vector( ) ]
 
     
     def add_item( self, index: str, icon: c_image, callback: any = None ):
@@ -239,6 +245,7 @@ class c_list:
         size:       vector  = self._config.check_mark.size( )
 
         self._animations.preform( "AddOnEnable", self._someone_enabled and size.x + pad or 0, speed )
+        self._animations.preform( "Scroll", self._offset, speed, 1 )
 
 
     def __draw_items( self, fade: float ):
@@ -255,14 +262,20 @@ class c_list:
         pad:        int     = self._config.pad
         seperate:   int     = self._config.seperate
         height:     int     = self._config.slot_height
+        amount:     int     = self._config.slots_count
 
         check_mark: c_image = self._config.check_mark
         check_size: vector  = check_mark.size( )
         add_to_check: vector = vector( 0, ( height - check_size.y ) / 2 )
 
         enable_pad: float   = self._animations.value( "AddOnEnable" )
+        scroll:     float   = self._animations.value( "Scroll" )
 
-        drop = 0
+        self._rect[ 0 ] = self._position.copy( )
+        self._rect[ 1 ] = vector( self._width, amount * ( height + pad * 2 ) )
+        self._render.push_clip_rect( self._rect[ 0 ], self._rect[ 0 ] + self._rect[ 1 ] )
+
+        drop = self._animations.value( "Scroll" )
 
         self._someone_enabled = False
 
@@ -289,6 +302,8 @@ class c_list:
             item.position = vector( 0, drop )
 
             drop = drop + height + pad * 2
+
+        self._render.pop_clip_rect( )
         
     # endregion
 
@@ -306,8 +321,23 @@ class c_list:
 
         self._mouse_position.x  = event( "x" )
         self._mouse_position.y  = event( "y" )
+        
 
-        self.__hover_items( )
+        if self._mouse_position.is_in_bounds( self._relative_position, self._rect[ 1 ].x, self._rect[ 1 ].y ):
+            
+            # Check if we hovered and can have the handle. Also register self object
+            self._is_hovered = self._parent.try_to_get_handle( self._index )
+
+        else:
+
+            # Release if we hold the handle
+            if self._parent.is_this_active( self._index ):
+                self._parent.release_handle( self._index )
+
+            self._is_hovered = False
+
+        if self._is_hovered:
+            self.__hover_items( )
 
     
     def __event_mouse_input( self, event ) -> None:
@@ -320,6 +350,9 @@ class c_list:
             Returns :   None
         """
 
+        if not self._is_hovered:
+            return
+
         button = event( "button" )
         action = event( "action" )
 
@@ -327,6 +360,38 @@ class c_list:
             return
         
         self.__handle_items( )
+
+    
+    def __event_mouse_scroll( self, event ) -> None:
+        """
+            Mouse scroll input callback.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_hovered:
+            return
+
+        x_offset = event( "x_offset" )
+        y_offset = event( "y_offset" )
+
+        amount_items    = len( self._items )
+        amount_max      = self._config.slots_count
+        pad             = self._config.pad
+        height          = self._config.slot_height
+
+        drop        = amount_items *    ( height + pad * 2 )
+        fixed_drop  = amount_max *      ( height + pad * 2 )
+
+        if drop > fixed_drop:
+            drop_min    = fixed_drop - drop
+        else:
+            drop_min = 0
+
+        self._offset = math.clamp( self._offset + y_offset * 20, drop_min, 0 )
 
 
     def __hover_items( self ):
@@ -372,7 +437,7 @@ class c_list:
                         self.__new_values( False, item )
 
                 if item.callback is not None:
-                    item.callback( )
+                    item.callback( item.text )
 
                 return
             
@@ -396,6 +461,23 @@ class c_list:
 
             if item != exception:
                 item.is_enable = new_value
+
+    
+    def position( self, new_value: vector = None ) -> vector | None:
+        """
+            Access / Update list position.
+
+            Receive :
+            - new_value - New position in the parent
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._position
+        
+        self._position.x = new_value.x
+        self._position.y = new_value.y
 
 
     def set_value( self, item_name: str, value: bool = None ):
@@ -454,5 +536,24 @@ class c_list:
                     return item.text
                 
         return False
+    
+
+    def clear( self ) -> None:
+        """
+            Clears list items.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        for item in self._items:
+            item: c_list_item = item
+            index = item.text
+
+            self._animations.delete_value( f"Item_{ index }_hover" )
+            self._animations.delete_value( f"Item_{ index }_enable" )
+
+        self._items.clear( )
     
     # endregion

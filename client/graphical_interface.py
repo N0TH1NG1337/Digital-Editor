@@ -34,10 +34,9 @@ class c_client_gui:
 
         self.__initialize_application( )
 
-        self._logic = c_client_business_logic( )
-        self._logic.set_event( "post_disconnect", self.__logic_post_disconnect, "DisconnectEvent" )
+        self.__initialize_logic( )
+        
 
-    
     def __initialize_application( self ):
         """
             Load application and setup it.
@@ -75,6 +74,7 @@ class c_client_gui:
         self._application.create_font( "TextInput", FONT, 20 )
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
+        self._application.create_font( "Editor",    FONT, 20 )
 
         self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
         self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
@@ -111,7 +111,7 @@ class c_client_gui:
         scene_config.animate_movement   = True
         scene_config.enable_background  = True
         scene_config.background_image   = self._application.image( "City" )
-        scene_config.background_descale = 1.3
+        scene_config.background_descale = 1.4
         scene_config.background_color   = self._application.config( ).back_color_4.copy( )
 
         self._scene_connect     = self._application.new_scene( scene_config )
@@ -145,15 +145,65 @@ class c_client_gui:
 
         self._elements = { }
 
-        self._elements[ "UsernameEntry" ]   = c_text_input( self._scene_connect, vector( 50, 50 ), 40, vector( 200, 30 ), self._application.image( "User" ), self._application.font( "TextInput" ), "Username" )
-        self._elements[ "ProjectEntry" ]    = c_text_input( self._scene_connect, vector( 50, 100 ), 40, vector( 200, 30 ), self._application.image( "Edit" ), self._application.font( "TextInput" ), "Project code" )
-        self._elements[ "NextToProject" ]   = c_button( self._scene_connect, vector( 50, 150 ), 40, self._application.font( "Button" ), self._application.image( "Next" ), "Continiue", self.__scene_connection_complete )
+        self.__scene_connection_elements( )
         
-        self._elements[ "StopClient" ]      = c_button( self._scene_project, vector( 50, 50 ), 40, self._application.font( "Button" ), self._application.image( "Close" ), "Disconnect", self.__scene_project_complete )
+        self.__scene_project_elements( )
+
+
+    def __initialize_logic( self ):
+        """
+            Initialize Client Logic.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._logic = c_client_business_logic( )
+
+        self.__initialize_logic_events( )
+    
+
+    def __initialize_logic_events( self ):
+        """
+            Set logic event callbacks.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._logic.set_event( "post_disconnect",   self.__logic_post_disconnect,   "DisconnectEvent" )
+        self._logic.set_event( "register_file",     self.__event_register_file,     "GUI_SetList" )
+        self._logic.set_event( "set_file",          self.__event_clear_editor,      "GUI_ClearEditor" )
+        self._logic.set_event( "update_file",       self.__event_add_editor_line,   "GUI_AddLine" )
+        self._logic.set_event( "accept_line",       self.__event_response_line,     "GUI_Accept_Line" )
+        self._logic.set_event( "lock_line",         self.__event_lock_line,         "GUI_LockLine")
 
     # endregion
 
     # region : Connection
+
+    def __scene_connection_elements( self ):
+        """
+            Setup elements for scene connection.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        text_font:      c_font  = self._application.font( "TextInput" )
+        button_font:    c_font  = self._application.font( "Button" )
+
+        user_icon:      c_image = self._application.image( "User" )
+        edit_icon:      c_image = self._application.image( "Edit" )
+        next_icon:      c_image = self._application.image( "Next" )
+
+        self._elements[ "UsernameEntry" ]   = c_text_input( self._scene_connect, vector( 50, 50 ), 40, vector( 200, 30 ), user_icon, text_font, "Username" )
+        self._elements[ "ProjectEntry" ]    = c_text_input( self._scene_connect, vector( 50, 100 ), 40, vector( 200, 30 ), edit_icon, text_font, "Project code" )
+        self._elements[ "NextToProject" ]   = c_button( self._scene_connect, vector( 50, 150 ), 40, button_font, next_icon, "Continiue", self.__scene_connection_complete )
+
 
     def __scene_connection_draw( self, event ):
         """
@@ -236,6 +286,33 @@ class c_client_gui:
 
     # region : Project
 
+    def __scene_project_elements( self ):
+        """
+            Setup elements for scene project.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        button_font:    c_font  = self._application.font( "Button" )
+        list_font:      c_font  = self._application.font( "List" )
+        editor_font:    c_font  = self._application.font( "Editor" )
+
+        close_icon:     c_image = self._application.image( "Close" )
+
+        files_list_config = list_config_t( )
+        files_list_config.check_mark = self._application.image( "Check" )
+        files_list_config.slots_count = 8
+
+        self._elements[ "StopClient" ]      = c_button( self._scene_project, vector( 50, 50 ), 40, button_font, close_icon, "Disconnect", self.__scene_project_complete )
+        self._elements[ "FilesList" ]       = c_list( self._scene_project, vector( 50, 100 ), 300, list_font, files_list_config )
+
+        self._elements[ "Editor" ]          = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
+
+        self._elements[ "Editor" ].set_event( "request_line", self.__event_request_line, "GUI_ReqLine" )
+
+
     def __scene_project_draw( self, event ):
         """
             Scene Project draw function.
@@ -258,6 +335,23 @@ class c_client_gui:
         render.text( title_font, vector( 50 + 3,    screen.y - text_size.y - 50 - 3 ),  color( 200, 200, 255, 100 ) * fade, "Project" )
         render.text( title_font, vector( 50,        screen.y - text_size.y - 50 ),      color( ) * fade,                    "Project" )
 
+        self.__adjust_scene_project_elements( )
+    
+
+    def __adjust_scene_project_elements( self ):
+        """
+            Adjust the position of the Scene project elements.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        screen: vector = self._application.window_size( )
+
+        files_list: c_list = self._elements[ "FilesList" ]
+        files_list.position( vector( screen.x - 350, 100 ) )
+
 
     def __scene_project_complete( self ):
         """
@@ -268,8 +362,8 @@ class c_client_gui:
             Returns :   None
         """
 
-        # self._logic.terminate( )
         self._logic.disconnect( )
+        self._elements[ "FilesList" ].clear( )
         self._application.active_scene( self._scene_connect.index( ) )
 
     
@@ -285,6 +379,111 @@ class c_client_gui:
 
         self._application.active_scene( self._scene_connect.index( ) )
 
+    # endregion
+
+    # region : Events for client
+
+    def __event_register_file( self, event ):
+        """
+            Event callback for file register from server.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file_name" )
+        file_icon:  c_image = self._application.image( "File" )
+
+        files_list: c_list = self._elements[ "FilesList" ]
+        files_list.add_item( file_name, file_icon, self._logic.request_file )
+
+    
+    def __event_clear_editor( self, event ):
+        """
+            Event callback for clearing the editor.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        editor: c_editor = self._elements[ "Editor" ]
+        editor.clear( )
+
+    
+    def __event_add_editor_line( self, event ):
+        """
+            Event callback for adding new line.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        editor: c_editor = self._elements[ "Editor" ]
+
+        file:           str     = event( "file" )
+        line_text:      str     = event( "line_text" )
+
+        editor.set_file( file )
+        editor.add_line( line_text )
+
+
+    def __event_request_line( self, event ):
+        """
+            Client requests line from the server.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        self._logic.request_line( file, line )
+
+    
+    def __event_response_line( self, event ):
+        """
+            Response from the server if the line can be used by us.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        editor: c_editor = self._elements[ "Editor" ]
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+        accept:     bool    = event( "accept" )
+
+        editor.accept_line( file_name, line, accept )
+
+    
+    def __event_lock_line( self, event ):
+        """
+            Response from server to client in order to lock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        editor: c_editor = self._elements[ "Editor" ]
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+
+        editor.lock_line( line )
 
     # endregion
 

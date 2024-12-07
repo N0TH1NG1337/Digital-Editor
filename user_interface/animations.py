@@ -43,6 +43,20 @@ class c_animations:
 
         self._cache.clear( )
 
+    
+    def delete_value( self, value_index: str ):
+        """
+            Delete specific value from the animation cache.
+
+            Receive :
+            - value_index - String index of the value
+
+            Returns :   None
+        """
+
+        #if value_index in self._cache:
+        del self._cache[ value_index ]
+
 
     def interpolation( self, new_value: float = None ) -> float | None:
         """
@@ -129,3 +143,29 @@ class c_animations:
             self._cache[ index ] = self._cache[ index ].linear( value, speed * self._interpolation, hold )
 
         return self._cache[ index ]
+    
+
+    def fast_preform( self, start_value: any, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
+        """
+            Preform animation of specific index and return end value
+
+            Receives:   
+            - start_value       - start value
+            - value             - new value
+            - speed [optional]  - speed for interpolation
+            - hold [optional]   - hold limit interpolation
+
+            Returns:    Interpolated Value
+        """
+
+
+        value_type = type( start_value )
+
+        # Check if regular numnbers
+        if value_type == float or value_type == int:
+            return math.linear( start_value, value, speed * self._interpolation, hold )
+
+        # If not, prob its vector or color
+        else:
+            return start_value.linear( value, speed * self._interpolation, hold )
+

@@ -36,12 +36,13 @@ from user_interface.widgets.button      import *
 from user_interface.widgets.text_input  import *
 from user_interface.widgets.select_list import *
 from user_interface.widgets.path_select import *
+from user_interface.widgets.editor      import *
 
 
 class application_config_t:
-    back_color_1 = color( 20, 20, 24 ) #( 203, 185, 213 )
+    back_color_1 = color( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
     back_color_2 = color( 30, 30, 70 ) #( 253, 231, 236 )
-    back_color_3 = color( 30, 30, 60 ) #( 156, 140, 182 )
+    back_color_3 = color( 30, 30, 39 ) #( 156, 140, 182 )
     back_color_4 = color( 20, 20, 24 ) #( 224, 205, 224 )
 
 

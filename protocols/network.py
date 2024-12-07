@@ -370,11 +370,12 @@ class c_network_protocol:
 
         return self._connection( ) is not INVALID
 
-    def get_address( self ) -> tuple:
+    def get_address( self, raw_ip: bool = False ) -> tuple:
         """
             Get address of current connection.
 
-            Receive :   None
+            Receive :   
+            - raw_ip [optional] - Raw registered IP
 
             Returns :   Tuple ( ip, port )
         """
@@ -382,5 +383,8 @@ class c_network_protocol:
         # Use this method to get ip since for server we specify 0.0.0.0
         host_name = socket.gethostname( )
         ip_addr = socket.gethostbyname( host_name )
+        
+        if raw_ip:
+            ip_addr = self._connection.address( )[ 0 ]
 
-        return ip_addr, self._connection.address( )[1]
+        return ip_addr, self._connection.address( )[ 1 ]
