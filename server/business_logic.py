@@ -366,7 +366,7 @@ class c_client_handle:
 
     # endregion
 
-    # region : File
+    # region : File and Line
 
     def get_file_name( self ) -> str:
         """
@@ -381,6 +381,21 @@ class c_client_handle:
             return "Unknown"
 
         return self._selected_file.name( )
+
+    
+    def get_line( self ) -> int:
+        """
+            Get clients active line.
+
+            Receive :   None
+
+            Returns :   Line number. ( 0 - is None )
+        """
+
+        if self._selected_file is None:
+            return 0
+
+        return self._selected_line
     
 
     def set_file( self, file: c_virtual_file ) -> None:
@@ -394,6 +409,20 @@ class c_client_handle:
         """
 
         self._selected_file = file
+        self._selected_line = 0
+
+    
+    def set_line( self, line: int ) -> None:
+        """
+            Set users active line.
+
+            Receive :   
+            - line - Active Line
+
+            Returns :   None
+        """
+
+        self._selected_line = line
 
     # endregion
 
@@ -866,6 +895,7 @@ class c_server_business_logic:
 
             self.log( "Sending client Files." )
 
+
         if cmd == FILES_COMMAND_GET_FILE:
 
             file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
@@ -919,6 +949,28 @@ class c_server_business_logic:
             msg = self._files.format_message( FILES_COMMAND_PREPARE_RESPONSE, [ file.name( ), arguments[ 1 ], response ] )
             client_network.send( msg )
 
+
+        if cmd == FILES_COMMAND_DISCARD_UPDATE:
+            
+            file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
+            if file is None:
+                return
+            
+            if client.get_file_name( ) != arguments[ 0 ]:
+                return
+
+            line: int = int( arguments[ 1 ] )
+
+            if client.get_line( ) != line:
+                return
+            
+            is_locked = file.is_line_locked( line )
+            if not is_locked:
+                return
+
+            file.unlock_line( line )
+            client.set_line( 0 )
+
         return
     
     def __lock_line_for_all_clients( self, file: c_virtual_file, line: int, exception: c_client_handle ):
@@ -940,6 +992,28 @@ class c_server_business_logic:
 
                 msg = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ) ] )
                 client.network( ).send( msg )
+
+    
+    def __unlock_line_for_all_clients( self, file: c_virtual_file, line: int, exception: c_client_handle ):
+        """
+            Notify all the clients in a specific file that this line is unlocked.
+
+            Receive :
+            - file - File handle
+            - line - Line number
+            - exception - The only client that dont notify
+
+            Returns :   None
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if not client == exception and client.get_file_name( ) == file.name( ):
+
+                msg = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file.name( ), str( line ) ] )
+                client.network( ).send( msg )
+
 
     # endregion
 

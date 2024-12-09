@@ -192,7 +192,9 @@ class c_editor:
 
         self._events = { }
 
-        self._events[ "request_line" ] = c_event( )
+        self._events[ "request_line" ]  = c_event( )
+        self._events[ "discard_line" ]  = c_event( )
+        self._events[ "update_line" ]   = c_event( )
 
     
     def add_line( self, text: str ):
@@ -382,8 +384,7 @@ class c_editor:
         self._mouse_position.y = y
 
         self.__hover_editor( )
-        if not self._is_hovered:
-            return
+        self.__hover_buttons( )
 
         self.__hover_lines( )
 
@@ -404,6 +405,9 @@ class c_editor:
         if not button == glfw.MOUSE_BUTTON_LEFT or not action == glfw.PRESS:
             return
         
+        if self.__handle_buttons( ):
+            return
+
         self.__handle_lines( )
 
 
@@ -454,7 +458,10 @@ class c_editor:
             Returns :   None    
         """
 
-        if self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y ):
+        is_in_bounds    = self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y )
+        is_selected     = self._selected_line > 0
+
+        if is_in_bounds or is_selected:
 
             self._is_hovered = self._parent.try_to_get_handle( self._index )
         else:
@@ -463,6 +470,27 @@ class c_editor:
                 self._parent.release_handle( self._index )
 
             self._is_hovered = False
+
+    
+    def __hover_buttons( self ):
+        """
+            Handle if the user hover the discard / update buttons.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        if self._selected_line <= 0:
+            return
+
+        pad:            int     = self._config.pad
+
+        back_size:      vector  = vector( self._discard_size.x + self._update_size.x + pad * 2, self._discard_size.y + pad )
+        position:       vector  = self._position + vector( self._size.x - back_size.x, 0 )
+
+        self._is_hovered_discard = self._mouse_position.is_in_bounds( position, self._discard_size.x, self._discard_size.y )
+        self._is_hovered_update = self._mouse_position.is_in_bounds( position + vector( pad + self._discard_size.x, 0 ), self._update_size.x, self._update_size.y )
 
 
     def __hover_lines( self ):
@@ -473,19 +501,29 @@ class c_editor:
 
             Returns :   None
         """
+
+        if self._selected_line > 0:
+            return
         
         text_height = self._font.size( )
+        is_hover_buttons = not ( self._is_hovered_discard or self._is_hovered_update )
 
         for line in self._lines:
             line: c_line = line
 
             line_position   = self._position + line.position
-            line.is_hovered = not line.is_locked and self._mouse_position.is_in_bounds( line_position, self._size.x, text_height )
+            can_hover       = is_hover_buttons and not line.is_locked
+
+            line.is_hovered = can_hover and self._mouse_position.is_in_bounds( line_position, self._size.x, text_height )
 
         
     def __handle_lines( self ):
         """
             Handle if the user clicked on a line.
+
+            Receive :   None
+
+            Returns :   None
         """
 
         for line in self._lines:
@@ -493,6 +531,29 @@ class c_editor:
 
             if line.is_hovered and not line.is_locked:
                 return self.__event_request_line( line.number )
+
+    
+    def __handle_buttons( self ) -> bool:
+        """
+            Handle if the user pressed on one of the buttons.
+
+            Receive :   None
+
+            Returns :   Is one of the buttons pressed.
+        """
+
+        if self._selected_line <= 0:
+            return False
+
+        if self._is_hovered_discard:
+            self.__event_discard_line( )
+            return True
+
+        if self._is_hovered_update:
+
+            return True
+        
+        return False
 
 
     def __event_request_line( self, line: int ):
@@ -510,6 +571,25 @@ class c_editor:
         event: c_event = self._events[ "request_line" ]
         event.attach( "file", self._file )
         event.attach( "line", line )
+
+        event.invoke( )
+
+    
+    def __event_discard_line( self ):
+        """
+            Callback when a user decides to discard changes.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        if self._selected_line <= 0:
+            return
+
+        event: c_event = self._events[ "discard_line" ]
+        event.attach( "file", self._file )
+        event.attach( "line", self._selected_line )
 
         event.invoke( )
 

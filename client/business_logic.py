@@ -82,6 +82,7 @@ class c_client_business_logic:
         self._events[ "update_file" ]           = c_event( )    
         self._events[ "accept_line" ]           = c_event( )    
         self._events[ "lock_line" ]             = c_event( )    
+        self._events[ "unlock_line" ]           = c_event( )
 
 
     def __initialize_information( self ):
@@ -323,7 +324,8 @@ class c_client_business_logic:
             Request specific line.
 
             Receive : 
-            - line - Line number
+            - file_name - File name
+            - line      - Line number
 
             Returns :   None
         """
@@ -333,6 +335,25 @@ class c_client_business_logic:
             return
         
         message: str = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file_name, str( line ) ] )
+        self._network.send( message )
+
+    
+    def discard_line( self, file_name: str, line: int ):
+        """
+            Message of discard changes.
+
+            Receive : 
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if file is None:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file_name, str( line ) ] )
         self._network.send( message )
 
 
@@ -401,6 +422,17 @@ class c_client_business_logic:
                 file.lock_line( line_number )
 
                 self.__event_lock_line( file.name( ), line_number )
+
+        
+        if command == FILES_COMMAND_DISCARD_UPDATE:
+            file_name = arguments[ 0 ]
+            line_number = int( arguments[ 1 ] )
+
+            file: c_virtual_file = self._files.search_file( file_name )
+            if file is not None:
+                file.unlock_line( line_number )
+
+                self.__event_unlock_line( file.name( ), line_number )
                 
 
         return
@@ -527,6 +559,25 @@ class c_client_business_logic:
         event.attach( "line",   line )
 
         event.invoke( )
+
+
+    def __event_unlock_line( self, file_name: str, line: int ):
+        """
+            Event callback for unlocking a line.
+
+            Receive :
+            - file_name - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "unlock_line" ]
+        event.attach( "file",   file_name )
+        event.attach( "line",   line )
+
+        event.invoke( )
+
 
     def __event_pre_disconnect( self ):
         """

@@ -311,6 +311,7 @@ class c_client_gui:
         self._elements[ "Editor" ]          = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
         self._elements[ "Editor" ].set_event( "request_line", self.__event_request_line, "GUI_ReqLine" )
+        self._elements[ "Editor" ].set_event( "discard_line", self.__event_discard_line, "Gui_DisLine" )
 
 
     def __scene_project_draw( self, event ):
@@ -484,6 +485,40 @@ class c_client_gui:
         line:       int     = event( "line" )
 
         editor.lock_line( line )
+
+    
+    def __event_unlock_line( self, event ):
+        """
+            Response from server to client in order to unlock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        editor: c_editor = self._elements[ "Editor" ]
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+        
+        editor.unlock_line( line )
+
+    
+    def __event_discard_line( self, event ):
+        """
+            Message to server in order to discard line changes.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str = event( "file" )
+        line:       int = event( "line" )
+
+        self._logic.discard_line( file_name, line )
 
     # endregion
 
