@@ -553,7 +553,7 @@ class c_editor:
 
             return True
         
-        return False
+        return True
 
 
     def __event_request_line( self, line: int ):
@@ -592,6 +592,12 @@ class c_editor:
         event.attach( "line", self._selected_line )
 
         event.invoke( )
+
+        self._selected_line = 0
+        self._is_hovered_discard = False
+
+        if self._parent.is_this_active( self._index ):
+            self._parent.release_handle( self._index )
 
     
     def set_event( self, event_index: str, function: any, function_name: str ) -> None:

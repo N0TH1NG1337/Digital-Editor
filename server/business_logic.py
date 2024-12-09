@@ -657,6 +657,14 @@ class c_server_business_logic:
         for client in self._clients:
             client: c_client_handle = client
 
+            file_name = client.get_file_name( )
+            file: c_virtual_file = self._files.search_file( file_name )
+            if file is not None:
+                line = client.get_line( )
+                
+                if line > 0:
+                    file.unlock_line( line )
+
             client.disconnect( True )
 
         self._clients.clear( )
@@ -943,6 +951,7 @@ class c_server_business_logic:
             response = is_locked and "1" or "0"
             
             if not is_locked:
+                client.set_line( line )
                 file.lock_line( line )
                 self.__lock_line_for_all_clients( file, line, client )
 
@@ -951,7 +960,7 @@ class c_server_business_logic:
 
 
         if cmd == FILES_COMMAND_DISCARD_UPDATE:
-            
+
             file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
             if file is None:
                 return
@@ -970,6 +979,7 @@ class c_server_business_logic:
 
             file.unlock_line( line )
             client.set_line( 0 )
+            self.__unlock_line_for_all_clients( file, line, client )
 
         return
     

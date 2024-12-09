@@ -251,11 +251,8 @@ class c_virtual_file:
             Returns :   None
         """
 
-        if line < 0 or line > len( self._content ):
-            return
-        
-        if line not in self._lines_used:
-            return
+        #if line < 0 or line > len( self._content ):
+        #    return
         
         self._lines_used.remove( line )
 

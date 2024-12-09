@@ -179,6 +179,7 @@ class c_client_gui:
         self._logic.set_event( "update_file",       self.__event_add_editor_line,   "GUI_AddLine" )
         self._logic.set_event( "accept_line",       self.__event_response_line,     "GUI_Accept_Line" )
         self._logic.set_event( "lock_line",         self.__event_lock_line,         "GUI_LockLine")
+        self._logic.set_event( "unlock_line",       self.__event_unlock_line,       "GUI_UnlockLine" ) 
 
     # endregion
 

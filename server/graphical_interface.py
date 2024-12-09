@@ -617,8 +617,9 @@ class c_server_gui:
             address = client.network( ).get_address( True )
             name = client( "username" )
             file_name = client.get_file_name( )
+            line = client.get_line( )
 
-            text = f" { address } - { name } -> { file_name } "
+            text = f" { address } - { name } -> { file_name } : { line } "
 
             text_size = render.measure_text( text_font, text )
 
