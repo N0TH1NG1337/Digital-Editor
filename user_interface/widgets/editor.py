@@ -36,8 +36,12 @@ class editor_config_t:
 
     pad_for_number: int     = 50
 
-    text_color:     color   = color( )
-    line_color:     color   = color( )
+    roundness:      int     = 6
+
+    text_color:     color   = color( 255, 255, 255)
+    line_color:     color   = color( 255, 255, 255 )
+    locked_color:   color   = color( 255, 100, 100 )
+    back_color:     color   = color( 10, 10, 30, 100 )
 
 
 class c_line:
@@ -55,29 +59,35 @@ class c_line:
 
 class c_editor:
     
-    _parent:            any
-    _index:             int
+    _parent:                any
+    _index:                 int
 
-    _position:          vector
-    _size:              vector
+    _position:              vector
+    _size:                  vector
 
-    _font:              c_font
+    _font:                  c_font
 
-    _render:            c_renderer
-    _animations:        c_animations
+    _render:                c_renderer
+    _animations:            c_animations
 
-    _config:            editor_config_t
+    _config:                editor_config_t
 
-    _events:            dict
+    _events:                dict
 
-    _offset:            int
-    _mouse_position:    vector
+    _offset:                int
+    _mouse_position:        vector
+    _is_hovered:            bool
+    _is_hovered_discard:    bool
+    _is_hovered_update:     bool
 
-    _file:              str     # File name
-    _lines:             list    # This is a little bit different from default editor
-    _line_height:       int
+    _discard_size:          vector
+    _update_size:           vector
 
-    _selected_line:     int
+    _file:                  str     # File name
+    _lines:                 list    # This is a little bit different from default editor
+    _line_height:           int
+
+    _selected_line:         int
 
     # region : Initialize editor
 
@@ -141,6 +151,7 @@ class c_editor:
         self._animations = c_animations( )
 
         self._animations.prepare( "Scroll", 0 )
+        self._animations.prepare( "ShowActions", 0 )
 
     
     def __initialize_information( self ):
@@ -152,15 +163,22 @@ class c_editor:
             Returns :   None
         """
         
-        self._lines             = [ ]
+        self._lines                 = [ ]
 
-        self._offset            = 0
-        self._line_height       = self._font.size( ) + self._config.pad
+        self._offset                = 0
+        self._line_height           = self._font.size( ) + self._config.pad
 
-        self._selected_line     = 0 # -number < will represent that we wait
-        self._file              = ""
+        self._selected_line         = 0 # -number < will represent that we wait
+        self._file                  = ""
 
-        self._mouse_position    = vector( )
+        self._mouse_position        = vector( )
+        self._discard_size          = vector( )
+        self._update_size           = vector( )
+
+        self._is_hovered            = False
+
+        self._is_hovered_discard    = False
+        self._is_hovered_update     = False
 
     
     def __initialize_events( self ):
@@ -214,10 +232,13 @@ class c_editor:
         """
 
         self.__animate( )
+        self.__preform( )
 
         self._render.push_clip_rect( self._position, self._position + self._size )
 
         self.__draw_lines( fade )
+
+        self.__draw_actions( fade )
 
         self._render.pop_clip_rect( )
 
@@ -236,6 +257,20 @@ class c_editor:
         self._animations.update( )
 
         self._animations.preform( "Scroll", self._offset, speed, 1 )
+        self._animations.preform( "ShowActions", self._selected_line > 0 and 1 or 0, speed )
+
+    
+    def __preform( self ):
+        """
+            Preform all the small calculations.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._discard_size  = self._render.measure_text( self._font, "discard" )
+        self._update_size   = self._render.measure_text( self._font, "update" )
 
 
     def __draw_lines( self, fade: float ):
@@ -255,7 +290,7 @@ class c_editor:
         pad:            int     = self._config.pad
         pad_for_number: int     = self._config.pad_for_number
         text_color:     color   = self._config.text_color
-        locked_color:   color   = color( 255, 100, 100 )
+        locked_color:   color   = self._config.locked_color
         line_color:     color   = self._config.line_color
 
         scroll:         float   = self._animations.value( "Scroll" )
@@ -299,6 +334,33 @@ class c_editor:
             drop = drop + self._line_height
             
 
+    def __draw_actions( self, fade: float ):
+        """
+            Draw line actions when selected line.
+
+            Receive :   
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        pad:            int     = self._config.pad
+        roundness:      int     = self._config.roundness
+        text_color:     color   = self._config.text_color
+        back_color:     color   = self._config.back_color
+
+        alpha:          float   = self._animations.value( "ShowActions" ) * fade
+
+        back_size:      vector  = vector( self._discard_size.x + self._update_size.x + pad * 3, self._discard_size.y + pad )
+        position:       vector  = self._position + vector( self._size.x - back_size.x, 0 )
+
+        self._render.rect( position, position + back_size, back_color * alpha, roundness )
+
+        self._render.text( self._font, position + vector( pad, pad / 2 ), text_color * alpha, "discard" )
+        self._render.text( self._font, position + vector( pad * 2 + self._discard_size.x, pad / 2 ), text_color * alpha, "update" )
+
+        #ShowActions
+
     # endregion
 
     # region : Input
@@ -318,6 +380,10 @@ class c_editor:
 
         self._mouse_position.x = x
         self._mouse_position.y = y
+
+        self.__hover_editor( )
+        if not self._is_hovered:
+            return
 
         self.__hover_lines( )
 
@@ -351,6 +417,9 @@ class c_editor:
             Returns :   None
         """
 
+        if not self._is_hovered:
+            return
+
         y_offset = event( "y_offset" )
 
         amount_items    = len( self._lines )
@@ -374,6 +443,26 @@ class c_editor:
     def __event_keyboard_input( self, event ):
         
         pass
+
+
+    def __hover_editor( self ):
+        """
+            Handle if the user hover the editor.
+
+            Receive :   None
+
+            Returns :   None    
+        """
+
+        if self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y ):
+
+            self._is_hovered = self._parent.try_to_get_handle( self._index )
+        else:
+            
+            if self._parent.is_this_active( self._index ):
+                self._parent.release_handle( self._index )
+
+            self._is_hovered = False
 
 
     def __hover_lines( self ):

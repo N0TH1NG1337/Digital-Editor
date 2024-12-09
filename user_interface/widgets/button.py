@@ -286,14 +286,28 @@ class c_button:
         # self._render.rect( icon_position, icon_position + self._icon.size( ), color( 100, 100, 100, 50 * hover ), 10 )
         self._render.image( self._icon, icon_position, icon_color * hover )
 
-        self._render.rect( 
-            seperate_position + vector( 0, -part_height * hover ),
-            seperate_position + vector( seperate, part_height * hover ),
-            seperate_color * fade * hover,
+        start_seperate  = seperate_position + vector( 0, -part_height * hover )
+        end_seperate    = seperate_position + vector( seperate, part_height * hover )
+
+        self._render.pop_clip_rect( )
+
+        self._render.shadow(
+            start_seperate,
+            end_seperate,
+            seperate_color,
+            hover,
+            15,
             seperate / 2
         )
 
-        self._render.pop_clip_rect( )
+        self._render.rect( 
+            start_seperate,
+            end_seperate,
+            seperate_color * hover,
+            seperate / 2
+        )
+
+        
 
         self._render.text( self._font, text_position, text_color * hover_text, self._text )
 

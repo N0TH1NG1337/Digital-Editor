@@ -206,7 +206,7 @@ class c_server_gui:
 
         render.text( title_font, vector( 50 + 3,    screen.y - text_size.y - 50 - 3 ),  color( 200, 200, 255, 100 ) * fade, "Server" )
         render.text( title_font, vector( 50,        screen.y - text_size.y - 50 ),      color( ) * fade,                    "Server" )
-        
+
         render.image( cloud_icon, vector( screen.x - 50 - cloud_size.x, 50 ), color( 150, 150, 255, 100 ) * fade )
 
         self.__adjust_scene_start_elements( )

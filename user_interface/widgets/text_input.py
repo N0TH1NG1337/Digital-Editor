@@ -849,6 +849,15 @@ class c_text_input:
 
         self._render.image( self._icon, icon_position, image_color * fade )
 
+        self._render.shadow(
+            seperate_position + vector( 0, -seperate_fade ),
+            seperate_position + vector( seperate, seperate_fade ),
+            seperate_color,
+            fade,
+            15,
+            seperate / 2
+        )
+
         self._render.rect( 
             seperate_position + vector( 0, -seperate_fade ),
             seperate_position + vector( seperate, seperate_fade ),

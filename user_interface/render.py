@@ -514,6 +514,32 @@ class c_renderer:
             thickness                   # Set outline thickness
         )
 
+    
+    def shadow( self, position: vector, end_position: vector, clr: color, alpha: float, glow: float, roundness: int = 0 ):
+        """
+            Render a shadow.
+
+            Receives:   
+            - position              - Start position
+            - end_position          - End position
+            - clr                   - Color
+            - glow                  - Shadow thickness
+            - roundness [optional]  - Roundness factor
+
+            Returns:    None
+        """
+
+        for radius in range( 0, glow + 1 ):
+            radius = radius / 2
+            
+            self.rect_outline( 
+                vector( position.x - radius, position.y - radius ), 
+                vector( end_position.x + radius, end_position.y + radius ),
+                color( clr.r, clr.g, clr.b, glow - radius * 2 ) * alpha,
+                1,
+                roundness + radius
+            )
+
     # endregion
 
     # region : Private functions

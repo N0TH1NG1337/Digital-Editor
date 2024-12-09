@@ -491,6 +491,7 @@ class c_path_select:
 
         self._render.image( self._back_icon, self._position + vector( 0, self._config.pad ), color( ) * hover_back )
 
+        self._render.shadow( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color, fade, 15, seperate / 2)
         self._render.rect( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color * fade, seperate / 2 )
 
         self._input_path.draw( fade )
@@ -617,6 +618,7 @@ class c_path_select:
         position        = vector( start_position.x + self._window_size.x, start_position.y + value )
         end_position    = vector( start_position.x + self._window_size.x + seperate, start_position.y + value + fixed )
 
+        self._render.shadow( position, end_position, seperate_color, fade, 15, seperate / 2)
         self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
 
     # endregion

@@ -77,6 +77,8 @@ class c_client_handle:
 
     # This is where the fun (cancer starts)
     _selected_file: c_virtual_file
+    _selected_line: int
+    _offset_index:  int
 
     # TODO ! ADD SELECTED LINE. OTHERWISE IT WILL BE POSSIBLE TO SPOOF LINE CHANGES
 
@@ -130,6 +132,9 @@ class c_client_handle:
         # If this is None. It means that the client didnt choose any file.
         # WARNING ! CANNOT BE NONE IF ONCE CHECKED ANY FILE
         self._selected_file = None
+
+        self._selected_line = 0
+        self._offset_index  = -1
 
     # endregion
 
@@ -624,6 +629,8 @@ class c_server_business_logic:
             client: c_client_handle = client
 
             client.disconnect( True )
+
+        self._clients.clear( )
 
         # Close connection
         self._network.end_connection( )
