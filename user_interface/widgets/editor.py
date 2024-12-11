@@ -710,15 +710,14 @@ class c_editor:
 
         # Remove
         if key == glfw.KEY_BACKSPACE:
-            #self.pop( )
-            pass
+            self.__pop( )
 
         # Move index left
         if key == glfw.KEY_LEFT and self._cursor.x > 0:
             self._cursor.x -= 1
 
         # Move index right
-        if key == glfw.KEY_RIGHT: #and self._cursor.x < len( self._input ):
+        if key == glfw.KEY_RIGHT and self._cursor.x < len( self.get_cursor_line( ).text ):
             self._cursor.x += 1
 
     
@@ -752,9 +751,6 @@ class c_editor:
 
         if self._selected_line <= 0:
             return
-        
-        line_obj: c_line    = self._lines[ self._selected_line - 1 ]
-        line_obj.text       = line_obj.prev
 
         event: c_event = self._events[ "discard_line" ]
         event.attach( "file", self._file )
@@ -764,7 +760,9 @@ class c_editor:
 
         # These things are just to release control. 
         # TODO ! Rework pls :P
-        # TODO ! Recover old value
+
+        line_obj: c_line    = self._lines[ self._selected_line - 1 ]
+        line_obj.text       = line_obj.prev
 
         self._selected_line         = 0
 
@@ -811,11 +809,43 @@ class c_editor:
         line_obj: c_line    = self._lines[ self._cursor.y ]
 
         line_obj.text       = line_obj.text[ :self._cursor.x ] + text + line_obj.text[ self._cursor.x: ]
-        self._cursor.x      += len( text )
+        self._cursor.x     += len( text )
+
+    
+    def __pop( self ) -> str:
+        """
+            Pops selected char from selected line.
+
+            Receive :   None
+
+            Returns :   Char
+        """
+
+        if self._cursor.x == 0:
+            return None
+        
+        line:   c_line      = self._lines[ self._cursor.y ]
+        char                = line.text[ self._cursor.x - 1 ]
+
+        line.text           = line.text[ :self._cursor.x - 1 ] + line.text[ self._cursor.x: ]
+        self._cursor.x     -= 1
+
+        return char
 
     # endregion
 
     # region : Utilities
+
+    def get_cursor_line( self ) -> c_line:
+        """
+            Get the line content where is the cursor location.
+
+            Receive :   None
+
+            Returns :   Line object
+        """
+
+        return self._lines[ self._cursor.y ]
 
     def clear( self ):
         """ 
