@@ -5,6 +5,24 @@
     file        : Editor
 
     description : Test Editor class
+
+    TODO ! 
+    1. Change the line select
+        [ ] - set it only to render once and not for all lines
+        [ ] - animate it
+
+    2. Add cursor
+        [ ] - render it
+        [ ] - animate ( if possible )
+
+    3. Add char input based cursor
+        [ ] - ?
+
+    4. Add cursor operations
+        [ ] - Move left
+        [ ] - Move right
+
+    ?. Update
 """
 
 import glfw
@@ -36,16 +54,19 @@ class editor_config_t:
 
     pad_for_number: int     = 50
 
+    seperate:       int     = 4
     roundness:      int     = 6
 
     text_color:     color   = color( 255, 255, 255)
     line_color:     color   = color( 255, 255, 255 )
     locked_color:   color   = color( 255, 100, 100 )
     back_color:     color   = color( 10, 10, 30, 100 )
+    seperate_color: color   = color( 150, 150, 255 )
 
 
 class c_line:
     text:       str
+    prev:       str # Before the start of edit text
     number:     int
 
     is_used:    bool
@@ -88,6 +109,11 @@ class c_editor:
     _line_height:           int
 
     _selected_line:         int
+
+    _cursor:                vector
+    _start_limit:           int
+    _end_limit:             int
+    _is_typing:             bool
 
     # region : Initialize editor
 
@@ -150,8 +176,11 @@ class c_editor:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Scroll", 0 )
-        self._animations.prepare( "ShowActions", 0 )
+        self._animations.prepare( "Scroll",             0 )
+        self._animations.prepare( "ShowActions",        0 )
+
+        self._animations.prepare( "SelectPosition",     self._position + vector( self._config.pad_for_number, 0 ) )
+        self._animations.prepare( "SelectHeight",       0 )
 
     
     def __initialize_information( self ):
@@ -174,11 +203,17 @@ class c_editor:
         self._mouse_position        = vector( )
         self._discard_size          = vector( )
         self._update_size           = vector( )
+        self._cursor                = vector( )
 
         self._is_hovered            = False
 
         self._is_hovered_discard    = False
         self._is_hovered_update     = False
+
+        self._is_typing             = False
+
+        self._start_limit           = 0
+        self._end_limit             = 0
 
     
     def __initialize_events( self ):
@@ -203,6 +238,7 @@ class c_editor:
         new_line = c_line( )
 
         new_line.text = text
+        new_line.prev = text
 
         new_line.number     = -1
         new_line.alpha      = 0
@@ -239,7 +275,8 @@ class c_editor:
         self._render.push_clip_rect( self._position, self._position + self._size )
 
         self.__draw_lines( fade )
-
+        self.__draw_index( fade )
+        self.__draw_select( fade )
         self.__draw_actions( fade )
 
         self._render.pop_clip_rect( )
@@ -258,10 +295,22 @@ class c_editor:
 
         self._animations.update( )
 
-        self._animations.preform( "Scroll", self._offset, speed, 1 )
+        scroll: float = self._animations.preform( "Scroll", self._offset, speed, 1 )
+
         self._animations.preform( "ShowActions", self._selected_line > 0 and 1 or 0, speed )
 
-    
+        is_line_selected = self._selected_line > 0
+        if is_line_selected:
+            pad:            int     = self._config.pad
+            pad_for_number: int     = self._config.pad_for_number
+
+            position = vector( self._position.x + pad + pad_for_number, self._position.y + pad + ( self._selected_line - 1 ) * self._line_height + scroll )
+            self._animations.preform( "SelectPosition", position, speed, 1 )
+        
+        delta_lines = ( self._end_limit - self._start_limit + 1 ) * self._line_height
+        self._animations.preform( "SelectHeight", is_line_selected and delta_lines or 0, speed, 1 )
+
+
     def __preform( self ):
         """
             Preform all the small calculations.
@@ -310,14 +359,9 @@ class c_editor:
             line_number: str    = str( index )
 
             normalized_drop = drop + pad / 2
-            add_for_selected = 0
-            if self._selected_line == index:
-                add_for_selected = 10
-
-                self._render.rect( start_position + vector( 0, drop ), start_position + vector( 4, drop + self._line_height ), color( 150, 150, 255 ) * fade, 2 )
 
             line.position   = vector( 0, normalized_drop + scroll + pad )
-            text_position   = start_position + vector( add_for_selected, normalized_drop )
+            text_position   = start_position + vector( 0, normalized_drop )
             number_position = start_position + vector( - self._render.measure_text( self._font, line_number ).x - pad * 2, normalized_drop )
 
             current_line_color = line_color
@@ -335,6 +379,75 @@ class c_editor:
 
             drop = drop + self._line_height
             
+    
+    def __draw_select( self, fade: float ):
+        """
+            Draw select lines field.
+
+            Receive :
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        select_height:      float   = self._animations.value( "SelectHeight" )
+        select_position:    vector  = self._animations.value( "SelectPosition" )
+
+        if select_height == 0:
+            return
+        
+        seperate:       int     = self._config.seperate
+        seperate_color: color   = self._config.seperate_color
+
+        self._render.shadow(
+            select_position,
+            select_position + vector( seperate, select_height ),
+            seperate_color,
+            fade,
+            25,
+            seperate / 2
+        )
+
+        self._render.rect( 
+            select_position,
+            select_position + vector( seperate, select_height ),
+            seperate_color * fade,
+            seperate / 2
+        )
+
+
+    def __draw_index( self, fade: float ):
+        """
+            Draw the cursor index.
+
+            Receive :
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        if not self._is_typing:
+            return
+
+        position:           vector  = self._position + self.__char_vector_to_relative( self._cursor )
+        height:             int     = self._line_height
+
+        seperate_color:     color   = self._config.seperate_color
+
+        self._render.shadow(
+            position + vector( -1, 0 ),
+            position + vector( 1, height ),
+            seperate_color,
+            fade,
+            10,
+        )
+
+        self._render.rect( 
+            position + vector( -1, 0 ),
+            position + vector( 1, height ),
+            seperate_color * fade
+        )
+
 
     def __draw_actions( self, fade: float ):
         """
@@ -360,8 +473,6 @@ class c_editor:
 
         self._render.text( self._font, position + vector( pad, pad / 2 ), text_color * alpha, "discard" )
         self._render.text( self._font, position + vector( pad * 2 + self._discard_size.x, pad / 2 ), text_color * alpha, "update" )
-
-        #ShowActions
 
     # endregion
 
@@ -440,13 +551,44 @@ class c_editor:
 
 
     def __event_char_input( self, event ):
+        """
+            Captures what char was pressed.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_typing:
+            return
         
-        pass
+        char = chr( event( "char" ) )
+
+        self.__insert( char )
 
 
     def __event_keyboard_input( self, event ):
+        """
+            General keyboard input handle.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_typing:
+            return
         
-        pass
+        key         = event( "key" )
+        action      = event( "action" ) 
+
+        if action == glfw.PRESS:
+            self.__repeat_handle( key )
+
+        if action == glfw.REPEAT:
+            self.__repeat_handle( key )
 
 
     def __hover_editor( self ):
@@ -556,6 +698,30 @@ class c_editor:
         return True
 
 
+    def __repeat_handle( self, key ):
+        """
+            Executable input handle for PRESS and REPEAT calls.
+
+            Receive :   
+            - key       - GLFW Key value
+
+            Returns :   None
+        """
+
+        # Remove
+        if key == glfw.KEY_BACKSPACE:
+            #self.pop( )
+            pass
+
+        # Move index left
+        if key == glfw.KEY_LEFT and self._cursor.x > 0:
+            self._cursor.x -= 1
+
+        # Move index right
+        if key == glfw.KEY_RIGHT: #and self._cursor.x < len( self._input ):
+            self._cursor.x += 1
+
+    
     def __event_request_line( self, line: int ):
         """
             Request specific line.
@@ -586,6 +752,9 @@ class c_editor:
 
         if self._selected_line <= 0:
             return
+        
+        line_obj: c_line    = self._lines[ self._selected_line - 1 ]
+        line_obj.text       = line_obj.prev
 
         event: c_event = self._events[ "discard_line" ]
         event.attach( "file", self._file )
@@ -593,8 +762,14 @@ class c_editor:
 
         event.invoke( )
 
-        self._selected_line = 0
-        self._is_hovered_discard = False
+        # These things are just to release control. 
+        # TODO ! Rework pls :P
+        # TODO ! Recover old value
+
+        self._selected_line         = 0
+
+        self._is_hovered_discard    = False
+        self._is_typing             = False
 
         if self._parent.is_this_active( self._index ):
             self._parent.release_handle( self._index )
@@ -621,6 +796,24 @@ class c_editor:
 
     # endregion
 
+    # region : Input utilise
+
+    def __insert( self, text: str ):
+        """
+            Inserts specific text into selected index.
+
+            Receive : 
+            - text - Text to insert
+
+            Returns :   None
+        """ 
+
+        line_obj: c_line    = self._lines[ self._cursor.y ]
+
+        line_obj.text       = line_obj.text[ :self._cursor.x ] + text + line_obj.text[ self._cursor.x: ]
+        self._cursor.x      += len( text )
+
+    # endregion
 
     # region : Utilities
 
@@ -699,6 +892,85 @@ class c_editor:
             return
         
         self._selected_line = line
+        self._is_typing     = True
+
+        self._start_limit   = line
+        self._end_limit     = line
+        
+        self._cursor = vector( 0, line - 1 )
+
+
+    def __char_vector_to_relative( self, char_position: vector ) -> vector:
+        """
+            Convert char position in the editor into relative position on the screen.
+
+            Receive :
+            - char_position - Specific char line and place
+
+            Returns :   Vector object
+        """
+
+        result = vector( )
+
+        result.y = ( char_position.y ) * self._line_height
+
+        line: c_line    = self._lines[ char_position.y ]
+        result.x        = self._render.measure_text( self._font, line.text[ :char_position.x ] ).x
+
+        # Add the details
+        pad:                int     = self._config.pad
+        pad_for_numbers:    int     = self._config.pad_for_number
+        scroll:             float   = self._animations.value( "Scroll" )
+
+        return result + vector( pad * 2 + pad_for_numbers, scroll + pad )
+
+
+    def __relative_to_char_vector( self, relative: vector ) -> vector:
+        """
+            Convert a relative position on the screen into char position.
+
+            Receive :
+            - relative - Relative position on the screen
+
+            Returns :   Vector object
+        """
+
+        # Relative vector is from the scene start position. vector(0, 0)
+        # However our editor not always is from the zero.
+
+        result = vector( )
+
+        pad:                int     = self._config.pad
+        pad_for_numbers:    int     = self._config.pad_for_number
+        scroll:             float   = self._animations.value( "Scroll" )
+
+        # Create copy. Otherwise our relative object will get messed
+        relative_vector:    vector  = relative.copy( )
+
+        # Clear the padding
+        relative_vector.y = relative_vector.y - self._position.y - pad - scroll
+        relative_vector.x = relative_vector.x - self._position.x - pad_for_numbers - pad * 2
+
+        # Now after we cleared the y axis. We can extract the line
+        result.y = math.clamp( int( relative_vector.y // self._line_height ), 0, len( self._lines ) - 1 )
+
+        line:               c_line  = self._lines[ result.y ]
+        selected_index:     int     = 0
+        input_width:        float   = 0.0
+
+        # Find the desired index from the center of each char
+        while selected_index < len( line.text ):
+            width = self._render.measure_text( self._font, line.text[ selected_index ] ).x
+            
+            if input_width + ( width * 0.5 ) > relative_vector.x:
+                break
+
+            input_width += width
+            selected_index += 1
+
+        result.x = selected_index
+
+        return result
 
     # endregion
 

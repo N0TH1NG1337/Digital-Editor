@@ -70,6 +70,87 @@ class color:
 
         return self.r, self.g, self.b, self.a
 
+
+    def to_hsv( self ) -> tuple:
+        """
+            Convert RGBA Into HSV value,
+
+            Receive :   None
+
+            Returns :   Tuple ( H, S, V, A )
+        """
+
+        r, g, b = self.r / 255, self.g / 255, self.b / 255
+
+        max_value, min_value = max( r, g, b ), min( r, g, b )
+        h, s, v = 0.0, 0.0, 0.0
+
+        v = max_value
+
+        d = max_value - min_value
+        if max_value == 0:
+            s = 0
+        else:
+            s = d / max_value
+
+        if max_value == min_value:
+            h = 0  # achromatic
+        else:
+            if max_value == r:
+                h = (g - b) / d
+                if g < b:
+                    h += 6
+            elif max_value == g:
+                h = (b - r) / d + 2
+            elif max_value == b:
+                h = (r - g) / d + 4
+            h /= 6
+
+        return h, s, v, self.a / 255
+    
+
+    def as_hsv( self, h: float, s: float, v: float, a: float ) -> any:
+        """
+            Convert HSV value to RGBA Color object.
+
+            Receive:
+            - h - Hue value
+            - s - Saturation value
+            - v - Value value
+            - a - Alpha value
+
+            Returns :   Color object
+        """
+
+        i = int(h * 6.0)
+        f = h * 6.0 - i
+        p = v * (1 - s)
+        q = v * (1 - f * s)
+        t = v * (1 - (1 - f) * s)
+
+        i %= 6
+
+        if i == 0:
+            r, g, b = v, t, p
+        elif i == 1:
+            r, g, b = q, v, p
+        elif i == 2:
+            r, g, b = p, v, t
+        elif i == 3:
+            r, g, b = p, q, v
+        elif i == 4:
+            r, g, b = t, p, v
+        else:
+            r, g, b = v, p, q
+
+        self.r = int(r * 255)
+        self.g = int(g * 255)
+        self.b = int(b * 255)
+        self.a = int(a * 255)
+
+        return self
+
+
     # endregion
 
     # region : Operations

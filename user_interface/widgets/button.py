@@ -249,8 +249,6 @@ class c_button:
             roundness
         )
             
-        
-
 
     def __draw( self, fade: float ):
         """
@@ -306,8 +304,6 @@ class c_button:
             seperate_color * hover,
             seperate / 2
         )
-
-        
 
         self._render.text( self._font, text_position, text_color * hover_text, self._text )
 

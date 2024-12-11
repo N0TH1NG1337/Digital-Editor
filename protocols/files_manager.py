@@ -284,6 +284,22 @@ class c_virtual_file:
         """
 
         return self._lines_used.copy( )
+    
+
+    def update_lines( self, line_number: int, lines: list[ str ] ) -> None:
+        """
+            Update a specific lines in the file.
+
+            Receive :
+            - line_number - Start line number
+            - lines - Actual new content
+
+            Returns :   None
+
+            NOTE ! the line in line_number will be completly removed and replaced by lines[ 0 ]
+        """
+
+        pass
 
     
 

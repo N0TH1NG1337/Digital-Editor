@@ -32,18 +32,19 @@ from user_interface.animations  import c_animations
 from user_interface.scene       import *
 
 # Import Widgets
-from user_interface.widgets.button      import *
-from user_interface.widgets.text_input  import *
-from user_interface.widgets.select_list import *
-from user_interface.widgets.path_select import *
-from user_interface.widgets.editor      import *
+from user_interface.widgets.button          import *
+from user_interface.widgets.text_input      import *
+from user_interface.widgets.select_list     import *
+from user_interface.widgets.path_select     import *
+from user_interface.widgets.editor          import *
+from user_interface.widgets.color_picker    import *
 
 
 class application_config_t:
-    back_color_1 = color( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
-    back_color_2 = color( 30, 30, 70 ) #( 253, 231, 236 )
-    back_color_3 = color( 30, 30, 39 ) #( 156, 140, 182 )
-    back_color_4 = color( 20, 20, 24 ) #( 224, 205, 224 )
+    back_color_1 = color( 30, 30, 50 ) # ( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
+    back_color_2 = color( 30, 30, 70 ) # ( 30, 30, 70 ) #( 253, 231, 236 )
+    back_color_3 = color( 30, 30, 39 ) # ( 30, 30, 39 ) #( 156, 140, 182 )
+    back_color_4 = color( 20, 20, 24 ) # ( 20, 20, 24 ) #( 224, 205, 224 )
 
 
 # Main application class
@@ -63,6 +64,8 @@ class c_application:
     _last_error:        str             # Last application error      
 
     _config:            application_config_t
+
+    _mouse_position:    vector
 
     # region : Initialize object
 
@@ -91,7 +94,7 @@ class c_application:
         # On init last error is None
         self._last_error        = "None"
 
-
+        self._mouse_position    = vector( )
 
     # endregion
 
@@ -430,7 +433,7 @@ class c_application:
         # Attach glfw callbacks
         glfw.set_key_callback(              self._app, self.__event_keyboard_input )
         glfw.set_char_callback(             self._app, self.__event_char_input )
-        glfw.set_cursor_pos_callback(       self._app, self.__event_mouse_position )
+        glfw.set_cursor_pos_callback(       self._app, self.__event_mouse_position_change )
         glfw.set_mouse_button_callback(     self._app, self.__event_mouse_input )
         glfw.set_scroll_callback(           self._app, self.__event_mouse_scroll )
         glfw.set_drop_callback(             self._app, self.__event_path_drop )
@@ -490,7 +493,7 @@ class c_application:
         event.invoke( )
 
 
-    def __event_mouse_position( self, window, x, y ) -> None:
+    def __event_mouse_position_change( self, window, x, y ) -> None:
         """
             Mouse position change callback.
 
@@ -502,17 +505,36 @@ class c_application:
             Returns:    None
         """
 
-        self.active_scene( ).event_mouse_position( window, x, y )
+        self._mouse_position.x = x
+        self._mouse_position.y = y
+
+    
+    def __event_mouse_position( self ) -> None:
+        """
+            Mouse position callback.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        # This solution is much better, 
+        # it avoids unwanted input if we didnt move the mouse
+
+        x = self._mouse_position.x
+        y = self._mouse_position.y
+
+        self.active_scene( ).event_mouse_position( None, x, y )
 
         event: c_event = self._events[ "mouse_position" ]
 
-        event.attach( "window",      window )
+        event.attach( "window",      None )
         event.attach( "x",           x )
         event.attach( "y",           y )
 
         event.invoke( )
 
-
+    
     def __event_mouse_input( self, window, button, action, mods ) -> None:
         """
             Mouse buttons input callback
@@ -745,6 +767,8 @@ class c_application:
             Returns :   None
         """
 
+        self.__event_mouse_position( )
+
         glfw.poll_events( )
         self._impl.process_inputs( )
 
@@ -813,6 +837,7 @@ class c_application:
 
         self._impl.shutdown( )
         glfw.terminate( )
+
 
     # endregion
 

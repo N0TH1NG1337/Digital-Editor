@@ -28,10 +28,10 @@ class text_input_config_t:
     seperate:       int     = 4
 
     input_color:    color   = color( )
-    index_color:    color   = color( 150, 150, 255 )
+    index_color:    color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
     image_color:    color   = color( )
     text_color:     color   = color( )
-    seperate_color: color   = color( 150, 150, 255 )
+    seperate_color: color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
 
 
 class c_single_input_logic:

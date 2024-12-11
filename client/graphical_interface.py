@@ -74,7 +74,7 @@ class c_client_gui:
         self._application.create_font( "TextInput", FONT, 20 )
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
-        self._application.create_font( "Editor",    FONT, 20 )
+        self._application.create_font( "Editor",    FONT_THIN, 20 )
 
         self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
         self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
@@ -204,6 +204,8 @@ class c_client_gui:
         self._elements[ "UsernameEntry" ]   = c_text_input( self._scene_connect, vector( 50, 50 ), 40, vector( 200, 30 ), user_icon, text_font, "Username" )
         self._elements[ "ProjectEntry" ]    = c_text_input( self._scene_connect, vector( 50, 100 ), 40, vector( 200, 30 ), edit_icon, text_font, "Project code" )
         self._elements[ "NextToProject" ]   = c_button( self._scene_connect, vector( 50, 150 ), 40, button_font, next_icon, "Continiue", self.__scene_connection_complete )
+
+        #self._elements[ "ThemeColor" ]      = c_color_picker( self._scene_connect, vector( 500, 500 ), vector( 230 + 44, 230 + 44 ), color( 150, 150, 255 ) )
 
 
     def __scene_connection_draw( self, event ):

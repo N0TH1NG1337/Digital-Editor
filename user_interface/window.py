@@ -33,6 +33,7 @@ class window_config_t:
 
     back_color:         color   = color( 20, 20, 24 )
     outline_color:      color   = color( 100, 100, 100, 150 )
+    shadow_color:       color   = color( 0, 0, 0 )
 
     bar_color:          color   = color( )
 
@@ -193,6 +194,15 @@ class c_window:
 
         if self._config.show_bar:
             remove_height = - 30
+
+        self._render.shadow(
+            vector( 0, remove_height ),
+            self._size,
+            self._config.shadow_color,
+            fade,
+            20,
+            self._config.roundness
+        )
 
         self._render.rect( 
             vector( 0, remove_height ), 
