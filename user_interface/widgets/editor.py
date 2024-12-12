@@ -8,19 +8,31 @@
 
     TODO ! 
     1. Change the line select
-        [ ] - set it only to render once and not for all lines
-        [ ] - animate it
+        [ x ] - set it only to render once and not for all lines
+        [ x ] - animate it
 
     2. Add cursor
-        [ ] - render it
+        [ x ] - render it
         [ ] - animate ( if possible )
 
     3. Add char input based cursor
-        [ ] - ?
+        [ x ] - add
+        [ x ] - remove char
+        [ ] - add new line
+        [ ] - remove line if empty
+        [ ] - add copied text
 
     4. Add cursor operations
-        [ ] - Move left
-        [ ] - Move right
+        [ x ] - Move left
+        [ x ] - Move right
+        [ ] - move up on multiple lines
+        [ ] - move down on multiple lines
+
+    5. Add select text operations
+        [ ] - select multi line text ( should work for single line also )
+        [ ] - add option to delete selected text
+        [ ] - add option to add insted of selected text
+        [ ] - add copy selected text
 
     ?. Update
 """
@@ -111,8 +123,7 @@ class c_editor:
     _selected_line:         int
 
     _cursor:                vector
-    _start_limit:           int
-    _end_limit:             int
+    _amount_of_lines:       int
     _is_typing:             bool
 
     # region : Initialize editor
@@ -212,8 +223,7 @@ class c_editor:
 
         self._is_typing             = False
 
-        self._start_limit           = 0
-        self._end_limit             = 0
+        self._amount_of_lines       = 0
 
     
     def __initialize_events( self ):
@@ -307,7 +317,7 @@ class c_editor:
             position = vector( self._position.x + pad + pad_for_number, self._position.y + pad + ( self._selected_line - 1 ) * self._line_height + scroll )
             self._animations.preform( "SelectPosition", position, speed, 1 )
         
-        delta_lines = ( self._end_limit - self._start_limit + 1 ) * self._line_height
+        delta_lines = self._amount_of_lines  * self._line_height
         self._animations.preform( "SelectHeight", is_line_selected and delta_lines or 0, speed, 1 )
 
 
@@ -369,10 +379,10 @@ class c_editor:
             if line.is_locked:
                 current_line_color = locked_color
 
-            if line.is_hovered:
+            if line.number >= self._selected_line and line.number < self._selected_line + self._amount_of_lines:
                 line.alpha = self._animations.fast_preform( line.alpha, fade, speed )
             else:
-                line.alpha = self._animations.fast_preform( line.alpha, 0.5, speed ) * fade
+                line.alpha = self._animations.fast_preform( line.alpha, line.is_hovered and fade or 0.5, speed )* fade
 
             self._render.text( self._font, text_position, text_color * line.alpha, line.text )
             self._render.text( self._font, number_position, current_line_color * line.alpha, line_number )
@@ -720,6 +730,22 @@ class c_editor:
         if key == glfw.KEY_RIGHT and self._cursor.x < len( self.get_cursor_line( ).text ):
             self._cursor.x += 1
 
+        # New line
+        if key == glfw.KEY_ENTER:
+            self.__enter( )
+
+        # Move up / down in lines
+        if self._amount_of_lines > 1:
+            if key == glfw.KEY_UP and self._cursor.y >= self._selected_line:
+                self._cursor.y -= 1
+
+                self._cursor.x = math.clamp( self._cursor.x, 0, len( self.get_cursor_line( ).text ) )
+
+            if key == glfw.KEY_DOWN and self._cursor.y  < self._selected_line + self._amount_of_lines - 2:
+                self._cursor.y += 1
+
+                self._cursor.x = math.clamp( self._cursor.x, 0, len( self.get_cursor_line( ).text ) )
+
     
     def __event_request_line( self, line: int ):
         """
@@ -761,10 +787,20 @@ class c_editor:
         # These things are just to release control. 
         # TODO ! Rework pls :P
 
-        line_obj: c_line    = self._lines[ self._selected_line - 1 ]
-        line_obj.text       = line_obj.prev
+        changed_lines: list[ c_line ] = self.__get_selected_lines( )
+        first_line: c_line = changed_lines[ 0 ]
+
+        changed_lines.remove( first_line )
+
+        first_line.text       = first_line.prev
+
+        for line in changed_lines:
+            self._lines.remove( line )
+
+        del changed_lines
 
         self._selected_line         = 0
+        self._amount_of_lines       = 0
 
         self._is_hovered_discard    = False
         self._is_typing             = False
@@ -824,13 +860,44 @@ class c_editor:
         if self._cursor.x == 0:
             return None
         
-        line:   c_line      = self._lines[ self._cursor.y ]
+        line:   c_line      = self.get_cursor_line( )
         char                = line.text[ self._cursor.x - 1 ]
 
         line.text           = line.text[ :self._cursor.x - 1 ] + line.text[ self._cursor.x: ]
         self._cursor.x     -= 1
 
         return char
+
+
+    def __enter( self ) -> None:
+        """
+            Handle enter key press input.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        new_line = c_line( )
+
+        new_line.text = ""
+        new_line.prev = ""
+
+        new_line.number     = -1
+        new_line.alpha      = 0
+
+        new_line.is_hovered = False
+        new_line.is_used    = False
+        new_line.is_locked  = False
+
+        new_line.position   = vector( )
+
+        self._lines.insert( self._cursor.y + 1, new_line )
+        self._cursor.y += 1
+        self._cursor.x = 0
+
+        self._amount_of_lines += 1
+
 
     # endregion
 
@@ -846,6 +913,7 @@ class c_editor:
         """
 
         return self._lines[ self._cursor.y ]
+
 
     def clear( self ):
         """ 
@@ -924,8 +992,7 @@ class c_editor:
         self._selected_line = line
         self._is_typing     = True
 
-        self._start_limit   = line
-        self._end_limit     = line
+        self._amount_of_lines = 1
         
         self._cursor = vector( 0, line - 1 )
 
@@ -1002,5 +1069,23 @@ class c_editor:
 
         return result
 
+
+    def __get_selected_lines( self ) -> list[ c_line ]:
+        """
+            Get all the selected lines.
+
+            Receive :   None
+
+            Returns :   List of lines objects
+        """
+
+        result = [ ]
+
+        for index in range( self._selected_line, self._selected_line + self._amount_of_lines ):
+            line: c_line = self._lines[ index - 1 ]
+            result.append( line )
+
+        return result
+    
     # endregion
 

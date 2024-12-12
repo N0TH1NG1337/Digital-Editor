@@ -143,7 +143,7 @@ class c_virtual_file:
         return information[ 0 ], information[ 1 ]
     
 
-    def get_file_size( self ) -> int | None:
+    def get_file_size( self ) -> any: #int | None:
         """
             Get file size.
 
@@ -162,7 +162,7 @@ class c_virtual_file:
         return size
 
 
-    def read_from_file( self, start: int, end: int ) -> bytes | None:
+    def read_from_file( self, start: int, end: int ) -> any: #bytes | None:
         """
             Read specific chunk from the file.
 
@@ -370,7 +370,7 @@ class c_files_manager_protocol:
             Returns :   String value
         """
 
-        return f"{ FILES_MANAGER_HEADER }::{ message }->{ "->".join( arguments ) }"
+        return f"{ FILES_MANAGER_HEADER }::{ message }->{ '->'.join( arguments ) }"
 
 
     def parse_message( self, message: str ):
@@ -416,7 +416,7 @@ class c_files_manager_protocol:
 
     # region : Utilities
 
-    def search_file( self, name: str ) -> c_virtual_file | None:
+    def search_file( self, name: str ) -> any: #c_virtual_file | None:
         """
             Search a virtual file based on name.
 

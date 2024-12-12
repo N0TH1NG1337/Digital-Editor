@@ -58,7 +58,7 @@ class c_animations:
         del self._cache[ value_index ]
 
 
-    def interpolation( self, new_value: float = None ) -> float | None:
+    def interpolation( self, new_value: float = None ) -> float:
         """
             Returns / changes current interpolation factor
 
@@ -72,6 +72,7 @@ class c_animations:
             return self._interpolation
         
         self._interpolation = new_value
+        return new_value
 
 
     def value( self, index: str, new_value: any = None ) -> any:

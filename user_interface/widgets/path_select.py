@@ -143,6 +143,7 @@ class c_base_folder:
         self._folders = [ ]
         self._files = [ ]
 
+
     def previous( self ) -> any:
         """
             Get previous folder.
@@ -154,6 +155,7 @@ class c_base_folder:
 
         return self._prev
     
+
     def name( self ) -> str:
         """
             Get folder name.
@@ -165,6 +167,7 @@ class c_base_folder:
 
         return self._name
     
+
     def folders( self ) -> list:
         """
             Get all the folders inside this folder.
@@ -175,6 +178,7 @@ class c_base_folder:
         """
 
         return self._folders
+    
     
     def files( self ) -> list:
         """
@@ -187,6 +191,7 @@ class c_base_folder:
 
         return self._files
     
+
     def absolute_path( self ) -> str:
         """
             Get absolute path of this folder.
@@ -206,6 +211,7 @@ class c_base_folder:
 
         return result
     
+
     @safe_call( None )
     def dump( self ) -> bool:
         """
@@ -237,6 +243,7 @@ class c_base_folder:
                     self._folders.append( new_folder )
 
         return True
+
 
     def clear( self ) -> None:
         """

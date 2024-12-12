@@ -173,14 +173,14 @@ class c_single_input_logic:
         self._set_end       = True
 
     
-    def is_typing( self, new_value: bool = None ) -> bool | None:
+    def is_typing( self, new_value: bool = None ) -> bool:
         """
             Is/Set the user typing in this input.
 
             Receive :   
             - new_value [optional] - Is the user typing ?
 
-            Returns :   Result or None
+            Returns :   Result
         """
 
         if new_value is None:
@@ -188,15 +188,17 @@ class c_single_input_logic:
         
         self._is_typing = new_value
 
+        return self._is_typing
 
-    def position( self, new_value: vector = None ) -> vector | None:
+
+    def position( self, new_value: vector = None ) -> vector:
         """
             Get/Update the position on this input in the parent.
 
             Receive : 
             - new_value [optional] - New position
 
-            Returns :   Vector or None
+            Returns :   Vector
         """
 
         if new_value is None:
@@ -204,8 +206,10 @@ class c_single_input_logic:
         
         self._position = new_value.copy( )
 
+        return new_value
 
-    def size( self, new_value: vector = None ) -> vector | None:
+
+    def size( self, new_value: vector = None ) -> vector:
         """
             Get/Update the size of this input in the parent.
 
@@ -219,6 +223,8 @@ class c_single_input_logic:
             return self._size
         
         self._size = new_value.copy( )
+
+        return new_value
 
     
     def correct_size( self ) -> vector:
@@ -417,17 +423,17 @@ class c_single_input_logic:
         self._input_index += len( text )
 
 
-    def pop( self ) -> str | None:
+    def pop( self ) -> str:
         """
             Pops char from input in selected index.
 
             Receive :   None
 
-            Returns :   Char or None
+            Returns :   Char
         """
 
         if self._input_index == 0:
-            return None
+            return ""
         
         char                = self._input[ self._input_index - 1 ]
 
@@ -943,7 +949,7 @@ class c_text_input:
 
     # region : Utilities
 
-    def position( self, new_value: vector = None ) -> vector | None:
+    def position( self, new_value: vector = None ) -> vector:
         """
             Access / Update text input's position.
 
@@ -958,6 +964,8 @@ class c_text_input:
         
         self._position.x = new_value.x
         self._position.y = new_value.y
+
+        return new_value
 
 
     def size( self ) -> vector:

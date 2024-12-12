@@ -659,7 +659,7 @@ class c_application:
 
         event: c_event = self._events[ "path_drop" ]
 
-        event.attach( "window",      window )
+        event.attach( "window",     window )
         event.attach( "count",      count )
         event.attach( "paths",      paths )
 
@@ -865,6 +865,7 @@ class c_application:
         """
 
         return self._render
+
 
     def window_size( self ) -> vector:
         """

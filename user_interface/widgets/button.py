@@ -373,7 +373,7 @@ class c_button:
 
     # region : Utilities
 
-    def position( self, new_value: vector = None ) -> vector | None:
+    def position( self, new_value: vector = None ) -> any: #vector | None:
         """
             Access / Update buttons position.
 

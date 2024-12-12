@@ -23,15 +23,15 @@ class vector:
 
     # region : Initialize object
 
-    def __init__( self, x: int | float = 0, y: int | float = 0, z: int | float = 0 ):
+    def __init__( self, x: any = 0, y: any = 0, z: any = 0 ):
         """
             Vector class constructor
 
             Receives:   
 
-            - x [optional] - start value for x-axis     
-            - y [optional] - start value for y-axis
-            - z [optional] - start value for z-axis
+            - x [optional] - start value for x-axis [ int | float ] 
+            - y [optional] - start value for y-axis [ int | float ] 
+            - z [optional] - start value for z-axis [ int | float ] 
 
             Returns:    Vector object
         """
@@ -77,14 +77,14 @@ class vector:
 
     # region : Calculations
 
-    def is_in_bounds( self, start_vector: any, width: int | float, height: int | float ) -> bool:
+    def is_in_bounds( self, start_vector: any, width: any, height: any ) -> bool:
         """
             Is this vector in between 2 other vectors representing a rect 
         
             Receives:   
             - start_vector  - start of the rect
-            - width         - width of the rect
-            - height        - height of the rect
+            - width         - width of the rect  [ int | float ] 
+            - height        - height of the rect [ int | float ] 
 
             Returns:    Bool value
         """

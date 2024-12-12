@@ -463,7 +463,7 @@ class c_list:
                 item.is_enable = new_value
 
     
-    def position( self, new_value: vector = None ) -> vector | None:
+    def position( self, new_value: vector = None ) -> any: #vector | None:
         """
             Access / Update list position.
 
@@ -510,7 +510,7 @@ class c_list:
 
                 return
 
-    def get( self, index: str = None ) -> str | bool:
+    def get( self, index: str = None ) -> any: #str | bool:
         """
             Get value from list.
 

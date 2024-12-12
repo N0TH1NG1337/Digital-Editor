@@ -155,12 +155,12 @@ class color:
 
     # region : Operations
 
-    def alpha_override( self, new_alpha: int | float ) -> any:
+    def alpha_override( self, new_alpha: any ) -> any:
         """
             Create new instance of color object with new alpha
 
             Receives:   
-            - new_alpha - new alpha value for new color
+            - new_alpha - new alpha value for new color [ int | float ]
 
             Returns:    Color object
         """
@@ -203,12 +203,12 @@ class color:
         return f"color({ self.r }, { self.g }, { self.b }, { self.a })"
 
 
-    def __mul__( self, over_alpha: int | float ) -> any:
+    def __mul__( self, over_alpha: any ) -> any:
         """
             Override Multipy operator to adjust alpha value
 
             Receives:   
-            - over_alpha - from 0 or 1 value adjust
+            - over_alpha - from 0 or 1 value adjust [ int | float ]
 
             Returns:    Color object
         """

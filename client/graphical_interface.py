@@ -19,7 +19,7 @@ class c_client_gui:
     _scene_connect:     c_scene
     _scene_project:     c_scene
 
-    _elements:          dict
+    _elements:          dict    
 
     # region : Initialize Client GUI Object
 

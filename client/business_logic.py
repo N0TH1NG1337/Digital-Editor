@@ -52,9 +52,9 @@ class c_client_business_logic:
             Returns :   None
         """
 
-        self._network = c_network_protocol( )
+        self._network   = c_network_protocol( )
 
-        self._files = c_files_manager_protocol( )
+        self._files     = c_files_manager_protocol( )
 
     
     def __initialize_events( self ):
@@ -167,7 +167,7 @@ class c_client_business_logic:
         if not self._information[ "is_connected" ]:
             return
         
-        msg = f"username::{username}"
+        msg = f"username::{ username }"
         self._network.send( msg )
     
 
@@ -188,6 +188,7 @@ class c_client_business_logic:
 
         return data[0], int( data[1] )
     
+
     def disconnect( self ):
         """
             Disconnect from the server.
@@ -213,6 +214,7 @@ class c_client_business_logic:
         # and if the server tries to send more information, it will be just lost.
         # TODO ! Need later to add check if the client received a DISCONNECT_MSG from server while working, just end connection
         self.__end_connection( )
+
 
     def __end_connection( self ):
         """
@@ -244,6 +246,7 @@ class c_client_business_logic:
  
         self._information[ "thread" ] = threading.Thread( target=self.__process_receive )
         self._information[ "thread" ].start( )
+
 
     def __process_receive( self ):
         """
@@ -295,7 +298,7 @@ class c_client_business_logic:
             Returns :   None
         """
 
-        message: str = self._files.format_message( FILES_COMMAND_REQ_FILES, ["unk"] )
+        message: str = self._files.format_message( FILES_COMMAND_REQ_FILES, [ "unk" ] )
         
         self._network.send( message )
 
@@ -315,7 +318,7 @@ class c_client_business_logic:
             return
         
         #print( name )
-        message: str = self._files.format_message( FILES_COMMAND_GET_FILE, [name] )
+        message: str = self._files.format_message( FILES_COMMAND_GET_FILE, [ name ] )
         self._network.send( message )
 
 
@@ -384,8 +387,8 @@ class c_client_business_logic:
         
         if command == FILES_COMMAND_SET_FILE:
 
-            file_name = arguments[ 0 ]
-            length = arguments[ 1 ]
+            file_name   = arguments[ 0 ]
+            length      = arguments[ 1 ]
 
             self.__event_set_file( )
 
@@ -402,19 +405,21 @@ class c_client_business_logic:
 
                 self.__event_update_file( file )
 
+                file.clear_content( )
+
             return
 
 
         if command == FILES_COMMAND_PREPARE_RESPONSE:
-            file_name = arguments[ 0 ]
+            file_name   = arguments[ 0 ]
             line_number = arguments[ 1 ]
-            is_locked = arguments[ 2 ]
+            is_locked   = arguments[ 2 ]
 
             self.__event_accept_line( file_name, int( line_number ), is_locked == "0" )
         
 
         if command == FILES_COMMAND_PREPARE_UPDATE:
-            file_name = arguments[ 0 ]
+            file_name   = arguments[ 0 ]
             line_number = int( arguments[ 1 ] )
 
             file: c_virtual_file = self._files.search_file( file_name )
@@ -425,7 +430,7 @@ class c_client_business_logic:
 
         
         if command == FILES_COMMAND_DISCARD_UPDATE:
-            file_name = arguments[ 0 ]
+            file_name   = arguments[ 0 ]
             line_number = int( arguments[ 1 ] )
 
             file: c_virtual_file = self._files.search_file( file_name )

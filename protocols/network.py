@@ -15,7 +15,6 @@ INVALID                 = None
 
 HEADER_SIZE             = 4
 CHUNK_SIZE              = 1024
-SEPERATE_RAW            = "<<"
 DISCONNECT_MSG          = "_DISCONNECT_"
 
 CONNECTION_TYPE_CLIENT  = 1
@@ -214,7 +213,6 @@ class c_network_protocol:
             # If timed out
             return None, None
         
-
     def send( self, value: str ):
         """
             Send string value.
@@ -323,7 +321,7 @@ class c_network_protocol:
             Returns :   Bytes
         """
 
-        received_raw_data = b''
+        received_raw_data = b''     
 
         while len(received_raw_data) < length:
             this_size = min( length - len( received_raw_data ), CHUNK_SIZE )
@@ -333,12 +331,12 @@ class c_network_protocol:
 
         return received_raw_data
 
-    def value_format( self, value: str | bytes, has_next: bool = False ) -> list:
+    def value_format( self, value: any, has_next: bool = False ) -> list:
         """
             Format the value for a config to send.
 
             Reecive : 
-            - value                 - Value willing to send
+            - value                 - Value willing to send [ str | bytes ]
             - has_next [optional]   - If there is something else afterwards to receive
 
             Returns :   List 

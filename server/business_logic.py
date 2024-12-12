@@ -80,8 +80,6 @@ class c_client_handle:
     _selected_line: int
     _offset_index:  int
 
-    # TODO ! ADD SELECTED LINE. OTHERWISE IT WILL BE POSSIBLE TO SPOOF LINE CHANGES
-
     # region : Initialize client handle
 
     def __init__( self ):
@@ -159,7 +157,7 @@ class c_client_handle:
         # Register connection
         self.__register_connection( )
 
-        self.__event_log( f"Client connected { address } registered as { self._information[ "username" ] }" )
+        self.__event_log( f"Client connected { address } registered as { self._information[ 'username' ] }" )
 
         # Call the event
         self.__event_connect( address )
@@ -260,12 +258,12 @@ class c_client_handle:
 
             res = res.decode( )
 
-            self.__event_log( f"Received from { self._information[ "username" ] } : { res }" )
+            self.__event_log( f"Received from { self._information[ 'username' ] } : { res }" )
 
             if res == DISCONNECT_MSG:
                 self.disconnect( False )
 
-                self.__event_log( f"Goodbye { self._information[ "username" ] }" )
+                self.__event_log( f"Goodbye { self._information[ 'username' ] }" )
                 
                 continue
 
@@ -1124,7 +1122,7 @@ class c_server_business_logic:
 
     # region : Access
 
-    def find_client( self, username: str ) -> c_client_handle | None:
+    def find_client( self, username: str ) -> any: #c_client_handle | None:
         """
             Search specific client based on username.
 
@@ -1155,7 +1153,7 @@ class c_server_business_logic:
         return self._files
 
 
-    def clients( self ) -> list[c_client_handle]:
+    def clients( self ) -> list[ c_client_handle ]:
         return self._clients
     
     # endregion
