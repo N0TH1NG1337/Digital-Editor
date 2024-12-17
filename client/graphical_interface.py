@@ -75,6 +75,7 @@ class c_client_gui:
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
         self._application.create_font( "Editor",    FONT_THIN, 20 )
+        self._application.create_font( "Debug",     FONT_THIN, 14 )
 
         self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
         self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
@@ -180,6 +181,8 @@ class c_client_gui:
         self._logic.set_event( "accept_line",       self.__event_response_line,     "GUI_Accept_Line" )
         self._logic.set_event( "lock_line",         self.__event_lock_line,         "GUI_LockLine")
         self._logic.set_event( "unlock_line",       self.__event_unlock_line,       "GUI_UnlockLine" ) 
+        self._logic.set_event( "update_line",       self.__event_change_lines,      "GUI_UpLine" )
+        self._logic.set_event( "delete_line",       self.__event_remove_line,       "GUI_RemLine" )
 
     # endregion
 
@@ -306,7 +309,7 @@ class c_client_gui:
 
         files_list_config = list_config_t( )
         files_list_config.check_mark = self._application.image( "Check" )
-        files_list_config.slots_count = 8
+        files_list_config.slots_count = 4
 
         self._elements[ "StopClient" ]      = c_button( self._scene_project, vector( 50, 50 ), 40, button_font, close_icon, "Disconnect", self.__scene_project_complete )
         self._elements[ "FilesList" ]       = c_list( self._scene_project, vector( 50, 100 ), 300, list_font, files_list_config )
@@ -315,6 +318,8 @@ class c_client_gui:
 
         self._elements[ "Editor" ].set_event( "request_line", self.__event_request_line, "GUI_ReqLine" )
         self._elements[ "Editor" ].set_event( "discard_line", self.__event_discard_line, "Gui_DisLine" )
+        self._elements[ "Editor" ].set_event( "update_line",  self.__event_update_line,  "Gui_UpLine" )
+        self._elements[ "Editor" ].set_event( "delete_line",  self.__event_delete_line,  "Gui_DelLine" )
 
 
     def __scene_project_draw( self, event ):
@@ -327,17 +332,17 @@ class c_client_gui:
             Returns :   None
         """
 
-        title_font:         c_font          = self._application.font( "Title" )
+        debug_font:         c_font          = self._application.font( "Debug" )
         screen:             vector          = self._application.window_size( )
         
         render:             c_renderer      = self._scene_project.render( )
         animations:         c_animations    = self._scene_project.animations( )
 
         fade:               float           = animations.value( "Fade" )
-        text_size:          vector          = render.measure_text( title_font, "Project" )
+        text:               str             = f" Client : { self._elements[ "UsernameEntry" ].get( ) } / Version 0.2 "
+        text_size:          vector          = render.measure_text( debug_font, text )
 
-        render.text( title_font, vector( 50 + 3,    screen.y - text_size.y - 50 - 3 ),  color( 200, 200, 255, 100 ) * fade, "Project" )
-        render.text( title_font, vector( 50,        screen.y - text_size.y - 50 ),      color( ) * fade,                    "Project" )
+        render.text( debug_font, vector( 10, screen.y - text_size.y - 10 ), color( ) * fade, text )
 
         self.__adjust_scene_project_elements( )
     
@@ -353,8 +358,12 @@ class c_client_gui:
 
         screen: vector = self._application.window_size( )
 
-        files_list: c_list = self._elements[ "FilesList" ]
+        files_list: c_list      = self._elements[ "FilesList" ]
+        editor:     c_editor    = self._elements[ "Editor" ]
+
         files_list.position( vector( screen.x - 350, 100 ) )
+
+        editor.size( vector( screen.x - 20 * 3 - 500, screen.y - 150 ) )
 
 
     def __scene_project_complete( self ):
@@ -523,6 +532,77 @@ class c_client_gui:
 
         self._logic.discard_line( file_name, line )
 
+    
+    def __event_update_line( self, event ):
+        """
+            Message to server in order to commit changes.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        lines:      list    = event( "lines" )
+
+        self._logic.update_line( file_name, line, lines )
+
+        lines.clear( )
+
+    
+    def __event_delete_line( self, event ):
+        """
+            Message to server in order to delete a line.
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        self._logic.delete_line( file_name, line )
+
+    
+    def __event_change_lines( self, event ):
+        """
+            Response from server to client in order to change lines.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        lines:      list    = event( "lines" )
+
+        editor: c_editor = self._elements[ "Editor" ]
+        editor.change_lines( file_name, line, lines )
+
+
+    def __event_remove_line( self, event ):
+        """
+            Response from server to client in order to remove a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        editor: c_editor = self._elements[ "Editor" ]
+        editor.delete_line( file_name, line )
+    
     # endregion
 
     # region : Execute

@@ -7,13 +7,15 @@
     description : Server Business Logic class
 """
 
+
+
 from protocols.network          import *
 from protocols.files_manager    import *
 from utilities.event            import c_event
-from utilities.base64           import base64
 from utilities.wrappers         import safe_call, standalone_execute
 
 import threading
+import base64
 import queue
 import time
 import os
@@ -75,10 +77,17 @@ class c_client_handle:
     _information:   dict                # Clients information
     _events:        dict                # Each client events
 
-    # This is where the fun (cancer starts)
+    # This is where the fun starts
     _selected_file: c_virtual_file
     _selected_line: int
-    _offset_index:  int
+
+    _offset_index:  int # TODO ! Here instead of just number create list
+    # We dont want modded client to spoof index change response.
+    # As a result each change will be added to a list, and in general used as sum( ) for offset
+    # And checks if one offset is responded, just remove from the list.
+
+    # TODO ! Add trust factor for client. Trust factor will be able to idntify strange behavior from client
+    # and to block it if needed.
 
     # region : Initialize client handle
 
@@ -132,7 +141,7 @@ class c_client_handle:
         self._selected_file = None
 
         self._selected_line = 0
-        self._offset_index  = -1
+        self._offset_index  = 0
 
     # endregion
 
@@ -258,7 +267,7 @@ class c_client_handle:
 
             res = res.decode( )
 
-            self.__event_log( f"Received from { self._information[ 'username' ] } : { res }" )
+            #self.__event_log( f"Received from { self._information[ 'username' ] } : { res }" )
 
             if res == DISCONNECT_MSG:
                 self.disconnect( False )
@@ -422,6 +431,23 @@ class c_client_handle:
 
         self._selected_line = line
 
+
+    def offset_index( self, offset: int = None ) -> int:
+        """
+            Updates or Returns the clients offset index.
+
+            Receive :
+            - offset [optional] - Offset for clients line index
+
+            Returns :   Current offset number
+        """
+
+        if offset is None:
+            return self._offset_index
+        
+        self._offset_index = offset
+        return offset
+    
     # endregion
 
     # region : Utilities
@@ -683,7 +709,7 @@ class c_server_business_logic:
         local_ip, local_port = self._network.get_address( )
 
         result = f"{ local_ip }:{ local_port }"
-        result = base64.encode( result )
+        result = base64.b64encode( result.encode( ) ).decode( )
 
         return result
 
@@ -891,18 +917,24 @@ class c_server_business_logic:
         """
 
         client_network: c_network_protocol  = client.network( )
+        client_name:    str                 = client( "username" )
 
         cmd, arguments = self._files.parse_message( message )
 
         if cmd == FILES_COMMAND_REQ_FILES:
+            
+            self.log( f" Client { client_name } requested files " )
+
             files_list = self._files.share_files( )
             
             client_network.send( files_list )
 
-            self.log( "Sending client Files." )
+            self.log( f" Sending to Client { client_name } files " )
 
 
         if cmd == FILES_COMMAND_GET_FILE:
+
+            self.log( f" Client { client_name } requested specific file { arguments[ 0 ] } content " )
 
             file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
             if file is None:
@@ -924,17 +956,21 @@ class c_server_business_logic:
                 file_chunk = file.read_from_file( start, end )
                 client_network.send_raw( file_chunk, has_next )
 
-            self.log( "Sent file." )
+            self.log( f" Sending to Client { client_name } file { arguments[ 0 ] } " )
 
             # After the file have been sent.
             # We need to nofity the client what lines are being used.
-            #lines: list = file.get_locked_lines( )
-            #for line in lines:
-            #    lock_line_msg = self._files.format_message( FILES_COMMAND_LOCK_LINE, [ file.name( ), str( line ) ] )
-            #    client_network.send( lock_line_msg )
+
+            lines: list = file.get_locked_lines( )
+
+            for line in lines:
+                msg = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ) ] )
+                client_network.send( msg )
 
         
         if cmd == FILES_COMMAND_PREPARE_UPDATE:
+
+            self.log( f" Client { client_name } requested specific line { arguments[ 1 ] } from a file { arguments[ 0 ] } " )
 
             file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
             if file is None:
@@ -956,8 +992,12 @@ class c_server_business_logic:
             msg = self._files.format_message( FILES_COMMAND_PREPARE_RESPONSE, [ file.name( ), arguments[ 1 ], response ] )
             client_network.send( msg )
 
+            self.log( f" The line { arguments[ 1 ] } that Client { client_name } requested is { is_locked and "locked" or "free" }" )
+
 
         if cmd == FILES_COMMAND_DISCARD_UPDATE:
+
+            self.log( f" Client { client_name } requested a discard line { arguments[ 1 ] } changes " )
 
             file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
             if file is None:
@@ -968,7 +1008,7 @@ class c_server_business_logic:
 
             line: int = int( arguments[ 1 ] )
 
-            if client.get_line( ) != line:
+            if client.get_line( ) + client.offset_index( ) != line:
                 return
             
             is_locked = file.is_line_locked( line )
@@ -977,10 +1017,101 @@ class c_server_business_logic:
 
             file.unlock_line( line )
             client.set_line( 0 )
+            client.offset_index( 0 )
             self.__unlock_line_for_all_clients( file, line, client )
+
+        
+        if cmd == FILES_COMMAND_UPDATE_LINE:
+
+            self.log( f" Client { client_name } responsed with a lines update to a file { arguments[ 0 ] }" )
+
+            file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
+            if file is None:
+                return
+            
+            if client.get_file_name( ) != arguments[ 0 ]:
+                return
+
+            line: int = int( arguments[ 1 ] )
+
+            if client.get_line( ) + client.offset_index( ) != line:
+                return
+
+            # Clean the useless information
+            arguments.pop( 1 )
+            arguments.pop( 0 )
+
+            # Now the only thing that remains is the changed lines.
+            raw_lines = [ ]
+
+            for changed_line in arguments:
+                changed_line: str = base64.b64decode( changed_line ).decode( )
+                raw_lines.append( changed_line )
+                
+            file.unlock_line( line )
+            
+            removed_line = file.remove_line( line )
+            file.update_lines( line, raw_lines )
+            
+            client.set_line( 0 )
+            client.offset_index( 0 )
+
+            self.__update_lines_for_all_clients( file, line, arguments, client )
+
+            # Commit changes in changelog
+            changes_file_name = f"{ file.parse_name( )[ 0 ] }_changes.txt"
+            change_log_file: c_virtual_file = self._files.search_file( changes_file_name )
+
+            current_time = time.strftime( "Date : %d/%m ->  %H::%M::%S", time.localtime( ) )
+            change_log_file.add_change( current_time, {
+                "user" : client_name,
+                "removed" : removed_line,
+                "added": raw_lines
+            } )
+
+            arguments.clear( )
+            raw_lines.clear( )
+
+            return
+
+
+        if cmd == FILES_COMMAND_DELETE_LINE:
+
+            self.log( f" Client { client_name } wants to delete a line in a file { arguments[ 0 ] }" )
+
+            file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
+            if file is None:
+                return
+            
+            if client.get_file_name( ) != arguments[ 0 ]:
+                return
+
+            line: int = int( arguments[ 1 ] )
+
+            if client.get_line( ) + client.offset_index( ) != line:
+                return
+            
+            file.unlock_line( line )
+            removed_line = file.remove_line( line )
+            client.set_line( 0 )
+            client.offset_index( 0 )
+
+            self.__delete_line_for_all_clients( file, line, client )
+
+            changes_file_name = f"{ file.parse_name( )[ 0 ] }_changes.txt"
+            change_log_file: c_virtual_file = self._files.search_file( changes_file_name )
+
+            current_time = time.strftime( "Date : %d/%m ->  %H::%M::%S", time.localtime( ) )
+            change_log_file.add_change( current_time, {
+                "user" : client_name,
+                "removed" : removed_line,
+            } )
+
+            return
 
         return
     
+
     def __lock_line_for_all_clients( self, file: c_virtual_file, line: int, exception: c_client_handle ):
         """
             Notify all the clients in a specific file that this line is locked.
@@ -1021,7 +1152,71 @@ class c_server_business_logic:
 
                 msg = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file.name( ), str( line ) ] )
                 client.network( ).send( msg )
+    
 
+    def __update_lines_for_all_clients( self, file: c_virtual_file, line: int, lines: list, exception: c_client_handle ):
+        """
+            Update for all the clients in a specific file with new lines.
+
+            Receive :
+            - file      - File handle
+            - line      - Line number
+            - lines     - New lines to add
+            - exception - The only client that dont notify
+
+            Returns :   None
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if not client == exception and client.get_file_name( ) == file.name( ):
+
+                current_client_line = client.get_line( )
+                if current_client_line > 0 and current_client_line > line:
+                    
+                    new_lines = len( lines ) - 1
+
+                    if file.is_line_locked( current_client_line ):
+                        file.unlock_line( current_client_line )
+                        file.lock_line( current_client_line + new_lines )
+
+                    current_offset = client.offset_index( )
+                    client.offset_index( current_offset + new_lines )
+
+                msg = self._files.format_message( FILES_COMMAND_UPDATE_LINE, [ file.name( ), str( line ) ] + lines )
+                client.network( ).send( msg )
+
+    
+    def __delete_line_for_all_clients( self, file: c_virtual_file, line: int, exception: c_client_handle ):
+        """
+            Update for all the clients in a specific file with new lines.
+
+            Receive :
+            - file      - File handle
+            - line      - Line number
+            - exception - The only client that dont notify
+
+            Returns :   None
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if not client == exception and client.get_file_name( ) == file.name( ):
+                
+                current_client_line = client.get_line( )
+                if current_client_line > 0 and current_client_line > line:
+
+                    if file.is_line_locked( current_client_line ):
+                        file.unlock_line( current_client_line )
+                        file.lock_line( current_client_line - 1 )
+
+                    current_offset = client.offset_index( )
+                    client.offset_index( current_offset - 1 )
+
+                msg = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file.name( ), str( line ) ] )
+                client.network( ).send( msg )
 
     # endregion
 
@@ -1165,7 +1360,5 @@ class c_server_business_logic:
 
     def get_logs( self ) -> list:
         return self._logs
-    
-    
 
     # endregion

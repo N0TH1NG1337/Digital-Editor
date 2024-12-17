@@ -274,10 +274,11 @@ class c_server_gui:
 
         file_type_list_config = list_config_t( )
         file_type_list_config.check_mark = self._application.image( "Check" )
+        file_type_list_config.slots_count = 3
 
-        self._elements[ "PathSelect" ]          = c_path_select( self._scene_files,path_font, vector( 50, 50 ), vector( 500, 600 ), path_icons )
+        self._elements[ "PathSelect" ]          = c_path_select( self._scene_files,path_font, vector( 50, 50 ), vector( 500, 580 ), path_icons )
         self._elements[ "NextToConnection" ]    = c_button( self._scene_files, vector( 50, 600 + 50 ), 40, button_font, next_icon, "Continiue", self.__scene_files_complete )
-        self._elements[ "SelectFileType" ]      = c_list( self._scene_files, vector( 600, 50 ), 200, list_font, file_type_list_config  )
+        self._elements[ "SelectFileType" ]      = c_list( self._scene_files, vector( 600, 50 ), 220, list_font, file_type_list_config  )
 
         self._elements[ "PathSelect" ].parse_path( os.getcwd( ) )
 

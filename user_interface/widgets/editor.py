@@ -38,14 +38,17 @@
 """
 
 import glfw
+import base64
 
 from utilities.color    import color
 from utilities.vector   import vector
 from utilities.math     import math
 from utilities.wrappers import safe_call
+
 from utilities.image    import c_image
 from utilities.font     import c_font
 from utilities.event    import c_event
+
 
 # Import user interface related things
 from user_interface.render      import c_renderer
@@ -81,13 +84,13 @@ class c_line:
     prev:       str # Before the start of edit text
     number:     int
 
-    is_used:    bool
     is_locked:  bool
     is_hovered: bool
 
     position:   vector
 
     alpha:      float
+    pad:        float
 
 
 class c_editor:
@@ -121,6 +124,7 @@ class c_editor:
     _line_height:           int
 
     _selected_line:         int
+    _selected_position:     vector
 
     _cursor:                vector
     _amount_of_lines:       int
@@ -193,6 +197,9 @@ class c_editor:
         self._animations.prepare( "SelectPosition",     self._position + vector( self._config.pad_for_number, 0 ) )
         self._animations.prepare( "SelectHeight",       0 )
 
+        self._animations.prepare( "DiscardFade", 0 )
+        self._animations.prepare( "UpdateFade", 0 )
+
     
     def __initialize_information( self ):
         """
@@ -215,6 +222,8 @@ class c_editor:
         self._discard_size          = vector( )
         self._update_size           = vector( )
         self._cursor                = vector( )
+
+        self._selected_position     = vector( -1, -1 )
 
         self._is_hovered            = False
 
@@ -240,30 +249,7 @@ class c_editor:
         self._events[ "request_line" ]  = c_event( )
         self._events[ "discard_line" ]  = c_event( )
         self._events[ "update_line" ]   = c_event( )
-
-    
-    def add_line( self, text: str ):
-        #### ?????
-
-        new_line = c_line( )
-
-        new_line.text = text
-        new_line.prev = text
-
-        new_line.number     = -1
-        new_line.alpha      = 0
-
-        new_line.is_hovered = False
-        new_line.is_used    = False
-        new_line.is_locked  = False
-
-        new_line.position   = vector( )
-
-        self._lines.append( new_line )
-
-    
-    def set_file( self, file_name: str ):
-        self._file = file_name
+        self._events[ "delete_line" ]   = c_event( )
     
     # endregion
 
@@ -281,6 +267,23 @@ class c_editor:
 
         self.__animate( )
         self.__preform( )
+        
+        self._render.gradiant(
+            self._position, self._position + self._size,
+            color( 0, 0, 0, 100 ) * fade,
+            color( 0, 0, 0, 100 )* fade,
+            color( 0, 0, 0, 0 ),
+            color( 0, 0, 0, 0 ),
+            10
+        )
+
+        self._render.shadow(
+            self._position, self._position + self._size,
+            color( 0, 0, 0, 50 ),
+            fade,
+            20,
+            10
+        )
 
         self._render.push_clip_rect( self._position, self._position + self._size )
 
@@ -290,6 +293,8 @@ class c_editor:
         self.__draw_actions( fade )
 
         self._render.pop_clip_rect( )
+
+        self.__draw_scrollbar( fade )
 
 
     def __animate( self ):
@@ -320,6 +325,9 @@ class c_editor:
         delta_lines = self._amount_of_lines  * self._line_height
         self._animations.preform( "SelectHeight", is_line_selected and delta_lines or 0, speed, 1 )
 
+        self._animations.preform( "DiscardFade",    self._is_hovered_discard    and 1 or 0.5, speed )
+        self._animations.preform( "UpdateFade",     self._is_hovered_update     and 1 or 0.5, speed )
+
 
     def __preform( self ):
         """
@@ -332,6 +340,11 @@ class c_editor:
 
         self._discard_size  = self._render.measure_text( self._font, "discard" )
         self._update_size   = self._render.measure_text( self._font, "update" )
+
+        if self._selected_position != vector( -1, -1 ) and self._selected_line != 0:
+            self._cursor = self.__relative_to_char_vector( self._selected_position )
+            self._cursor.y = math.clamp( self._cursor.y, self._selected_line - 1, self._selected_line + self._amount_of_lines - 2 )
+            self._selected_position = vector( -1, -1 )
 
 
     def __draw_lines( self, fade: float ):
@@ -384,7 +397,16 @@ class c_editor:
             else:
                 line.alpha = self._animations.fast_preform( line.alpha, line.is_hovered and fade or 0.5, speed )* fade
 
-            self._render.text( self._font, text_position, text_color * line.alpha, line.text )
+            if text_position.y < self._position.y:
+                line.pad = self._animations.fast_preform( line.pad, 0, speed )
+            elif text_position.y + self._line_height > self._position.y + self._size.y:
+                line.pad = self._animations.fast_preform( line.pad, 0, speed )
+            else:
+                line.pad = self._animations.fast_preform( line.pad, 1, speed )
+
+            text_position.x += ( line.pad - 1) * 50
+
+            self._render.text( self._font, text_position, text_color * line.alpha * line.pad, line.text )
             self._render.text( self._font, number_position, current_line_color * line.alpha, line_number )
 
             drop = drop + self._line_height
@@ -476,13 +498,56 @@ class c_editor:
 
         alpha:          float   = self._animations.value( "ShowActions" ) * fade
 
+        discard_fade:   float   = self._animations.value( "DiscardFade" ) * alpha
+        update_fade:    float   = self._animations.value( "UpdateFade" ) * alpha
+
         back_size:      vector  = vector( self._discard_size.x + self._update_size.x + pad * 3, self._discard_size.y + pad )
         position:       vector  = self._position + vector( self._size.x - back_size.x, 0 )
 
         self._render.rect( position, position + back_size, back_color * alpha, roundness )
 
-        self._render.text( self._font, position + vector( pad, pad / 2 ), text_color * alpha, "discard" )
-        self._render.text( self._font, position + vector( pad * 2 + self._discard_size.x, pad / 2 ), text_color * alpha, "update" )
+        self._render.text( self._font, position + vector( pad, pad / 2 ), text_color * discard_fade, "discard" )
+        self._render.text( self._font, position + vector( pad * 2 + self._discard_size.x, pad / 2 ), text_color * update_fade, "update" )
+
+
+    def __draw_scrollbar( self, fade: float ):
+        """
+            Draw scroll bar.
+
+            Receive : 
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        seperate:       int     = self._config.seperate
+        seperate_color: color   = self._config.seperate_color
+        
+        start_position: vector  = vector( self._position.x + self._size.x - seperate, self._position.y )
+        
+        window_delta    = self._size.y
+
+        amount_items    = len( self._lines )
+        drop            = amount_items * self._line_height
+
+        if drop == 0:
+            return
+
+        if drop <= window_delta:
+            return
+
+        scroll = self._animations.value( "Scroll" )
+
+        scroll_delta = window_delta / drop
+
+        fixed = window_delta * scroll_delta
+        value = abs( scroll ) * scroll_delta
+
+        position        = vector( start_position.x, start_position.y + value )
+        end_position    = vector( start_position.x + seperate, position.y + fixed )
+
+        self._render.shadow( position, end_position, seperate_color, fade, 15, seperate / 2)
+        self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
 
     # endregion
 
@@ -525,6 +590,9 @@ class c_editor:
 
         if not button == glfw.MOUSE_BUTTON_LEFT or not action == glfw.PRESS:
             return
+        
+        if self._is_hovered and not self._is_hovered_discard and not self._is_hovered_update:
+            self._selected_position = self._mouse_position.copy( )
         
         if self.__handle_buttons( ):
             return
@@ -597,6 +665,9 @@ class c_editor:
         if action == glfw.PRESS:
             self.__repeat_handle( key )
 
+            if key == glfw.KEY_BACKSPACE:
+                self.__event_delete_line( )
+
         if action == glfw.REPEAT:
             self.__repeat_handle( key )
 
@@ -658,7 +729,7 @@ class c_editor:
             return
         
         text_height = self._font.size( )
-        is_hover_buttons = not ( self._is_hovered_discard or self._is_hovered_update )
+        is_hover_buttons = self._is_hovered and not ( self._is_hovered_discard or self._is_hovered_update )
 
         for line in self._lines:
             line: c_line = line
@@ -677,6 +748,9 @@ class c_editor:
 
             Returns :   None
         """
+
+        if not self._is_hovered:
+            return
 
         for line in self._lines:
             line: c_line = line
@@ -702,7 +776,7 @@ class c_editor:
             return True
 
         if self._is_hovered_update:
-
+            self.__event_update_lines( )
             return True
         
         return True
@@ -808,7 +882,85 @@ class c_editor:
         if self._parent.is_this_active( self._index ):
             self._parent.release_handle( self._index )
 
+
+    def __event_update_lines( self ):
+        """
+            Callback when a user decides to commit the change.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        if self._selected_line <= 0:
+            return
+
+        event: c_event = self._events[ "update_line" ]
+        event.attach( "file", self._file )
+        event.attach( "line", self._selected_line )
+
+        changed_lines: list[ c_line ] = self.__get_selected_lines( )
+
+        correct_changed_lines = [ ]
+        for line in changed_lines:
+            correct_changed_lines.append( base64.b64encode( line.text.encode( ) ).decode( ) )
+            line.prev = line.text
+
+        event.attach( "lines", correct_changed_lines )
+
+        event.invoke( )
+
+        self._selected_line         = 0
+        self._amount_of_lines       = 0
+
+        self._is_hovered_update     = False
+        self._is_typing             = False
+
+        if self._parent.is_this_active( self._index ):
+            self._parent.release_handle( self._index )
+        
     
+    def __event_delete_line( self ):
+        """
+            Callback when user decides to delete a selected line.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        if self._selected_line <= 0:
+            return
+        
+        selected_lines: list[ c_line ] = self.__get_selected_lines( )
+
+        if len( selected_lines ) > 1:
+            return
+        
+        selected_line = selected_lines[ 0 ]
+        selected_lines.clear( )
+
+        if selected_line.text != "":
+            return
+        
+        self._lines.remove( selected_line )
+        
+        event: c_event = self._events[ "delete_line" ]
+
+        event.attach( "file", self._file )
+        event.attach( "line", self._selected_line )
+
+        event.invoke( )
+
+        self._selected_line         = 0
+        self._amount_of_lines       = 0
+
+        self._is_typing             = False
+
+        if self._parent.is_this_active( self._index ):
+            self._parent.release_handle( self._index )
+    
+
     def set_event( self, event_index: str, function: any, function_name: str ) -> None:
         """
             Registers functions to a event
@@ -824,7 +976,6 @@ class c_editor:
         if not event_index in self._events:
             raise Exception( f"Failed to index event { event_index }" )
         
-
         event: c_event = self._events[ event_index ]
         event.set( function, function_name, True )
 
@@ -842,10 +993,14 @@ class c_editor:
             Returns :   None
         """ 
 
+        length = len( text )
+        if text in EXCEPTIONS:
+            text = EXCEPTIONS[ text ]
+
         line_obj: c_line    = self._lines[ self._cursor.y ]
 
         line_obj.text       = line_obj.text[ :self._cursor.x ] + text + line_obj.text[ self._cursor.x: ]
-        self._cursor.x     += len( text )
+        self._cursor.x     += length
 
     
     def __pop( self ) -> str:
@@ -858,6 +1013,19 @@ class c_editor:
         """
 
         if self._cursor.x == 0:
+            # Potential to remove line
+            if self._cursor.y >= self._selected_line:
+                # Remove line
+                line:   c_line      = self.get_cursor_line( )
+                self._lines.remove( line )
+
+                self._cursor.y -= 1
+                self._amount_of_lines -= 1
+
+                prev_line:   c_line      = self.get_cursor_line( )
+                self._cursor.x = len( prev_line.text )
+                prev_line.text = prev_line.text + line.text
+
             return None
         
         line:   c_line      = self.get_cursor_line( )
@@ -878,16 +1046,19 @@ class c_editor:
             Returns :   None
         """
 
-        new_line = c_line( )
-
-        new_line.text = ""
+        new_line:       c_line = c_line( )
+        current_line:   c_line = self.get_cursor_line( )
+        
+        new_line.text = current_line.text[ self._cursor.x: ]
         new_line.prev = ""
+
+        current_line.text = current_line.text[ :self._cursor.x ]
 
         new_line.number     = -1
         new_line.alpha      = 0
+        new_line.pad        = 0
 
         new_line.is_hovered = False
-        new_line.is_used    = False
         new_line.is_locked  = False
 
         new_line.position   = vector( )
@@ -898,10 +1069,29 @@ class c_editor:
 
         self._amount_of_lines += 1
 
-
     # endregion
 
     # region : Utilities
+
+
+    def size( self, new_value: vector = None ) -> vector:
+        """
+            Access / Update editor's size.
+
+            Receive :
+            - new_value - New position in the parent
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._size
+        
+        self._size.x = new_value.x
+        self._size.y = new_value.y
+
+        return new_value
+
 
     def get_cursor_line( self ) -> c_line:
         """
@@ -931,6 +1121,31 @@ class c_editor:
         return self._file
 
     
+    def set_file( self, file_name: str ):
+        self._file = file_name
+        self._offset = 0
+    
+
+    def add_line( self, text: str ):
+        #### ?????
+
+        new_line = c_line( )
+
+        new_line.text = text
+        new_line.prev = text
+
+        new_line.number     = -1
+        new_line.alpha      = 0
+        new_line.pad        = 0
+
+        new_line.is_hovered = False
+        new_line.is_locked  = False
+
+        new_line.position   = vector( )
+
+        self._lines.append( new_line )
+
+
     def lock_line( self, line: int ):
         """
             Lock line.
@@ -995,6 +1210,77 @@ class c_editor:
         self._amount_of_lines = 1
         
         self._cursor = vector( 0, line - 1 )
+
+
+    def change_lines( self, file_name: str, line: int, lines: list ):
+        """
+            Change and add new lines to the editor.
+
+            Receive :
+            - file_name - Files name
+            - line      - Line number to add
+            - lines     - New lines texts
+
+            Returns None
+        """
+
+        if self._file != file_name:
+            return
+        
+        self._lines.pop( line - 1 ) # Remove the changed line
+        line -= 1
+
+        if self._selected_line > line:
+            add = len( lines ) - 1
+            self._selected_line += add
+            self._cursor.y += add
+
+
+        for line_str in lines:
+            new_line = c_line( )
+
+            new_line.text = line_str
+            new_line.prev = line_str
+
+            new_line.number     = -1
+            new_line.alpha      = 0
+            new_line.pad        = 0
+
+            new_line.is_hovered = False
+            new_line.is_locked  = False
+
+            new_line.position   = vector( )
+
+            self._lines.insert( line, new_line )
+            line += 1
+
+
+    def delete_line( self, file_name: str, line: int ):
+        """
+            Delete a specific line.
+
+            Receive :
+            - file_name - Files name
+            - line      - Line number to add
+
+            Returns :   None
+        """
+
+        if self._file != file_name:
+            return
+        
+        self._lines.pop( line - 1 ) # Remove the changed line
+
+        if self._selected_line > line:
+
+            self._selected_line -= 1
+            self._cursor.y -= 1
+
+        #if self._selected_line <= 0:
+        #    return
+        
+        #if line < self._selected_line:
+        #    self._selected_line -= 1
 
 
     def __char_vector_to_relative( self, char_position: vector ) -> vector:

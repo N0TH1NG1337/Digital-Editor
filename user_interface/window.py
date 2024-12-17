@@ -31,9 +31,9 @@ class window_config_t:
 
     show_bar:           bool    = False
 
-    back_color:         color   = color( 20, 20, 24 )
+    back_color:         color   = color( 0, 0, 0, 100 )
     outline_color:      color   = color( 100, 100, 100, 150 )
-    shadow_color:       color   = color( 0, 0, 0 )
+    shadow_color:       color   = color( 0, 0, 0, 50 )
 
     bar_color:          color   = color( )
 
@@ -195,6 +195,16 @@ class c_window:
         if self._config.show_bar:
             remove_height = - 30
 
+        self._render.gradiant(
+            vector( 0, remove_height ), 
+            self._size, 
+            self._config.back_color * fade,
+            self._config.back_color * fade,
+            self._config.back_color * 0,
+            self._config.back_color * 0,
+            self._config.roundness
+        )
+
         self._render.shadow(
             vector( 0, remove_height ),
             self._size,
@@ -202,21 +212,6 @@ class c_window:
             fade,
             20,
             self._config.roundness
-        )
-
-        self._render.rect( 
-            vector( 0, remove_height ), 
-            self._size, 
-            self._config.back_color * fade, 
-            self._config.roundness 
-        )
-
-        self._render.rect_outline( 
-            vector( 0, remove_height ),
-            self._size, 
-            self._config.outline_color * fade,
-            1,
-            self._config.roundness 
         )
 
         if self._config.show_bar:

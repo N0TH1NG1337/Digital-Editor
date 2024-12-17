@@ -10,9 +10,9 @@
 from protocols.network          import *
 from protocols.files_manager    import *
 from utilities.event            import c_event
-from utilities.base64           import base64
 
 import threading
+import base64
 
 class c_client_business_logic:
     
@@ -75,14 +75,16 @@ class c_client_business_logic:
         self._events[ "post_disconnect" ]       = c_event( )
 
         # Complex events.
-        self._events[ "refresh_files" ]         = c_event( )    # Event for refresh files list
-        self._events[ "register_file" ]         = c_event( )    # Event for file receive
+        self._events[ "refresh_files" ]         = c_event( )
+        self._events[ "register_file" ]         = c_event( )
 
         self._events[ "set_file" ]              = c_event( )
         self._events[ "update_file" ]           = c_event( )    
         self._events[ "accept_line" ]           = c_event( )    
         self._events[ "lock_line" ]             = c_event( )    
         self._events[ "unlock_line" ]           = c_event( )
+        self._events[ "update_line" ]           = c_event( )
+        self._events[ "delete_line" ]           = c_event( )
 
 
     def __initialize_information( self ):
@@ -182,7 +184,7 @@ class c_client_business_logic:
             Returns : Tuple ( ip, port )
         """
 
-        result = base64.decode( project_code )
+        result = base64.b64decode( project_code ).decode( )
 
         data = result.split( ":" )
 
@@ -359,6 +361,49 @@ class c_client_business_logic:
         message: str = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file_name, str( line ) ] )
         self._network.send( message )
 
+    
+    def update_line( self, file_name: str, line: int, lines: list[ str ] ):
+        """
+            Message of updated lines.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+            - lines     - List of changed lines
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+
+        if file is None:
+            return
+        
+        new_list = [ file_name, str( line ) ] + lines
+
+        message: str = self._files.format_message( FILES_COMMAND_UPDATE_LINE, new_list )
+        self._network.send( message )
+
+
+    def delete_line( self, file_name: str, line: int ):
+        """
+            Message to delete line.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+
+        if file is None:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file_name, str( line ) ] )
+        self._network.send( message )
+
 
     def __handle_file_protocol( self, receive: str ):
         """
@@ -416,7 +461,9 @@ class c_client_business_logic:
             is_locked   = arguments[ 2 ]
 
             self.__event_accept_line( file_name, int( line_number ), is_locked == "0" )
-        
+
+            return
+
 
         if command == FILES_COMMAND_PREPARE_UPDATE:
             file_name   = arguments[ 0 ]
@@ -424,9 +471,11 @@ class c_client_business_logic:
 
             file: c_virtual_file = self._files.search_file( file_name )
             if file is not None:
-                file.lock_line( line_number )
+                #file.lock_line( line_number )
 
                 self.__event_lock_line( file.name( ), line_number )
+
+            return
 
         
         if command == FILES_COMMAND_DISCARD_UPDATE:
@@ -435,11 +484,47 @@ class c_client_business_logic:
 
             file: c_virtual_file = self._files.search_file( file_name )
             if file is not None:
-                file.unlock_line( line_number )
+                #file.unlock_line( line_number )
 
                 self.__event_unlock_line( file.name( ), line_number )
+
+            return
                 
 
+        if command == FILES_COMMAND_UPDATE_LINE:
+            file_name   = arguments[ 0 ]
+            line_number = int( arguments[ 1 ] )
+
+            file: c_virtual_file = self._files.search_file( file_name )
+            if file is None:
+                return
+            
+            arguments.pop( 1 )
+            arguments.pop( 0 )
+
+            raw_lines = [ ]
+
+            for changed_line in arguments:
+                changed_line: str = base64.b64decode( changed_line ).decode( )
+                raw_lines.append( changed_line )
+
+            self.__event_update_line( file.name( ), line_number, raw_lines  )
+
+            return
+        
+
+        if command == FILES_COMMAND_DELETE_LINE:
+            file_name   = arguments[ 0 ]
+            line_number = int( arguments[ 1 ] )
+
+            file: c_virtual_file = self._files.search_file( file_name )
+            if file is None:
+                return
+            
+            self.__event_delete_line( file_name, line_number )
+
+            return
+        
         return
 
     # endregion
@@ -578,6 +663,44 @@ class c_client_business_logic:
         """
 
         event: c_event = self._events[ "unlock_line" ]
+        event.attach( "file",   file_name )
+        event.attach( "line",   line )
+
+        event.invoke( )
+
+
+    def __event_update_line( self, file_name: str, line: int, lines: list ):
+        """
+            Event callback for updating line/lines.
+
+            Receive :
+            - file_name - File's name
+            - line      - Line number
+            - lines     - New lines
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "update_line" ]
+        event.attach( "file",   file_name )
+        event.attach( "line",   line )
+        event.attach( "lines",  lines )
+
+        event.invoke( )
+    
+
+    def __event_delete_line( self, file_name: str, line: int ):
+        """
+            Event callback for deleting a specific line.
+
+            Receive : 
+            - file_name - File's name 
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "delete_line" ]
         event.attach( "file",   file_name )
         event.attach( "line",   line )
 

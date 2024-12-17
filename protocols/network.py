@@ -225,14 +225,18 @@ class c_network_protocol:
 
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
+
+        encoded_value = value.encode( )
+        del value   # Delete useless copy of string
+
+        details: list = self.get_raw_details( len( encoded_value ) )
         
-        # TODO ! Add length check. Since not every text can be sent.
-        # Better solution will be to convert the text into bytes and send chunks.
-        
-        result: list     = self.value_format( value, False )
-        
-        for i in result:
-            self._connection( ).send( i )
+        for chunk in details:
+            start       = chunk[ 0 ]
+            end         = chunk[ 1 ]
+            has_next    = chunk[ 2 ]
+
+            self.send_raw( encoded_value[ start:end ], has_next )
 
     def get_raw_details( self, length: int ) -> list:
         """

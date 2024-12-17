@@ -10,6 +10,7 @@
 from utilities.wrappers import safe_call
 
 import shutil
+import json
 import os
 
 FILES_MANAGER_HEADER = "FL_UNK"
@@ -24,6 +25,7 @@ FILES_COMMAND_SET_FILE = "SetFileCont"
 FILES_COMMAND_PREPARE_UPDATE = "PrepUpdateLine"
 FILES_COMMAND_PREPARE_RESPONSE = "ResPrepUpdate"
 FILES_COMMAND_UPDATE_LINE = "UpdateLine"
+FILES_COMMAND_DELETE_LINE = "DelLine"
 FILES_COMMAND_DISCARD_UPDATE = "DisUpdateLine"
 
 # There are some problems now with this protocol
@@ -35,6 +37,9 @@ FILES_COMMAND_DISCARD_UPDATE = "DisUpdateLine"
 # And not users to files...
 
 # NOTE ! The Client doesnt save the file. Only raw memory data.
+
+# TODO ! Rework the virtual file
+# Add option to set if this virtual file will save all the changes
 
 class c_virtual_file:
 
@@ -60,6 +65,22 @@ class c_virtual_file:
         self._normal_path       = None
         self._content           = [ ]
         self._lines_used        = [ ]
+
+    
+    def __set_change_file( self ):
+        """
+            Set if this file is a changes list.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        if self._name.endswith( "_changes.txt" ):
+            file_path = f"{ self._normal_path }\\{ self._name }"
+
+            with open( file_path, "w" ) as f:
+                json.dump( { "original_file": self._name.replace( "_changes.txt", "" ) }, f )
 
     
     def name( self ) -> str:
@@ -93,6 +114,8 @@ class c_virtual_file:
                 pass
 
             self._normal_path = path
+
+            self.__set_change_file( )
 
             return None
         
@@ -251,8 +274,8 @@ class c_virtual_file:
             Returns :   None
         """
 
-        #if line < 0 or line > len( self._content ):
-        #    return
+        if not self.is_line_locked( line ):
+            return
         
         self._lines_used.remove( line )
 
@@ -286,20 +309,93 @@ class c_virtual_file:
         return self._lines_used.copy( )
     
 
-    def update_lines( self, line_number: int, lines: list[ str ] ) -> None:
+    def remove_line( self, line_number: int ) -> str:
+        """
+            Remove a specific line from the file.
+
+            Receive :
+            - line_number - The line index to remove
+
+            Returns :   None
+        """
+
+        file_path = f"{ self._normal_path }\\{ self._name }"
+
+        data = b''
+        with open( file_path, "rb" ) as f:
+            data = f.read()
+
+        # Data is now with information
+        lines = data.decode( ).splitlines( )
+        removed_line = lines.pop( line_number - 1 )
+
+        del data
+
+        with open( file_path, "wb" ) as f:
+            f.write( os.linesep.join( lines ).encode( ) )
+
+        lines.clear( )
+
+        return removed_line
+
+    def update_lines( self, line_number: int, new_lines: list[ str ] ) -> None:
         """
             Update a specific lines in the file.
 
             Receive :
             - line_number - Start line number
-            - lines - Actual new content
+            - new_lines   - Actual new content
 
             Returns :   None
-
-            NOTE ! the line in line_number will be completly removed and replaced by lines[ 0 ]
         """
 
-        pass
+        file_path = f"{ self._normal_path }\\{ self._name }"
+
+        # never use .readlines( ). 
+        # This trash actually breaks everything
+        # It has incorrect encoding and more
+        
+        data = b''
+        with open( file_path, "rb" ) as f:
+            data = f.read()
+
+        # Data is now with information
+        lines = data.decode( ).splitlines( )
+
+        del data
+        line_number -= 1
+
+        for line in new_lines:
+            lines.insert( line_number, line )
+            line_number += 1
+
+        with open( file_path, "wb" ) as f:
+            f.write( os.linesep.join( lines ).encode( ) )
+
+        lines.clear( )
+
+    
+    def add_change( self, index: str, change: dict ):
+        """
+            Add change commit in the file.
+
+            Receive :
+            - change - Change information
+
+            Returns :   None
+        """
+
+        file_path = f"{ self._normal_path }\\{ self._name }"
+
+        data: dict
+
+        with open( file_path, "r" ) as f:
+            data = json.load( f )
+
+        data[ index ] = change
+
+        with open( file_path, "w" ) as f:
+            json.dump( data, f )
 
     
 

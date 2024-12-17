@@ -26,12 +26,14 @@ class text_input_config_t:
     speed:          int     = 10
     pad:            int     = 10
     seperate:       int     = 4
+    roundness:      int     = 10
 
     input_color:    color   = color( )
     index_color:    color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
     image_color:    color   = color( )
     text_color:     color   = color( )
     seperate_color: color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
+    back_color:     color   = color( 0, 0, 0, 100 )
 
 
 class c_single_input_logic:
@@ -114,6 +116,7 @@ class c_single_input_logic:
 
         self._animations.prepare( "Index",          0 )
         self._animations.prepare( "InputOffset",    0 )
+        self._animations.prepare( "Width",          0 )
 
     
     def __initialize_default_values( self ):
@@ -238,7 +241,7 @@ class c_single_input_logic:
 
         pad = self._config.pad * 2
 
-        return self._size + pad
+        return vector( self._animations.value( "Width" ), self._size.y ) + pad
     
 
     def is_hovered( self ) -> bool:
@@ -295,6 +298,8 @@ class c_single_input_logic:
         self.__draw_index( index_fade, start_clip, correct_by_index_size, input_offset )
 
         self._render.pop_clip_rect( )
+
+        self._animations.preform( "Width", min( correct_size.x, self._size.x ), speed )
 
     
     def __draw_text( self, fade: float, start_position: vector, text: str, text_size: vector, input_offset: float ):
@@ -805,8 +810,7 @@ class c_text_input:
         pad:        int     = self._config.pad
 
         regular:    int     = self._icon.size( ).x + pad * 4 + seperate + self._text_size.x
-        opened:     int     = regular + self._handle.correct_size( ).x
-
+        opened:     int     = regular + self._handle.correct_size( ).x + pad
         if self._should_type:
             self._animations.preform( "Text",           0.7,                                speed )
             self._animations.preform( "InputWidth",     self._handle.correct_size( ).x,     speed )
@@ -840,9 +844,11 @@ class c_text_input:
 
         seperate:       int     = self._config.seperate
         pad:            int     = self._config.pad
+        roundness:      int     = self._config.roundness
         image_color:    color   = self._config.image_color
         seperate_color: color   = self._config.seperate_color
         text_color:     color   = self._config.text_color
+        back_color:     color   = self._config.back_color
 
         image_size:     vector  = self._icon.size( )
 
@@ -852,6 +858,26 @@ class c_text_input:
 
         text_fade:          float   = self._animations.value( "Text" ) * fade
         seperate_fade:      float   = self._animations.value( "Seperate" )
+        width_fade:         float   = self._animations.value( "Width" )
+
+        self._render.gradiant(
+            self._position,
+            self._position + vector( width_fade, self._height ),
+            back_color * 0,
+            back_color * fade,
+            back_color * 0,
+            back_color * fade,
+            roundness
+        )
+        
+        self._render.shadow(
+            self._position,
+            self._position + vector( width_fade, self._height ),
+            back_color,
+            fade,
+            20,
+            roundness
+        )
 
         self._render.image( self._icon, icon_position, image_color * fade )
 
@@ -886,7 +912,7 @@ class c_text_input:
 
         seperate_color: color   = self._config.seperate_color
         input_width:    float   = self._animations.value( "InputWidth" )
-        start_position: vector  = vector( self._position.x + self._start_for_input, self._position.y + self._height )
+        start_position: vector  = vector( self._position.x + self._start_for_input, self._position.y + self._height - 1 )
 
         self._render.line( 
             start_position,  

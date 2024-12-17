@@ -25,8 +25,10 @@ class list_config_t:
     speed:          int         = 7
     pad:            int         = 10
     seperate:       int         = 4
+    roundness:      int         = 10
 
     seperate_color: color       = color( 150, 150, 255 )
+    back_color:     color       = color( 0, 0, 0, 100 )
 
     slots_count:    int         = 6
     slot_height:    int         = 40
@@ -207,7 +209,9 @@ class c_list:
         self.__preform( )
         self.__animate( )
 
+        self.__draw_back( fade )
         self.__draw_items( fade )
+        self.__draw_scrollbar( fade )
 
 
     def __preform( self ):
@@ -247,6 +251,39 @@ class c_list:
         self._animations.preform( "AddOnEnable", self._someone_enabled and size.x + pad or 0, speed )
         self._animations.preform( "Scroll", self._offset, speed, 1 )
 
+    
+    def __draw_back( self, fade: float ):
+        """
+            Draw the backgound.
+
+            Receive :
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        roundness:  int     = self._config.roundness
+        back_color: color   = self._config.back_color
+
+        self._render.gradiant(
+            self._position,
+            self._position + self._rect[ 1 ],
+            back_color * fade,
+            back_color * fade,
+            back_color * 0,
+            back_color * 0,
+            roundness
+        )
+
+        self._render.shadow(
+            self._position,
+            self._position + self._rect[ 1 ],
+            back_color,
+            fade,
+            20,
+            roundness
+        )
+
 
     def __draw_items( self, fade: float ):
         """
@@ -266,16 +303,17 @@ class c_list:
 
         check_mark: c_image = self._config.check_mark
         check_size: vector  = check_mark.size( )
-        add_to_check: vector = vector( 0, ( height - check_size.y ) / 2 )
+        add_to_check: vector = vector( pad, ( height - check_size.y ) / 2 )
 
         enable_pad: float   = self._animations.value( "AddOnEnable" )
         scroll:     float   = self._animations.value( "Scroll" )
 
         self._rect[ 0 ] = self._position.copy( )
         self._rect[ 1 ] = vector( self._width, amount * ( height + pad * 2 ) )
+
         self._render.push_clip_rect( self._rect[ 0 ], self._rect[ 0 ] + self._rect[ 1 ] )
 
-        drop = self._animations.value( "Scroll" )
+        drop = pad + scroll
 
         self._someone_enabled = False
 
@@ -304,6 +342,47 @@ class c_list:
             drop = drop + height + pad * 2
 
         self._render.pop_clip_rect( )
+
+
+    def __draw_scrollbar( self, fade: float ):
+        """
+            Draw scroll bar.
+
+            Receive : 
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        seperate:       int     = self._config.seperate
+        pad:            int     = self._config.pad
+        height:         int     = self._config.slot_height
+
+        seperate_color: color   = self._config.seperate_color
+        
+        start_position: vector  = vector( self._position.x + self._width - seperate, self._position.y )
+        
+        amount_max      = self._config.slots_count
+        amount_items    = len( self._items )
+
+        window_delta    = amount_max * ( height + pad * 2 )
+        drop            = amount_items * ( height + pad * 2 )
+
+        if drop <= window_delta:
+            return
+
+        scroll = self._animations.value( "Scroll" )
+
+        scroll_delta = window_delta / drop
+
+        fixed = window_delta * scroll_delta
+        value = abs( scroll ) * scroll_delta
+
+        position        = vector( start_position.x, start_position.y + value )
+        end_position    = vector( start_position.x + seperate, position.y + fixed )
+
+        self._render.shadow( position, end_position, seperate_color, fade, 15, seperate / 2)
+        self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
         
     # endregion
 
@@ -336,8 +415,8 @@ class c_list:
 
             self._is_hovered = False
 
-        if self._is_hovered:
-            self.__hover_items( )
+
+        self.__hover_items( self._is_hovered )
 
     
     def __event_mouse_input( self, event ) -> None:
@@ -394,7 +473,7 @@ class c_list:
         self._offset = math.clamp( self._offset + y_offset * 20, drop_min, 0 )
 
 
-    def __hover_items( self ):
+    def __hover_items( self, is_hovered_rect: bool ):
         """
             Handle if the user hover one of the items.
 
@@ -407,7 +486,11 @@ class c_list:
             item: c_list_item = item
 
             position = item.position + self._relative_position
-            item.is_hovered = self._mouse_position.is_in_bounds( position, self._width, self._config.slot_height )
+
+            if is_hovered_rect:
+                item.is_hovered = self._mouse_position.is_in_bounds( position, self._width, self._config.slot_height )
+            else:
+                item.is_hovered = False
 
 
     def __handle_items( self ):

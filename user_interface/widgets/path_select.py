@@ -262,9 +262,11 @@ class path_select_config_t:
     speed:              int     = 10
     pad:                int     = 10
     seperate:           int     = 4
+    roundness:          int     = 10
 
     seperate_color:     color   = color( 150, 150, 255 )
     path_text_color:    color   = color( )
+    back_color:         color   = color( 0, 0, 0, 100 )
 
 
 class c_path_select:
@@ -368,9 +370,9 @@ class c_path_select:
 
         pad:            int     = self._config.pad
         seperate:       int     = self._config.seperate
-        back_button:    int     = pad * 4 + self._back_icon.size( ).x + seperate
+        back_button:    int     = pad * 3 + self._back_icon.size( ).x + seperate
         position:       vector  = vector( self._position.x + back_button, self._position.y )
-        size:           vector  = vector( self._size.x - back_button, self._back_icon.size( ).y )
+        size:           vector  = vector( self._size.x - back_button - pad * 2, self._back_icon.size( ).y )
 
         config = text_input_config_t( )
 
@@ -436,6 +438,7 @@ class c_path_select:
         self.__preform( )
         self.__animate( )
 
+        self.__draw_back( fade )
         self.__draw_top_bar( fade )
         self.__draw_content( fade )
         self.__draw_scrollbar( fade )
@@ -452,7 +455,7 @@ class c_path_select:
 
         pad:                        int     = self._config.pad
 
-        self._window_size.y                 = self._size.y - pad * 4 - self._input_path.correct_size( ).y
+        self._window_size.y                 = self._size.y - self._input_path.correct_size( ).y
 
         parent_position:            vector  = self._parent.relative_position( )
         self._relative_position:    vector  = vector( parent_position.x + self._position.x, parent_position.y + self._position.y )
@@ -473,6 +476,39 @@ class c_path_select:
 
         self._animations.preform( "Back", self._is_hovered_back and 1 or 0.3, speed )
         self._animations.preform( "Scroll", self._offset, speed, 1 )
+
+
+    def __draw_back( self, fade: float ):
+        """
+            Draw the backgorund
+
+            Receive : 
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        roundness:  int     = self._config.roundness
+        back_color: color   = self._config.back_color
+
+        self._render.gradiant(
+            self._position,
+            self._position + self._size, 
+            back_color * fade,
+            back_color * fade,
+            back_color * 0,
+            back_color * 0,
+            roundness
+        )
+
+        self._render.shadow(
+            self._position,
+            self._position + self._size, 
+            back_color,
+            fade,
+            20,
+            roundness
+        )
 
 
     def __draw_top_bar( self, fade: float ):
@@ -496,7 +532,7 @@ class c_path_select:
 
         hover_back:         float   = self._animations.value( "Back" ) * fade
 
-        self._render.image( self._back_icon, self._position + vector( 0, self._config.pad ), color( ) * hover_back )
+        self._render.image( self._back_icon, self._position + vector( pad, pad ), color( ) * hover_back )
 
         self._render.shadow( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color, fade, 15, seperate / 2)
         self._render.rect( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color * fade, seperate / 2 )
@@ -553,7 +589,7 @@ class c_path_select:
             show_seperate   = self._animations.preform( f"Folder_{ name }_seperate",    info[ "is_hovered" ] and 1 or 0, speed ) * fade
             hover_add       = self._animations.preform( f"Folder_{ name }_hover_add",   info[ "is_hovered" ] and pad * 2 + seperate or 0, speed, 1 )
 
-            icon_position = vector( start_position.x, start_position.y + drop )
+            icon_position = vector( start_position.x + pad, start_position.y + drop )
             text_position = vector( start_position.x + icon_size.x + pad * 2 + hover_add, start_position.y + drop + ( icon_size.y - name_size.y ) / 2 )
             seperate_position = vector( start_position.x + icon_size.x + pad * 2, start_position.y + drop )
 
@@ -578,7 +614,7 @@ class c_path_select:
 
             show = 0.3 * fade
 
-            icon_position = vector( start_position.x, start_position.y + drop )
+            icon_position = vector( start_position.x + pad, start_position.y + drop )
             text_position = vector( start_position.x + icon_size.x + pad * 2, start_position.y + drop + ( icon_size.y - name_size.y ) / 2 )
 
             self._render.image( self._file_icon, icon_position, color( ) * show )
@@ -713,7 +749,7 @@ class c_path_select:
             Returns :   None
         """
 
-        position = self._relative_position + vector( 0, self._config.pad )
+        position = self._relative_position + vector( self._config.pad, self._config.pad )
         size = self._back_icon.size( )
 
         self._is_hovered_back = self._mouse_position.is_in_bounds( position, size.x, size.y )

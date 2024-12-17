@@ -35,7 +35,7 @@ class scene_config_t:
 
     enable_background:  bool    = True
     stars_speed:        int     = 10
-    stars_count:        int     = 200
+    stars_count:        int     = 140
 
     background_image:   c_image = None
     background_descale: float   = 1.2
@@ -533,18 +533,21 @@ class c_scene:
         slide:      float   = self._animations.value( "Slide" )
         mouse:      vector  = self._animations.value( "Mouse" )
 
-        animate:    bool    = self._config.animate_entrance
+        animate_entrance:   bool = self._config.animate_entrance
+        animate_movement:   bool = self._config.animate_movement
 
-        if animate:
-            self._render.push_position( mouse + vector( 0, slide ) )
-        else:
+        if animate_movement:
             self._render.push_position( mouse )
 
         self.__draw_background( fade )
 
-        self._render.pop_position( )
+        if animate_movement:
+            self._render.pop_position( )
 
         self.__draw_city( fade )
+
+        if animate_entrance:
+            self._render.push_position( vector( 0, slide ) )
 
         self.__event_draw( )
 
@@ -559,7 +562,8 @@ class c_scene:
             window.show( window.show( ) and self._show )
             window.draw( )
 
-
+        if animate_entrance:
+            self._render.pop_position( )
 
 
     def __draw_background( self, fade: float ) -> None:
