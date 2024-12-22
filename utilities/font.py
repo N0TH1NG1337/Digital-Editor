@@ -47,12 +47,14 @@ class c_font:
 
         io              = imgui.get_io( )
         glyths_range    = self.get_range( )
+        font_config     = self.get_config( )
 
-        self._object    = io.fonts.add_font_from_file_ttf( path, size, None, glyths_range )
+        self._object    = io.fonts.add_font_from_file_ttf( path, size, font_config, glyths_range )
+
         self._size      = size
 
         return self
-
+ 
 
     def get_range( self ) -> any:
         """
@@ -70,6 +72,24 @@ class c_font:
         # can support more just didn't have time to check everything
         return imgui.core.GlyphRanges( [ 32, 1535, 0 ] )
 
+
+    def get_config( self ) -> any:
+        """
+            Create custom config for loading a font.
+
+            Receive :   None
+
+            Returns :   Font config object
+        """
+
+        # TODO ! Lower the hoversample since it causes too much lag + lower load up time
+        
+        return imgui.core.FontConfig( 
+            glyph_min_advance_x=10,     # Add kind of spcasing to set symetric look
+            #glyph_extra_spacing_x=1     # Idk to be honest
+            #oversample_h=2,             # Oversample horizontally 4 times
+            #oversample_v=2              # Oversample vertially 4 times
+        )
     # endregion
 
     # region : Access font information

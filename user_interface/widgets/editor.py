@@ -18,15 +18,15 @@
     3. Add char input based cursor
         [ x ] - add
         [ x ] - remove char
-        [ ] - add new line
-        [ ] - remove line if empty
-        [ ] - add copied text
+        [ x ] - add new line
+        [ x ] - remove line if empty
+        [  ] - add copied text
 
     4. Add cursor operations
         [ x ] - Move left
         [ x ] - Move right
-        [ ] - move up on multiple lines
-        [ ] - move down on multiple lines
+        [ x ] - move up on multiple lines
+        [ x ] - move down on multiple lines
 
     5. Add select text operations
         [ ] - select multi line text ( should work for single line also )
@@ -35,6 +35,9 @@
         [ ] - add copy selected text
 
     ?. Update
+
+    Known issues.
+    [ ] - If lines > 1 and cursor is not on the first, pressing backspace resulting a full removal.
 """
 
 import glfw
@@ -246,10 +249,11 @@ class c_editor:
 
         self._events = { }
 
-        self._events[ "request_line" ]  = c_event( )
-        self._events[ "discard_line" ]  = c_event( )
-        self._events[ "update_line" ]   = c_event( )
-        self._events[ "delete_line" ]   = c_event( )
+        self._events[ "request_line" ]      = c_event( )
+        self._events[ "discard_line" ]      = c_event( )
+        self._events[ "update_line" ]       = c_event( )
+        self._events[ "delete_line" ]       = c_event( )
+        self._events[ "correct_offset" ]    = c_event( )
     
     # endregion
 
@@ -363,6 +367,7 @@ class c_editor:
         speed:          int     = self._config.speed
         pad:            int     = self._config.pad
         pad_for_number: int     = self._config.pad_for_number
+        seperate:       int     = self._config.seperate
         text_color:     color   = self._config.text_color
         locked_color:   color   = self._config.locked_color
         line_color:     color   = self._config.line_color
@@ -387,10 +392,33 @@ class c_editor:
             text_position   = start_position + vector( 0, normalized_drop )
             number_position = start_position + vector( - self._render.measure_text( self._font, line_number ).x - pad * 2, normalized_drop )
 
-            current_line_color = line_color
-
             if line.is_locked:
-                current_line_color = locked_color
+                locked_position = vector( self._position.x, start_position.y + drop )
+
+                self._render.gradiant(
+                    locked_position,
+                    locked_position + vector( self._size.x, self._line_height ),
+                    locked_color * 0,
+                    locked_color * fade * 0.3,
+                    locked_color * 0,
+                    locked_color * fade * 0.3
+                )
+
+                self._render.shadow(
+                    locked_position + vector( pad_for_number + pad, 0 ),
+                    locked_position + vector( pad_for_number + pad + seperate, self._line_height ),
+                    locked_color,
+                    fade,
+                    25,
+                    seperate / 2
+                )
+
+                self._render.rect( 
+                    locked_position + vector( pad_for_number + pad, 0 ),
+                    locked_position + vector( pad_for_number + pad + seperate, self._line_height ),
+                    locked_color * fade,
+                    seperate / 2
+                )
 
             if line.number >= self._selected_line and line.number < self._selected_line + self._amount_of_lines:
                 line.alpha = self._animations.fast_preform( line.alpha, fade, speed )
@@ -399,15 +427,16 @@ class c_editor:
 
             if text_position.y < self._position.y:
                 line.pad = self._animations.fast_preform( line.pad, 0, speed )
-            elif text_position.y + self._line_height > self._position.y + self._size.y:
+            elif text_position.y + self._line_height - pad > self._position.y + self._size.y:
                 line.pad = self._animations.fast_preform( line.pad, 0, speed )
             else:
                 line.pad = self._animations.fast_preform( line.pad, 1, speed )
 
             text_position.x += ( line.pad - 1) * 50
 
-            self._render.text( self._font, text_position, text_color * line.alpha * line.pad, line.text )
-            self._render.text( self._font, number_position, current_line_color * line.alpha, line_number )
+            fixed_line_legnth = round( len( line.text ) * line.pad )
+            self._render.text( self._font, text_position, text_color * line.alpha * line.pad, line.text[ :fixed_line_legnth ] )
+            self._render.text( self._font, number_position, line_color * line.alpha, line_number )
 
             drop = drop + self._line_height
             
@@ -430,6 +459,15 @@ class c_editor:
         
         seperate:       int     = self._config.seperate
         seperate_color: color   = self._config.seperate_color
+
+        self._render.gradiant(
+            select_position,
+            select_position + vector( self._size.x, select_height ),
+            seperate_color * 0,
+            seperate_color * fade * 0.3,
+            seperate_color * 0,
+            seperate_color * fade * 0.3
+        )
 
         self._render.shadow(
             select_position,
@@ -663,9 +701,9 @@ class c_editor:
         action      = event( "action" ) 
 
         if action == glfw.PRESS:
-            self.__repeat_handle( key )
+            is_safe = self.__repeat_handle( key )
 
-            if key == glfw.KEY_BACKSPACE:
+            if key == glfw.KEY_BACKSPACE and is_safe:
                 self.__event_delete_line( )
 
         if action == glfw.REPEAT:
@@ -782,19 +820,22 @@ class c_editor:
         return True
 
 
-    def __repeat_handle( self, key ):
+    def __repeat_handle( self, key ) -> bool:
         """
             Executable input handle for PRESS and REPEAT calls.
 
             Receive :   
             - key       - GLFW Key value
 
-            Returns :   None
+            Returns :   Is it safe to play next action
         """
 
         # Remove
         if key == glfw.KEY_BACKSPACE:
-            self.__pop( )
+            return self.__pop( ) is None
+
+        if key == glfw.KEY_TAB:
+            self.__tab( )
 
         # Move index left
         if key == glfw.KEY_LEFT and self._cursor.x > 0:
@@ -819,6 +860,8 @@ class c_editor:
                 self._cursor.y += 1
 
                 self._cursor.x = math.clamp( self._cursor.x, 0, len( self.get_cursor_line( ).text ) )
+        
+        return True
 
     
     def __event_request_line( self, line: int ):
@@ -932,15 +975,17 @@ class c_editor:
         if self._selected_line <= 0:
             return
         
-        selected_lines: list[ c_line ] = self.__get_selected_lines( )
-
-        if len( selected_lines ) > 1:
-            return
         
-        selected_line = selected_lines[ 0 ]
-        selected_lines.clear( )
+        if self._amount_of_lines > 1:
+            return
+
+        if self._cursor.y + 1 != self._selected_line:
+            return 
+        
+        selected_line = self._lines[ self._cursor.y ]
 
         if selected_line.text != "":
+            # TODO ! Remove this and add warning that the action will delete the line
             return
         
         self._lines.remove( selected_line )
@@ -960,6 +1005,24 @@ class c_editor:
         if self._parent.is_this_active( self._index ):
             self._parent.release_handle( self._index )
     
+
+    def __event_correct_offset( self, offset: int ):
+        """
+            Complete to correct offset for selected line.
+
+            Receive :
+            - offset - Offset value to verify
+            
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "correct_offset" ]
+
+        event.attach( "file", self._file )
+        event.attach( "offset", offset )
+
+        event.invoke( )
+
 
     def set_event( self, event_index: str, function: any, function_name: str ) -> None:
         """
@@ -1026,6 +1089,8 @@ class c_editor:
                 self._cursor.x = len( prev_line.text )
                 prev_line.text = prev_line.text + line.text
 
+                return line.text
+
             return None
         
         line:   c_line      = self.get_cursor_line( )
@@ -1069,10 +1134,24 @@ class c_editor:
 
         self._amount_of_lines += 1
 
+
+    def __tab( self ) -> None:
+        """
+            Handle tab key press input.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        curser_placement = self._cursor.x
+        add_to_tab = 4 - ( curser_placement % 4 )
+
+        self.__insert( " " * add_to_tab )
+
     # endregion
 
     # region : Utilities
-
 
     def size( self, new_value: vector = None ) -> vector:
         """
@@ -1156,6 +1235,10 @@ class c_editor:
             Returns :   None
         """
 
+        if self._selected_line > 0 and self._selected_line < line:
+            new_amount = self._amount_of_lines - 1
+            line += new_amount
+
         line = line - 1
 
         if line < 0 or line > len( self._lines ):
@@ -1174,6 +1257,10 @@ class c_editor:
 
             Returns :   None
         """
+
+        if self._selected_line > 0 and self._selected_line < line:
+            new_amount = self._amount_of_lines - 1
+            line += new_amount
 
         line = line - 1
 
@@ -1227,6 +1314,10 @@ class c_editor:
         if self._file != file_name:
             return
         
+        if self._selected_line > 0 and self._selected_line < line:
+            new_amount = self._amount_of_lines - 1
+            line += new_amount
+        
         self._lines.pop( line - 1 ) # Remove the changed line
         line -= 1
 
@@ -1234,6 +1325,8 @@ class c_editor:
             add = len( lines ) - 1
             self._selected_line += add
             self._cursor.y += add
+
+            self.__event_correct_offset( add )
 
 
         for line_str in lines:
@@ -1268,7 +1361,11 @@ class c_editor:
 
         if self._file != file_name:
             return
-        
+
+        if self._selected_line > 0 and self._selected_line < line:
+            new_amount = self._amount_of_lines - 1
+            line += new_amount
+
         self._lines.pop( line - 1 ) # Remove the changed line
 
         if self._selected_line > line:
@@ -1276,11 +1373,7 @@ class c_editor:
             self._selected_line -= 1
             self._cursor.y -= 1
 
-        #if self._selected_line <= 0:
-        #    return
-        
-        #if line < self._selected_line:
-        #    self._selected_line -= 1
+            self.__event_correct_offset( -1 )
 
 
     def __char_vector_to_relative( self, char_position: vector ) -> vector:
@@ -1356,7 +1449,7 @@ class c_editor:
         return result
 
 
-    def __get_selected_lines( self ) -> list[ c_line ]:
+    def __get_selected_lines( self ) -> list:
         """
             Get all the selected lines.
 

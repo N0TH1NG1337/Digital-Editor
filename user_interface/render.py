@@ -14,6 +14,8 @@ from utilities.vector   import  vector
 from utilities.image    import  c_image
 from utilities.font     import  c_font
 
+import math as original_math
+
 # Pure render functions
 # Wraps Imgui DrawList options with some other custom ones,
 # Each function must be called each frame since the render type is immediate mode
@@ -247,7 +249,7 @@ class c_renderer:
             text_size = self.measure_text( font, text )
 
         # Draw text
-        offset = 0
+        offset = 0.0
         for c in text:
             self._draw_list.add_text( 
                 position.x - text_size.x / 2 + offset, 

@@ -22,11 +22,12 @@ FILES_COMMAND_GET_FILE = "GetFileCont"
 FILES_COMMAND_SET_FILE = "SetFileCont"
 
 
-FILES_COMMAND_PREPARE_UPDATE = "PrepUpdateLine"
-FILES_COMMAND_PREPARE_RESPONSE = "ResPrepUpdate"
-FILES_COMMAND_UPDATE_LINE = "UpdateLine"
-FILES_COMMAND_DELETE_LINE = "DelLine"
-FILES_COMMAND_DISCARD_UPDATE = "DisUpdateLine"
+FILES_COMMAND_PREPARE_UPDATE    = "PrepUpdateLine"
+FILES_COMMAND_PREPARE_RESPONSE  = "ResPrepUpdate"
+FILES_COMMAND_UPDATE_LINE       = "UpdateLine"
+FILES_COMMAND_DELETE_LINE       = "DelLine"
+FILES_COMMAND_DISCARD_UPDATE    = "DisUpdateLine"
+FILES_COMMAND_APPLY_UPDATE      = "ApplyUpdateLine"
 
 # There are some problems now with this protocol
 # First, the client's one and the server's one are differnt.
@@ -338,7 +339,7 @@ class c_virtual_file:
 
         return removed_line
 
-    def update_lines( self, line_number: int, new_lines: list[ str ] ) -> None:
+    def update_lines( self, line_number: int, new_lines: list ) -> None:
         """
             Update a specific lines in the file.
 

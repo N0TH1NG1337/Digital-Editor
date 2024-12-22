@@ -1,5 +1,5 @@
-FONT            = "C:\\Windows\\Fonts\\arialbd.ttf"
-FONT_THIN       = "C:\\Windows\\Fonts\\arial.ttf"
+FONT            = "C:\\Windows\\Fonts\\Tahomabd.ttf"
+FONT_THIN       = "C:\\Windows\\Fonts\\Tahoma.ttf"
 
 ICON_CLOUD      = "\\resources\\cloud.png"
 ICON_FOLDERS    = "\\resources\\folders.png"

@@ -826,10 +826,9 @@ class c_text_input:
 
 
         if self._handle.get( ) == "":
-            self._animations.preform( "Width", self._should_type and opened or regular, speed )
+            self._animations.value( "Width", self._should_type and opened or regular )
         else:
-            self._animations.preform( "Width", opened, speed )
-
+            self._animations.value( "Width", opened )
         
     
     def __draw_back( self, fade: float ):

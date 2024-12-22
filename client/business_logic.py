@@ -362,7 +362,7 @@ class c_client_business_logic:
         self._network.send( message )
 
     
-    def update_line( self, file_name: str, line: int, lines: list[ str ] ):
+    def update_line( self, file_name: str, line: int, lines: list ):
         """
             Message of updated lines.
 
@@ -402,6 +402,26 @@ class c_client_business_logic:
             return
         
         message: str = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file_name, str( line ) ] )
+        self._network.send( message )
+
+    
+    def accept_offset( self, file_name: str, offset: int ):
+        """
+            Message to correct offset.
+
+            Receive :
+            - file_name - File name
+            - offset    - Offset value
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+
+        if file is None:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ file_name, str( offset ) ] )
         self._network.send( message )
 
 

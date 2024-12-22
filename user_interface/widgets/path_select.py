@@ -916,14 +916,14 @@ class c_path_select:
             self._animations.prepare( f"Folder_{ name }_hover",     0 )
     
 
-    def position( self, new_value: vector = None ) -> vector | None:
+    def position( self, new_value: vector = None ) -> vector:
         """
             Access / Update position.
 
             Receive :
             - new_value - New position in the parent
 
-            Returns : Vector or None
+            Returns : Vector
         """
 
         if new_value is None:
@@ -932,8 +932,10 @@ class c_path_select:
         self._position.x = new_value.x
         self._position.y = new_value.y
 
+        return new_value
 
-    def size( self, new_value: vector = None ) -> vector | None:
+
+    def size( self, new_value: vector = None ) -> vector:
         """
             Access / Update size.
 
@@ -948,6 +950,8 @@ class c_path_select:
         
         self._size.x = new_value.x
         self._size.y = new_value.y
+
+        return new_value
 
     
     def get_path( self ) -> str:

@@ -81,6 +81,7 @@ class c_client_handle:
     _selected_file: c_virtual_file
     _selected_line: int
 
+    _offsets:       list
     _offset_index:  int # TODO ! Here instead of just number create list
     # We dont want modded client to spoof index change response.
     # As a result each change will be added to a list, and in general used as sum( ) for offset
@@ -141,7 +142,8 @@ class c_client_handle:
         self._selected_file = None
 
         self._selected_line = 0
-        self._offset_index  = 0
+        #self._offset_index  = 0
+        self._offsets = [ ]
 
     # endregion
 
@@ -431,25 +433,74 @@ class c_client_handle:
 
         self._selected_line = line
 
+        if line == 0:
+            self._offsets.clear( )
 
-    def offset_index( self, offset: int = None ) -> int:
-        """
-            Updates or Returns the clients offset index.
-
-            Receive :
-            - offset [optional] - Offset for clients line index
-
-            Returns :   Current offset number
-        """
-
-        if offset is None:
-            return self._offset_index
-        
-        self._offset_index = offset
-        return offset
-    
     # endregion
 
+    # region : Offsets and indexes
+
+    def get_offset( self ) -> int:
+        """
+            Get thhe sum of the offsets of client.
+
+            Receive :   None
+
+            Returns :   Int value
+        """
+
+        return sum( self._offsets )
+    
+
+    def add_offset( self, value: int ) -> None:
+        """
+            Add offset for client.
+
+            Receive :   
+            - value - Add for offset
+
+            Returns :   None
+        """
+
+        self._offsets.append( value )
+
+    
+    def is_this_offset_exist( self, value: int ) -> bool:
+        """
+            Is a specific offset exists in the list.
+
+            Receive :
+            - value - Specific offset value
+
+            Returns :   Result
+        """
+
+        for item in self._offsets:
+            if value == item:
+                return True
+            
+
+        return False
+    
+
+    def remove_offset( self, value: int ) -> bool:
+        """
+            Remove specific offset value.
+
+            Receive :
+            - value - Specific offset value
+
+            Returns :   Result if deleted
+        """
+
+        if not self.is_this_offset_exist( value ):
+            return False
+        
+        self._offsets.remove( value )
+        return True
+
+    # endregion
+    
     # region : Utilities
 
     def network( self ) -> c_network_protocol:
@@ -992,7 +1043,7 @@ class c_server_business_logic:
             msg = self._files.format_message( FILES_COMMAND_PREPARE_RESPONSE, [ file.name( ), arguments[ 1 ], response ] )
             client_network.send( msg )
 
-            self.log( f" The line { arguments[ 1 ] } that Client { client_name } requested is { is_locked and "locked" or "free" }" )
+            self.log( f" The line { arguments[ 1 ] } that Client { client_name } requested is { is_locked and 'locked' or 'free' }" )
 
 
         if cmd == FILES_COMMAND_DISCARD_UPDATE:
@@ -1006,9 +1057,9 @@ class c_server_business_logic:
             if client.get_file_name( ) != arguments[ 0 ]:
                 return
 
-            line: int = int( arguments[ 1 ] )
+            line: int = int( arguments[ 1 ] ) + client.get_offset( )
 
-            if client.get_line( ) + client.offset_index( ) != line:
+            if client.get_line( ) != line:
                 return
             
             is_locked = file.is_line_locked( line )
@@ -1017,7 +1068,7 @@ class c_server_business_logic:
 
             file.unlock_line( line )
             client.set_line( 0 )
-            client.offset_index( 0 )
+            
             self.__unlock_line_for_all_clients( file, line, client )
 
         
@@ -1032,9 +1083,9 @@ class c_server_business_logic:
             if client.get_file_name( ) != arguments[ 0 ]:
                 return
 
-            line: int = int( arguments[ 1 ] )
+            line: int = int( arguments[ 1 ] ) + client.get_offset( )
 
-            if client.get_line( ) + client.offset_index( ) != line:
+            if client.get_line( ) != line:
                 return
 
             # Clean the useless information
@@ -1054,7 +1105,7 @@ class c_server_business_logic:
             file.update_lines( line, raw_lines )
             
             client.set_line( 0 )
-            client.offset_index( 0 )
+            
 
             self.__update_lines_for_all_clients( file, line, arguments, client )
 
@@ -1086,15 +1137,15 @@ class c_server_business_logic:
             if client.get_file_name( ) != arguments[ 0 ]:
                 return
 
-            line: int = int( arguments[ 1 ] )
+            line: int = int( arguments[ 1 ] ) + client.get_offset( )
 
-            if client.get_line( ) + client.offset_index( ) != line:
+            if client.get_line( ) != line:
                 return
             
             file.unlock_line( line )
             removed_line = file.remove_line( line )
             client.set_line( 0 )
-            client.offset_index( 0 )
+            
 
             self.__delete_line_for_all_clients( file, line, client )
 
@@ -1107,6 +1158,23 @@ class c_server_business_logic:
                 "removed" : removed_line,
             } )
 
+            return
+        
+
+        if cmd == FILES_COMMAND_APPLY_UPDATE:
+            file: c_virtual_file = self._files.search_file( arguments[ 0 ] )
+            if file is None:
+                return
+            
+            if client.get_file_name( ) != arguments[ 0 ]:
+                return
+            
+            offset = int( arguments[ 1 ] )
+            if not client.is_this_offset_exist( offset ):
+                return
+
+            client.remove_offset( offset )
+            
             return
 
         return
@@ -1181,8 +1249,8 @@ class c_server_business_logic:
                         file.unlock_line( current_client_line )
                         file.lock_line( current_client_line + new_lines )
 
-                    current_offset = client.offset_index( )
-                    client.offset_index( current_offset + new_lines )
+                    client.add_offset( new_lines )
+                    client.set_line( current_client_line + new_lines )
 
                 msg = self._files.format_message( FILES_COMMAND_UPDATE_LINE, [ file.name( ), str( line ) ] + lines )
                 client.network( ).send( msg )
@@ -1212,8 +1280,8 @@ class c_server_business_logic:
                         file.unlock_line( current_client_line )
                         file.lock_line( current_client_line - 1 )
 
-                    current_offset = client.offset_index( )
-                    client.offset_index( current_offset - 1 )
+                    client.add_offset( -1 )
+                    client.set_line( current_client_line - 1  )
 
                 msg = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file.name( ), str( line ) ] )
                 client.network( ).send( msg )
@@ -1348,7 +1416,7 @@ class c_server_business_logic:
         return self._files
 
 
-    def clients( self ) -> list[ c_client_handle ]:
+    def clients( self ) -> list:
         return self._clients
     
     # endregion

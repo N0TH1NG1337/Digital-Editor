@@ -16,24 +16,24 @@ How to install the project.
 python -m venv virtual_env
 ```
 
-2. Enable virtual enviroment
-```sh
-virtual_env\Scripts\activate
-```
-
-3. Install from the requirements file
-```sh
-pip install -r requirements.txt
-```
-
-4. Clone the files from this reposetory
+2. Clone the files from this reposetory
 ```sh
 git clone https://github.com/N0TH1NG1337/Digital-Editor.git
 ```
 
-5. Navigate to the Digital-Editor folder
+3. Enable virtual enviroment
+```sh
+virtual_env\Scripts\activate
+```
+
+4. Navigate to the Digital-Editor folder
 ```sh
 cd Digital-Editor
+```
+
+5. Install from the requirements file
+```sh
+pip install -r requirements.txt
 ```
 
 6. Create 2 files. One for Server and 1 for Client, and for each set:

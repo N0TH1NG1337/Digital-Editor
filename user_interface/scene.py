@@ -610,7 +610,8 @@ class c_scene:
         image_size = screen / self._config.background_descale
 
         if image is not None:
-            self._render.image( image, screen - image_size, self._config.background_color * fade, image_size )
+            pass
+            #self._render.image( image, screen - image_size, self._config.background_color * fade, image_size )
 
 
     def __animations( self ):

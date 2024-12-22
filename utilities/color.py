@@ -25,15 +25,15 @@ class color:
 
     # region : Initialize object
 
-    def __init__( self, r: int | float = 255, g: int | float = 255, b: int | float = 255, a: int | float = 255 ):
+    def __init__( self, r: any = 255, g: any = 255, b: any = 255, a: any = 255 ):
         """
             Color class constructor
 
             Receives:   
-            - r [optional] - start value for red  
-            - g [optional] - start value for green
-            - b [optional] - start value for blue
-            - a [optional] - start value for alpha
+            - r [optional] - start value for red    int | float
+            - g [optional] - start value for green  int | float
+            - b [optional] - start value for blue   int | float
+            - a [optional] - start value for alpha  int | float
 
             Returns:    Color object
         """

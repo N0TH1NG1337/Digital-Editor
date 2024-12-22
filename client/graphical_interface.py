@@ -316,10 +316,11 @@ class c_client_gui:
 
         self._elements[ "Editor" ]          = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
-        self._elements[ "Editor" ].set_event( "request_line", self.__event_request_line, "GUI_ReqLine" )
-        self._elements[ "Editor" ].set_event( "discard_line", self.__event_discard_line, "Gui_DisLine" )
-        self._elements[ "Editor" ].set_event( "update_line",  self.__event_update_line,  "Gui_UpLine" )
-        self._elements[ "Editor" ].set_event( "delete_line",  self.__event_delete_line,  "Gui_DelLine" )
+        self._elements[ "Editor" ].set_event( "request_line",   self.__event_request_line,  "GUI_ReqLine" )
+        self._elements[ "Editor" ].set_event( "discard_line",   self.__event_discard_line,  "Gui_DisLine" )
+        self._elements[ "Editor" ].set_event( "update_line",    self.__event_update_line,   "Gui_UpLine" )
+        self._elements[ "Editor" ].set_event( "delete_line",    self.__event_delete_line,   "Gui_DelLine" )
+        self._elements[ "Editor" ].set_event( "correct_offset", self.__event_verify_offset, "Gui_VerChanges" )
 
 
     def __scene_project_draw( self, event ):
@@ -339,7 +340,7 @@ class c_client_gui:
         animations:         c_animations    = self._scene_project.animations( )
 
         fade:               float           = animations.value( "Fade" )
-        text:               str             = f" Client : { self._elements[ "UsernameEntry" ].get( ) } / Version 0.2 "
+        text:               str             = f" Client : { self._elements[ 'UsernameEntry' ].get( ) } / Version 0.2 "
         text_size:          vector          = render.measure_text( debug_font, text )
 
         render.text( debug_font, vector( 10, screen.y - text_size.y - 10 ), color( ) * fade, text )
@@ -602,6 +603,22 @@ class c_client_gui:
 
         editor: c_editor = self._elements[ "Editor" ]
         editor.delete_line( file_name, line )
+
+    
+    def __event_verify_offset( self, event ):
+        """
+            Response to server, after a line offset change.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        offset:     int     = event( "offset" )
+
+        self._logic.accept_offset( file_name, offset )
     
     # endregion
 

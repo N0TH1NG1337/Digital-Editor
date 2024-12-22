@@ -53,7 +53,7 @@ class c_color_picker:
     _value:                 float
     _alpha:                 float
 
-    _hue_colors:            list[ color ]
+    _hue_colors:            list #[ color ]
 
     _canvas_axis:           int
 
