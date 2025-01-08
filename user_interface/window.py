@@ -5,6 +5,10 @@
     file        : Window
 
     description : Window class
+
+    changes:
+    - 04-01-2025 : 
+        - Added moving option to windows with top bar.
 """
 
 import OpenGL.GL as gl
@@ -61,6 +65,8 @@ class c_window:
     _active_handle:     int             # Active element handle
 
     _mouse_position:    vector
+    _move_delta:        vector
+    _is_moving:         bool
 
     # region : Initialize window
 
@@ -109,8 +115,11 @@ class c_window:
         self._elements          = [ ]
         self._close             = vector( )
         self._mouse_position    = vector( )
+        self._move_delta        = vector( )
 
         self._active_handle     = -1
+
+        self._is_moving         = False
 
     
     def __initialize_draw( self ) -> None:
@@ -137,15 +146,16 @@ class c_window:
             Returns:    None
         """
 
-        self._events = { }
+        self._events = { 
+            
+            "draw":             c_event( ),
 
-        self._events[ "draw" ]              = c_event( )
-
-        self._events[ "keyboard_input" ]    = c_event( )
-        self._events[ "char_input" ]        = c_event( )
-        self._events[ "mouse_position" ]    = c_event( )
-        self._events[ "mouse_input" ]       = c_event( )
-        self._events[ "mouse_scroll" ]      = c_event( )
+            "keyboard_input":   c_event( ),
+            "char_input":       c_event( ),
+            "mouse_position":   c_event( ),
+            "mouse_input":      c_event( ),
+            "mouse_scroll":     c_event( )
+        }
 
     # endregion
 
@@ -164,7 +174,7 @@ class c_window:
 
         fade: float = self._animations.preform( "Fade", self._show and 1 or 0, self._config.speed )
 
-        self._render.push_position( self._position + vector( -50 + 50 * fade, 0 ) )
+        self._render.push_position( self._position )
 
         self.__draw_background( fade )
 
@@ -195,13 +205,13 @@ class c_window:
         if self._config.show_bar:
             remove_height = - 30
 
-        self._render.gradiant(
+        # TODO ! REWORK THE BACKGROUND DRAWING
+        # can add layer of blue or something and on top add transparent black.
+
+        self._render.rect(
             vector( 0, remove_height ), 
             self._size, 
             self._config.back_color * fade,
-            self._config.back_color * fade,
-            self._config.back_color * 0,
-            self._config.back_color * 0,
             self._config.roundness
         )
 
@@ -300,6 +310,10 @@ class c_window:
         self._mouse_position.x = x
         self._mouse_position.y = y
 
+        if self._is_moving:
+            self._position = self._mouse_position + self._move_delta
+            return
+
         event: c_event = self._events[ "mouse_position" ]
 
         event.attach( "window",     window )
@@ -322,11 +336,21 @@ class c_window:
             Returns:    None
         """
 
-        if self._config.show_bar:
+        if self._config.show_bar and self._active_handle == -1:
+
             is_on_close = self._mouse_position.is_in_bounds( self._position + self._close, 10, 10 )
-            if is_on_close and button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS and self._active_handle == -1:
+            if is_on_close and button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
                 # Close
-                self.show( False )
+                return self.show( False )
+            
+            is_on_hold = self._mouse_position.is_in_bounds( self._position - vector( 0, 30 ), self._close.x, 30 )
+            if is_on_hold and button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
+                self._is_moving = True
+                self._move_delta = self._position - self._mouse_position
+
+            if self._is_moving and button == glfw.MOUSE_BUTTON_LEFT and action == glfw.RELEASE:
+                self._is_moving = False
+
 
         event: c_event = self._events[ "mouse_input" ]
 

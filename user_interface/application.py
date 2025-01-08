@@ -5,9 +5,6 @@
     file        : Application
 
     description : Main Application class.
-
-    TODO ! Change the mouse possition change callback. 
-    Better to track each frame everything at the time, rather than call only the action scene.
 """
  
 import OpenGL.GL as gl
@@ -41,10 +38,12 @@ from user_interface.widgets.color_picker    import *
 
 
 class application_config_t:
-    back_color_1 = color( 30, 30, 50 ) # ( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
-    back_color_2 = color( 30, 30, 70 ) # ( 30, 30, 70 ) #( 253, 231, 236 )
-    back_color_3 = color( 30, 30, 39 ) # ( 30, 30, 39 ) #( 156, 140, 182 )
-    back_color_4 = color( 20, 20, 24 ) # ( 20, 20, 24 ) #( 224, 205, 224 )
+    back_color_1:   color       = color( 30, 30, 50 ) # ( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
+    back_color_2:   color       = color( 30, 30, 70 ) # ( 30, 30, 70 ) #( 253, 231, 236 )
+    back_color_3:   color       = color( 30, 30, 39 ) # ( 30, 30, 39 ) #( 156, 140, 182 )
+    back_color_4:   color       = color( 20, 20, 24 ) # ( 20, 20, 24 ) #( 224, 205, 224 )
+
+    wallpaper:      c_image     = None
 
 
 # Main application class
@@ -211,7 +210,7 @@ class c_application:
         return True
     
 
-    @safe_call( None )
+    @safe_call( print )
     def __init_backend( self ) -> bool:
         """
             Initialize imgui context and OpenGL renderer backend.
@@ -234,7 +233,7 @@ class c_application:
 
     # region : Assets
 
-    @safe_call( None )
+    @safe_call( print )
     def create_font( self, index: str, path: str, size: int ) -> c_font:
         """
             Create new font object, save and return it
@@ -264,7 +263,7 @@ class c_application:
         return new_font
     
 
-    @safe_call( None )
+    @safe_call( print )
     def create_image( self, index: str, path: str, size: vector ) -> c_image:
         """
             Create new image object, save and return it
@@ -595,6 +594,8 @@ class c_application:
             Returns:    None
         """
 
+        self.active_scene( ).event_window_resize( )
+
         event: c_event = self._events[ "window_resize" ]
 
         event.attach( "window",      window )
@@ -726,19 +727,20 @@ class c_application:
         """
 
         size:       vector  = self.window_size( )
+        wallpaper:  c_image = self._config.wallpaper
 
-        self._render.rect(
-            vector( ),
-            size,
-            self._config.back_color_1
-        )
+        fade:       float   = 1
+
+        if wallpaper is not None:
+            fade = 0.1
+            self._render.image( wallpaper, vector( ), color( ), size )
 
         self._render.gradiant(
             vector( ), size, 
-            self._config.back_color_1,
-            self._config.back_color_2,
-            self._config.back_color_3,
-            self._config.back_color_4
+            self._config.back_color_1 * fade,
+            self._config.back_color_2 * fade,
+            self._config.back_color_3 * fade,
+            self._config.back_color_4 * fade
         )
 
 

@@ -264,7 +264,7 @@ class path_select_config_t:
     seperate:           int     = 4
     roundness:          int     = 10
 
-    seperate_color:     color   = color( 150, 150, 255 )
+    seperate_color:     color   = color( 216, 208, 215 )
     path_text_color:    color   = color( )
     back_color:         color   = color( 0, 0, 0, 100 )
 
@@ -292,6 +292,8 @@ class c_path_select:
 
     _active_folder:         c_base_folder
 
+    _is_visible:            bool
+    _is_hovered:            bool
     _is_hovered_back:       bool
     _is_hovered_path:       bool
     _input_path:            c_single_input_logic
@@ -394,8 +396,9 @@ class c_path_select:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Back", 0.5 )
+        self._animations.prepare( "Back",   0.5 )
         self._animations.prepare( "Scroll", 0 )
+        self._animations.prepare( "Fade",   1 )
 
     
     def __initialize_values( self ):
@@ -409,6 +412,8 @@ class c_path_select:
 
         self._active_folder     = None
 
+        self._is_hovered        = False
+        self._is_visible        = True
         self._is_hovered_back   = False
         self._is_hovered_path   = False
 
@@ -438,6 +443,10 @@ class c_path_select:
         self.__preform( )
         self.__animate( )
 
+        fade = fade * self._animations.value( "Fade" )
+        if fade == 0:
+            return
+        
         self.__draw_back( fade )
         self.__draw_top_bar( fade )
         self.__draw_content( fade )
@@ -474,6 +483,10 @@ class c_path_select:
 
         speed: int = self._config.speed
 
+        fade: float = self._animations.preform( "Fade", self._is_visible and 1 or 0, speed )
+        if fade == 0:
+            return
+
         self._animations.preform( "Back", self._is_hovered_back and 1 or 0.3, speed )
         self._animations.preform( "Scroll", self._offset, speed, 1 )
 
@@ -496,8 +509,8 @@ class c_path_select:
             self._position + self._size, 
             back_color * fade,
             back_color * fade,
-            back_color * 0,
-            back_color * 0,
+            back_color * fade,
+            back_color * fade,
             roundness
         )
 
@@ -506,7 +519,7 @@ class c_path_select:
             self._position + self._size, 
             back_color,
             fade,
-            20,
+            25,
             roundness
         )
 
@@ -521,7 +534,6 @@ class c_path_select:
 
             Returns :   None
         """
-
         
         pad:                int     = self._config.pad
         seperate:           int     = self._config.seperate
@@ -534,7 +546,7 @@ class c_path_select:
 
         self._render.image( self._back_icon, self._position + vector( pad, pad ), color( ) * hover_back )
 
-        self._render.shadow( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color, fade, 15, seperate / 2)
+        self._render.shadow( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color, fade, 25, seperate / 2)
         self._render.rect( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color * fade, seperate / 2 )
 
         self._input_path.draw( fade )
@@ -658,10 +670,10 @@ class c_path_select:
         fixed = self._window_size.y * scroll_delta
         value = abs( scroll ) * scroll_delta
 
-        position        = vector( start_position.x + self._window_size.x, start_position.y + value )
-        end_position    = vector( start_position.x + self._window_size.x + seperate, start_position.y + value + fixed )
+        position        = vector( start_position.x + self._window_size.x - seperate, start_position.y + value )
+        end_position    = vector( start_position.x + self._window_size.x, start_position.y + value + fixed )
 
-        self._render.shadow( position, end_position, seperate_color, fade, 15, seperate / 2)
+        self._render.shadow( position, end_position, seperate_color, fade, 25, seperate / 2)
         self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
 
     # endregion
@@ -678,8 +690,13 @@ class c_path_select:
             Returns :   None
         """
 
+        if not self._is_visible:
+            return
+
         self._mouse_position.x  = event( "x" )
         self._mouse_position.y  = event( "y" )
+
+        self._is_hovered = self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y )
 
         self.__hover_back_button( )
         if self._is_hovered_back:
@@ -696,6 +713,9 @@ class c_path_select:
 
             Returns :   None
         """
+
+        if not self._is_visible:
+            return
 
         button = event( "button" )
         action = event( "action" )
@@ -719,8 +739,16 @@ class c_path_select:
             Returns :   None
         """
 
-        x_offset = event( "x_offset" )
+        if not self._is_visible:
+            return
+
         y_offset = event( "y_offset" )
+
+        if not y_offset:
+            return
+        
+        if not self._is_hovered:
+            return
 
         if self._drop > self._window_size.y:
             drop_min    = self._window_size.y - self._drop
@@ -952,6 +980,24 @@ class c_path_select:
         self._size.y = new_value.y
 
         return new_value
+    
+
+    def visible( self, new_value: bool = None ) -> bool:
+        """
+            Access / Update text input visibility.
+
+            Receive :   
+            - new_value [optional] - New visibility value
+
+            Returns :   Result
+        """
+
+        if new_value is None:
+            return self._is_visible
+        
+        self._is_visible = new_value
+
+        return self._is_visible
 
     
     def get_path( self ) -> str:

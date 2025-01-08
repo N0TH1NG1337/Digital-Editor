@@ -16,6 +16,7 @@ INVALID                 = None
 HEADER_SIZE             = 4
 CHUNK_SIZE              = 1024
 DISCONNECT_MSG          = "_DISCONNECT_"
+PING_MSG                = "PING"
 
 CONNECTION_TYPE_CLIENT  = 1
 CONNECTION_TYPE_SERVER  = 2
@@ -166,6 +167,7 @@ class c_network_protocol:
 
         self._connection.start( type_connection, ip, port )
 
+
     def end_connection( self ):
         """
             End connection.
@@ -177,6 +179,7 @@ class c_network_protocol:
 
         self._connection.end( )
 
+
     def look_for_connections( self ):
         """
             Look / Listen for connections.
@@ -187,6 +190,7 @@ class c_network_protocol:
         """
 
         self._connection( ).listen( )
+
 
     def accept_connection( self, timeout: float = -1 ) -> tuple:
         """
@@ -213,6 +217,7 @@ class c_network_protocol:
             # If timed out
             return None, None
         
+
     def send( self, value: str ):
         """
             Send string value.
@@ -237,6 +242,7 @@ class c_network_protocol:
             has_next    = chunk[ 2 ]
 
             self.send_raw( encoded_value[ start:end ], has_next )
+
 
     def get_raw_details( self, length: int ) -> list:
         """
@@ -267,6 +273,7 @@ class c_network_protocol:
 
         return result
     
+
     def send_raw( self, raw_chunk: bytes, has_next: bool ):
         """
             Send raw bytes chunk.
@@ -315,6 +322,7 @@ class c_network_protocol:
 
         return data
         
+
     def __receive_fixed( self, length: int ) -> bytes:
         """
             Utility to pop from buffer fixed length of data.
@@ -334,6 +342,7 @@ class c_network_protocol:
             received_raw_data += chunk_data
 
         return received_raw_data
+
 
     def value_format( self, value: any, has_next: bool = False ) -> list:
         """
@@ -361,7 +370,8 @@ class c_network_protocol:
            
         return result
     
-    def is_valid( self ) -> bool:
+    
+    def is_valid( self, try_ping: bool = False ) -> bool:
         """
             Is connection still valid.
 
@@ -370,7 +380,16 @@ class c_network_protocol:
             Returns :   Result
         """
 
+        if try_ping:
+            try:
+                self.send( PING_MSG )
+
+                return True
+            except Exception:
+                return False
+
         return self._connection( ) is not INVALID
+    
 
     def get_address( self, raw_ip: bool = False ) -> tuple:
         """
@@ -390,3 +409,4 @@ class c_network_protocol:
             ip_addr = self._connection.address( )[ 0 ]
 
         return ip_addr, self._connection.address( )[ 1 ]
+    

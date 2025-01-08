@@ -62,4 +62,6 @@ def standalone_execute( function ):
         thread = threading.Thread( target=function, args=args )
         thread.start( )
 
+        return thread
+
     return execute

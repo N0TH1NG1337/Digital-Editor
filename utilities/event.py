@@ -7,12 +7,15 @@
     description : Event class.
                 used to create option to callback more than 1 function 
                 with specific arguments based on needs
+
+    changes : 
+    - Changed the callbacks from dictionary to list handler
 """
 
 class c_event:
 
     _information:   dict    # Event information
-    _calls:         dict    # Event callback functions
+    _calls:         list    # Event callback functions
 
     # region : Initialize object
 
@@ -29,7 +32,7 @@ class c_event:
         self._information   = { }
 
         # Setup event callbacks handler
-        self._calls         = { }
+        self._calls         = [ ]
 
     # endregion
 
@@ -61,10 +64,11 @@ class c_event:
             Returns:    None
         """
 
-        self._calls[ index ] = {
-            "call":     callback,
-            "is_args":  allow_arguments
-        }
+        self._calls.append( {
+            "index":        index,
+            "call":         callback,
+            "is_args":      allow_arguments
+        } )
 
     
     def unset( self, index: str ):
@@ -77,7 +81,9 @@ class c_event:
             Returns:    None
         """
 
-        del self._calls[ index ]
+        for call in self._calls:
+            if call[ "index" ] == index:
+                self._calls.remove( call )
 
     # endregion
 
@@ -92,14 +98,13 @@ class c_event:
             Returns:    None
         """
 
-        for index in self._calls:
-            info:   dict = self._calls[ index ]
-
-            if info[ "is_args" ]:
-                info[ "call" ]( self.__request )
+        for item in self._calls:
+            
+            if item[ "is_args" ]:
+                item[ "call" ]( self.__request )
 
             else:
-                info[ "call" ]( )
+                item[ "call" ]( )
 
 
     def __request( self, index: str ) -> any:

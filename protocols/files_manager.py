@@ -21,7 +21,6 @@ FILES_COMMAND_RES_FILES = "ResFiles"
 FILES_COMMAND_GET_FILE = "GetFileCont"
 FILES_COMMAND_SET_FILE = "SetFileCont"
 
-
 FILES_COMMAND_PREPARE_UPDATE    = "PrepUpdateLine"
 FILES_COMMAND_PREPARE_RESPONSE  = "ResPrepUpdate"
 FILES_COMMAND_UPDATE_LINE       = "UpdateLine"
@@ -29,81 +28,87 @@ FILES_COMMAND_DELETE_LINE       = "DelLine"
 FILES_COMMAND_DISCARD_UPDATE    = "DisUpdateLine"
 FILES_COMMAND_APPLY_UPDATE      = "ApplyUpdateLine"
 
-# There are some problems now with this protocol
-# First, the client's one and the server's one are differnt.
+FILE_ACCESS_LEVEL_HIDDEN    = 0     # This file should be hidden ( used only for host )
+FILE_ACCESS_LEVEL_EDIT      = 1     # This file can be edited
+FILE_ACCESS_LEVEL_LIMIT     = 2     # This file cannot be edited
 
-# While the client should just have the content and the type access.
-# The server should also contain much more information about the file
-# Like what users use it, what their access and more. Most likely I will attach files to users.
-# And not users to files...
-
-# NOTE ! The Client doesnt save the file. Only raw memory data.
-
-# TODO ! Rework the virtual file
-# Add option to set if this virtual file will save all the changes
 
 class c_virtual_file:
 
-    _name:              str     # File's name. Indcluding the type.
+    # NOTE ! Virtual files can be or reference to a real file or just empty name without content
 
-    _original_path:     str     # Original file. DO NOT TOUCH
-    _normal_path:       str     # Project new folder path
+    _name:                  str     # File's name. Indcluding the type.
+    _log_changes:           bool
 
-    _content:           list    # This will be used for client
-    _lines_used:        list
+    _original_path:         str     # Original file. DO NOT TOUCH
+    _normal_path:           str     # Project new folder path
 
-    def __init__( self, name: str ):
+    _access_level:          int     # File's access level
+
+    _content:               list
+
+    # region : Initialize
+
+    def __init__( self, name: str, access_level: int = 0, log_changes: bool = True ):
         """
-            Default constructor for virtual file.
-            
-            Receive : 
-            - name - File name ( like test.py )
+            Default constructor for virtual file object.
 
-            Returns :   File object
+            Receive:
+            - name                      - File's name
+            - log_changes [optional]    - Enable logging for any file changes.
+
+            Returns : Virtual File object
         """
 
-        self._name              = name
-        self._normal_path       = None
-        self._content           = [ ]
-        self._lines_used        = [ ]
+        self._name          = name
+        self._log_changes   = log_changes
 
-    
-    def __set_change_file( self ):
+        self._access_level  = access_level
+
+        self._original_path = None
+        self._normal_path   = None
+
+        self._content       = [ ]
+
+
+    def __create_logging_file( self ):
         """
-            Set if this file is a changes list.
+            Create a file to log each change for this file.
 
             Receive :   None
 
             Returns :   None
         """
 
-        if self._name.endswith( "_changes.txt" ):
-            file_path = f"{ self._normal_path }\\{ self._name }"
+        if not self._log_changes:
+            return
+        
 
-            with open( file_path, "w" ) as f:
-                json.dump( { "original_file": self._name.replace( "_changes.txt", "" ) }, f )
+        file_name, file_type = self.name( True )
+        file_name = f"{ file_name }_changes.txt"
 
-    
-    def name( self ) -> str:
-        """
-            Get file name.
+        file_path = f"{ self._normal_path }\\{ file_name }"
 
-            Receive :   None
+        with open( file_path, "w" ) as f:
+                json.dump( 
+                    { 
+                        "original_file":    self._name,
+                        "file_type":        file_type
+                    }, 
+                f )
 
-            Returns :   String value
-        """
+    # endregion
 
-        return self._name
-    
+    # region : Creation and referencing
 
-    def create_new( self, path: str ):
+    def create( self, path: str ):
         """
             Create new empty file.
 
             Receive :   
             - path - Path for that new file
 
-            Returns :   None
+            Returns :   None or string on fail
         """
 
         file_path = f"{ path }\\{ self._name }"
@@ -116,288 +121,124 @@ class c_virtual_file:
 
             self._normal_path = path
 
-            self.__set_change_file( )
+            self.__create_logging_file( )
 
             return None
         
         except Exception as e:
             return str( e )
-        
     
-    def copy_from( self, path_from: str, path_to: str ):
+
+    def copy( self, path_from: str, path_to: str ):
         """
             Copy existing file into new file.
 
             Receive :
-            - path_from - Path to a original file
-            - path_to   - New path for new file
+            - path_from     - Path to an original file
+            - path_to       - New path for the new file
 
-            Returns :   None
+            Returns :   None or string on fail
         """
 
-        file_path_from = f"{ path_from }\\{ self._name }"
-        file_path_to = f"{ path_to }\\{ self._name }"
+        file_path_from: str = f"{ path_from }\\{ self._name }"
+        file_path_to:   str = f"{ path_to }\\{ self._name }"
 
         if not os.path.exists( file_path_from ):
             return f"Failed to find original file { file_path_from }"
         
         try:
+            os.makedirs( os.path.dirname( file_path_to ), exist_ok=True )
+
             shutil.copy( file_path_from, file_path_to )
 
             self._normal_path = path_to
+
+            self.__create_logging_file( )
 
         except Exception as e:
             return str( e )
         
         return None
+
     
+    def copy_instance( self, original: any ):
+        """
+            Copy one virtual_file information into this instance.
+
+            Receive :
+            - original  - Original instance of the virtual file
+
+            Returns :   Self instance
+        """
+
+        
+        self._original_path = original._original_path
+        self._normal_path   = original._normal_path
+        
+        return self 
+
+   # endregion
+
+    # region : File information
 
     @safe_call( None )
-    def parse_name( self ) -> tuple:
+    def name( self, should_parse: bool = False ) -> any:
         """
-            Convert the name with type into tuple.
+            Returns the file's name.
+            Can return ( file_name, file_type ) or full file name.
 
-            Receive :   None
+            Receive :
+            - should_parse [optional] - Should the returns value will be the name parsed into name and type
 
-            Returns :   Tuple ( name, type )
+            Returns :   String or tuple
         """
 
+        if not should_parse:
+            return self._name
+        
         information = self._name.rsplit( ".", 1 )
 
         return information[ 0 ], information[ 1 ]
     
 
-    def get_file_size( self ) -> any: #int | None:
+    def access_level( self ) -> int:
         """
-            Get file size.
+            Get virtual file's access level.
 
             Receive :   None
 
-            Returns :   File size
+            Returns :   int - Access level
         """
 
+        return self._access_level
+
+
+    def file_size( self, virtual_content: bool = False ) -> int:
+        """
+            Get virtual file's content size.
+
+            Receive :   None
+
+            Returns :   File's size
+        """
+
+        if virtual_content:
+            size: int = 0
+
+            for line in self._content:
+                size += len( line )
+
+            return size
+
         if self._normal_path is None:
-            return
+            raise Exception( "Invalid file path" )
         
-        file_path = f"{ self._normal_path }\\{ self._name }"
-        
-        size = os.path.getsize( file_path )
+        file_path:  str = f"{ self._normal_path }\\{ self._name }"
+        size:       int = os.path.getsize( file_path )
 
         return size
 
-
-    def read_from_file( self, start: int, end: int ) -> any: #bytes | None:
-        """
-            Read specific chunk from the file.
-
-            Receive :
-            - start - Start byte of the chunk
-            - end   - End file of the chunk
-
-            Returns :   Bytes
-        """
-
-        if self._normal_path is None:
-            return
-        
-        file_path = f"{ self._normal_path }\\{ self._name }"
-
-        data = b""
-
-        with open( file_path, "rb" ) as file:
-            file.seek( start )
-
-            data = file.read( end - start )
-
-        return data
-    
-
-    def clear_content( self ):
-        """
-            Clears file's content.
-
-            Receive :   None
-
-            Returns :   None
-        """
-
-        self._content.clear( )
-
-
-    def add_file_content( self, line: str ):
-        """
-            Add line for the file.
-
-            Receive :
-            - line - Text of a specific line
-
-            Returns :   None
-        """
-        
-        self._content.append( line )
-
-    
-    def read_file_content( self ) -> list:
-        """
-            Read from file's content.
-
-            Receive :   None
-
-            Returns :   List with lines
-        """
-
-        return self._content.copy( )
-
-    
-    def lock_line( self, line: int ):
-        """
-            Lock line, aka set it as used.
-
-            Receive :
-            - line - Line number
-
-            Returns :   None
-        """
-
-        #if line < 0 or line > len( self._content ):
-        #    return
-        
-        self._lines_used.append( line )
-
-    
-    def unlock_line( self, line: int ):
-        """
-            Unlocks line.
-
-            Receive :
-            - line - Line number
-
-            Returns :   None
-        """
-
-        if not self.is_line_locked( line ):
-            return
-        
-        self._lines_used.remove( line )
-
-    
-    def is_line_locked( self, line: int ) -> bool:
-        """
-            Is specific line locked.
-
-            Receive :
-            - line - Line number
-
-            Returns :   Result
-        """
-        
-        for _line in self._lines_used:
-            if _line == line:
-                return True
-            
-        return False
-    
-
-    def get_locked_lines( self ) -> list:
-        """
-            Get all the locked lines.
-
-            Receive :   None
-
-            Returns :   List
-        """
-
-        return self._lines_used.copy( )
-    
-
-    def remove_line( self, line_number: int ) -> str:
-        """
-            Remove a specific line from the file.
-
-            Receive :
-            - line_number - The line index to remove
-
-            Returns :   None
-        """
-
-        file_path = f"{ self._normal_path }\\{ self._name }"
-
-        data = b''
-        with open( file_path, "rb" ) as f:
-            data = f.read()
-
-        # Data is now with information
-        lines = data.decode( ).splitlines( )
-        removed_line = lines.pop( line_number - 1 )
-
-        del data
-
-        with open( file_path, "wb" ) as f:
-            f.write( os.linesep.join( lines ).encode( ) )
-
-        lines.clear( )
-
-        return removed_line
-
-    def update_lines( self, line_number: int, new_lines: list ) -> None:
-        """
-            Update a specific lines in the file.
-
-            Receive :
-            - line_number - Start line number
-            - new_lines   - Actual new content
-
-            Returns :   None
-        """
-
-        file_path = f"{ self._normal_path }\\{ self._name }"
-
-        # never use .readlines( ). 
-        # This trash actually breaks everything
-        # It has incorrect encoding and more
-        
-        data = b''
-        with open( file_path, "rb" ) as f:
-            data = f.read()
-
-        # Data is now with information
-        lines = data.decode( ).splitlines( )
-
-        del data
-        line_number -= 1
-
-        for line in new_lines:
-            lines.insert( line_number, line )
-            line_number += 1
-
-        with open( file_path, "wb" ) as f:
-            f.write( os.linesep.join( lines ).encode( ) )
-
-        lines.clear( )
-
-    
-    def add_change( self, index: str, change: dict ):
-        """
-            Add change commit in the file.
-
-            Receive :
-            - change - Change information
-
-            Returns :   None
-        """
-
-        file_path = f"{ self._normal_path }\\{ self._name }"
-
-        data: dict
-
-        with open( file_path, "r" ) as f:
-            data = json.load( f )
-
-        data[ index ] = change
-
-        with open( file_path, "w" ) as f:
-            json.dump( data, f )
-
+    # endregion
     
 
 class c_files_manager_protocol:
@@ -449,9 +290,13 @@ class c_files_manager_protocol:
         for file in self._files:
             file: c_virtual_file = self._files[ file ]
 
-            name = file.name( )
-            if not name.endswith( "_changes.txt" ):
-                files_list.append( name )
+            access_level: int = file.access_level( )
+
+            if access_level == FILE_ACCESS_LEVEL_HIDDEN:
+                continue
+
+            files_list.append( file.name( ) )
+            files_list.append( str( access_level ) )
 
         return self.format_message( FILES_COMMAND_RES_FILES, files_list )
 
@@ -494,7 +339,7 @@ class c_files_manager_protocol:
 
     # region : Register
 
-    def create_new_file( self, name: str ) -> c_virtual_file:
+    def create_new_file( self, name: str, access_level: int = 0, log_changes: bool = True ) -> c_virtual_file:
         """
             Create new virtual file instance.
 
@@ -504,8 +349,26 @@ class c_files_manager_protocol:
             Returns : Virtual File object
         """
 
-        new_file = c_virtual_file( name )
+        new_file = c_virtual_file( name, access_level, log_changes )
         self._files[ name ] = new_file
+
+        return new_file
+
+    
+    def copy( self, virtual_file: c_virtual_file ) -> c_virtual_file:
+        """
+            Copy virtual files content into a new instance in this handle.
+
+            Receive :
+            - virtual_file  - Original copy of the virtual file instance
+
+            Returns :   New instance of virtual file
+        """
+
+        new_file = c_virtual_file( virtual_file.name( ), virtual_file.access_level( ), True )
+        new_file.copy_instance( virtual_file )
+
+        self._files[ new_file.name( ) ] = new_file
 
         return new_file
 
@@ -513,7 +376,7 @@ class c_files_manager_protocol:
 
     # region : Utilities
 
-    def search_file( self, name: str ) -> any: #c_virtual_file | None:
+    def search_file( self, name: str ) -> any:
         """
             Search a virtual file based on name.
 
@@ -544,8 +407,9 @@ class c_files_manager_protocol:
 
 
     def get_header( self ) -> str:
-        return "FL_UNK"
+        return FILES_MANAGER_HEADER
     
+
     def get_last_error( self ):
         return self._last_error
 

@@ -165,6 +165,7 @@ class c_color_picker:
             Returns :   None
         """
 
+        self.__preform( )
         self.__animate( )
 
         self.__draw_hue_slider( fade )
@@ -172,6 +173,18 @@ class c_color_picker:
         self.__draw_value_saturation_block( fade )
 
         self._color = color( ).as_hsv( self._hue, self._saturation, self._value, self._alpha )
+
+
+    def __preform( self ):
+        """
+            Preform all the calculations.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._relative_position = self._position + self._parent.relative_position( )
 
 
     def __animate( self ):

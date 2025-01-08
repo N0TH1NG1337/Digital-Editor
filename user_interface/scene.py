@@ -5,6 +5,12 @@
     file        : Scene
 
     description : Scene class
+
+    changes :
+    - Fixes performance issues.
+    - Fixes stars movement.
+    - Fixes stars position on window resize.
+    - Removed slide animation on enter / exit since it caused crashes.
 """
 
 import OpenGL.GL as gl
@@ -30,10 +36,9 @@ from user_interface.window      import c_window, window_config_t
 class scene_config_t:
     speed:              int     = 8
 
-    animate_entrance:   bool    = True
     animate_movement:   bool    = False
 
-    enable_background:  bool    = True
+    enable_stars:       bool    = True
     stars_speed:        int     = 10
     stars_count:        int     = 140
 
@@ -53,7 +58,8 @@ class c_scene:
     _show:          bool            # Is showing this scene
     _events:        dict            # Scene events
     _elements:      list            # Scene attached elements
-    _windows:       list
+    _windows:       list            # Windows attached to scene
+    _notifications: list            # Notification attached to scene
 
     _render:        c_renderer      # Render functions
     _animations:    c_animations    # Animations handle
@@ -92,7 +98,8 @@ class c_scene:
         # Setup events
         self.__initialize_events( )
 
-        if self._config.enable_background:
+        if self._config.enable_stars:
+            self._stars = [ ]
             self.__initialize_stars( )
 
 
@@ -132,7 +139,7 @@ class c_scene:
         self._animations.prepare( "Slide", -50 )
         self._animations.prepare( "Mouse", vector( ) )
 
-        if self._config.enable_background:
+        if self._config.enable_stars:
             self._animations.prepare( "StarsVelocity", vector( ) )
 
 
@@ -165,7 +172,7 @@ class c_scene:
             Returns:    None
         """
 
-        self._stars = [ ]
+        self._stars.clear( )
 
         screen_size: vector = self._parent.window_size( )
 
@@ -336,6 +343,22 @@ class c_scene:
 
         event.invoke( )
 
+    
+    def event_window_resize( self ) -> None:
+        """
+            Window resize callback
+
+            Receives:   
+            - window ptr  - GLFW Window
+            - width       - New window width
+            - height      - New window height
+
+            Returns:    None
+        """
+
+        if self._config.enable_stars:
+            self.__initialize_stars( )
+
 
     def set_event( self, event_index: str, function: any, function_name: str ) -> None:
         """
@@ -464,6 +487,23 @@ class c_scene:
 
         return self._elements.index( item )
 
+
+    def deattach_element( self, item: any ) -> None:
+        """
+            Deattach element from the scene
+
+            Receive : 
+            - item - Item object to remove from the scene
+
+            Returns :   None
+        """
+
+        # TODO ! Deattach element's callbacks from the scene
+        
+        self._elements.remove( item )
+        for item in self._elements:
+            item.index( self._elements.index( item ) )
+
     # endregion
 
     # region : Elements Handle
@@ -530,11 +570,9 @@ class c_scene:
         self.__animations( )
 
         fade:       float   = self._animations.value( "Fade" )
-        slide:      float   = self._animations.value( "Slide" )
-        mouse:      vector  = self._animations.value( "Mouse" )
-
-        animate_entrance:   bool = self._config.animate_entrance
-        animate_movement:   bool = self._config.animate_movement
+        
+        mouse:              vector  = self._animations.value( "Mouse" )
+        animate_movement:   bool     = self._config.animate_movement
 
         if animate_movement:
             self._render.push_position( mouse )
@@ -546,8 +584,8 @@ class c_scene:
 
         self.__draw_city( fade )
 
-        if animate_entrance:
-            self._render.push_position( vector( 0, slide ) )
+        if fade == 0:
+            return
 
         self.__event_draw( )
 
@@ -562,9 +600,6 @@ class c_scene:
             window.show( window.show( ) and self._show )
             window.draw( )
 
-        if animate_entrance:
-            self._render.pop_position( )
-
 
     def __draw_background( self, fade: float ) -> None:
         """
@@ -576,7 +611,7 @@ class c_scene:
             Returns :   None
         """
 
-        if not self._config.enable_background:
+        if not self._config.enable_stars:
             return
         
         frame_time:     float   = self._animations.interpolation( )
@@ -603,19 +638,31 @@ class c_scene:
     
 
     def __draw_city( self, fade: float ):
+        """
+            Draw background image.
 
+            Receive :
+            - fade - Scene fade factor
+
+            Returns :   None
+        """
         image = self._config.background_image
+        if image is None:
+            return
         
-        screen = self._parent.window_size( )
-        image_size = screen / self._config.background_descale
+        screen      = self._parent.window_size( )
+        image_size  = screen / self._config.background_descale
 
-        if image is not None:
-            pass
-            #self._render.image( image, screen - image_size, self._config.background_color * fade, image_size )
+        self._render.image( image, screen - image_size, self._config.background_color * fade, image_size )
 
 
     def __animations( self ):
         """
+            Preform the general animations for the current scene.
+
+            Receive :   None
+
+            Returns :   None
         """
 
         self._animations.update( )
@@ -624,16 +671,14 @@ class c_scene:
 
         if self._show:
             fade    = self._animations.preform( "Fade",     1, speed )
-            slide   = self._animations.preform( "Slide",    0, speed, 1 )
         else:
             fade    = self._animations.preform( "Fade",     0, speed )
-            slide   = self._animations.preform( "Slide",    -50, speed )
 
         if not self._config.animate_movement or self._active_handle != -1:
             return
         
-        center = self._parent.window_size( ) / 2
-        delta = ( center - self._mouse_position ) * self._config.movement_factor
+        center  = self._parent.window_size( ) / 2
+        delta   = ( center - self._mouse_position ) * self._config.movement_factor
         
         self._animations.preform( "Mouse", delta * fade, speed )
 

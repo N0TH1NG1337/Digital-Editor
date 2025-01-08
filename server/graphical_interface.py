@@ -180,7 +180,7 @@ class c_server_gui:
         next_icon:      c_image = self._application.image( "Next" )
 
         self._elements[ "Username" ]    = c_text_input( self._scene_start, vector( 50, 50 ), 40, vector( 200, 30 ), user_icon, text_font, "Username" )
-        self._elements[ "NextToFiles" ] = c_button( self._scene_start, vector( 50, 100 ), 40, button_font, next_icon, "Continiue", self.__scene_start_complete )
+        self._elements[ "NextToFiles" ] = c_button( self._scene_start, vector( 50, 100 ), 40, button_font, next_icon, "Continue", self.__scene_start_complete )
 
 
     def __scene_start_draw( self, event ):
@@ -277,7 +277,7 @@ class c_server_gui:
         file_type_list_config.slots_count = 3
 
         self._elements[ "PathSelect" ]          = c_path_select( self._scene_files,path_font, vector( 50, 50 ), vector( 500, 580 ), path_icons )
-        self._elements[ "NextToConnection" ]    = c_button( self._scene_files, vector( 50, 600 + 50 ), 40, button_font, next_icon, "Continiue", self.__scene_files_complete )
+        self._elements[ "NextToConnection" ]    = c_button( self._scene_files, vector( 50, 600 + 50 ), 40, button_font, next_icon, "Continue", self.__scene_files_complete )
         self._elements[ "SelectFileType" ]      = c_list( self._scene_files, vector( 600, 50 ), 220, list_font, file_type_list_config  )
 
         self._elements[ "PathSelect" ].parse_path( os.getcwd( ) )
@@ -350,7 +350,7 @@ class c_server_gui:
 
         self._elements[ "IpEntry" ]         = c_text_input( self._scene_connect, vector( 50, 50 ), 40, vector( 200, 30 ), ip_icon, text_font, "IP", False, "0.0.0.0" )
         self._elements[ "PortEntry" ]       = c_text_input( self._scene_connect, vector( 50, 100 ), 40, vector( 200, 30 ), port_icon, text_font, "Port" )
-        self._elements[ "NextToProject" ]   = c_button( self._scene_connect, vector( 50, 150 ), 40, button_font, next_icon, "Continiue", self.__scene_connection_complete )
+        self._elements[ "NextToProject" ]   = c_button( self._scene_connect, vector( 50, 150 ), 40, button_font, next_icon, "Continue", self.__scene_connection_complete )
 
 
     def __scene_connection_draw( self, event ):
@@ -477,7 +477,7 @@ class c_server_gui:
         copy_button = c_button( new_window, vector( 10, 10 ), 40, button_font, copy_icon, "Project Code", lambda: self.__copy_to_clipboard( self._logic.generate_code( ) ) )
         stop_button = c_button( new_window, vector( 10, 60 ), 40, button_font, close_icon, "Stop Server", self.__scene_project_complete )
 
-
+    
     def __scene_project_bar_admin( self ):
         """
             Button callback to open Admin panel.

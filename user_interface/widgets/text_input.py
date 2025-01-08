@@ -29,10 +29,10 @@ class text_input_config_t:
     roundness:      int     = 10
 
     input_color:    color   = color( )
-    index_color:    color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
+    index_color:    color   = color( 216, 208, 215 ) # ( 150, 150, 255 )
     image_color:    color   = color( )
     text_color:     color   = color( )
-    seperate_color: color   = color( 150, 150, 255 ) # ( 150, 150, 255 )
+    seperate_color: color   = color( 216, 208, 215 ) # ( 150, 150, 255 )
     back_color:     color   = color( 0, 0, 0, 100 )
 
 
@@ -645,6 +645,7 @@ class c_text_input:
     _icon:                  c_image
     _text:                  str
 
+    _is_visible:            bool
     _is_hovered:            bool
     _should_type:           bool
 
@@ -706,8 +707,8 @@ class c_text_input:
         this_id = f"TextInput::{ self._index }"
         self._parent.set_event( "mouse_position",   self.__event_mouse_position,        this_id )
         self._parent.set_event( "mouse_input",      self.__event_mouse_input,           this_id )
-        self._parent.set_event( "char_input",       self._handle.event_char_input,      this_id )
-        self._parent.set_event( "keyboard_input",   self._handle.event_keyboard_input,  this_id )
+        self._parent.set_event( "char_input",       self.__event_char_input,            this_id )
+        self._parent.set_event( "keyboard_input",   self.__event_keyboard_input,        this_id )
 
     
     def __initialize_animations( self ):
@@ -721,6 +722,7 @@ class c_text_input:
 
         self._animations = c_animations( )
 
+        self._animations.prepare( "Fade",       1 )
         self._animations.prepare( "Text",       0.3 )
         self._animations.prepare( "Width",      0 )
         self._animations.prepare( "Seperate",   0 )
@@ -736,6 +738,7 @@ class c_text_input:
             Returns :   None
         """
 
+        self._is_visible        = True
         self._is_hovered        = False
         self._should_type       = False
 
@@ -762,6 +765,10 @@ class c_text_input:
         self.__preform( )
         self.__animate( )
 
+        fade = self._animations.value( "Fade" ) * fade
+        if fade == 0:
+            return
+        
         self.__draw_back( fade )
         self.__draw_input( fade )
 
@@ -809,6 +816,10 @@ class c_text_input:
         speed:      int     = self._config.speed
         pad:        int     = self._config.pad
 
+        fade:       float   = self._animations.preform( "Fade", self._is_visible and 1 or 0, speed )
+        if fade == 0:
+            return
+
         regular:    int     = self._icon.size( ).x + pad * 4 + seperate + self._text_size.x
         opened:     int     = regular + self._handle.correct_size( ).x + pad
         if self._should_type:
@@ -826,9 +837,9 @@ class c_text_input:
 
 
         if self._handle.get( ) == "":
-            self._animations.value( "Width", self._should_type and opened or regular )
+            self._animations.preform( "Width", self._should_type and opened or regular, speed * 2 )
         else:
-            self._animations.value( "Width", opened )
+            self._animations.preform( "Width", opened, speed * 2 )
         
     
     def __draw_back( self, fade: float ):
@@ -858,34 +869,33 @@ class c_text_input:
         text_fade:          float   = self._animations.value( "Text" ) * fade
         seperate_fade:      float   = self._animations.value( "Seperate" )
         width_fade:         float   = self._animations.value( "Width" )
-
-        self._render.gradiant(
-            self._position,
-            self._position + vector( width_fade, self._height ),
-            back_color * 0,
-            back_color * fade,
-            back_color * 0,
-            back_color * fade,
-            roundness
-        )
         
         self._render.shadow(
             self._position,
             self._position + vector( width_fade, self._height ),
             back_color,
             fade,
-            20,
+            25,
             roundness
         )
 
-        self._render.image( self._icon, icon_position, image_color * fade )
+        self._render.rect(
+            self._position,
+            self._position + vector( width_fade, self._height ),
+            back_color * fade,
+            roundness
+        )
+
+        self._render.push_clip_rect( self._position, self._position + vector( width_fade, self._height ) )
+    
+        self._render.image( self._icon, icon_position, image_color * text_fade )
 
         self._render.shadow(
             seperate_position + vector( 0, -seperate_fade ),
             seperate_position + vector( seperate, seperate_fade ),
             seperate_color,
             fade,
-            15,
+            25,
             seperate / 2
         )
 
@@ -897,6 +907,8 @@ class c_text_input:
         )
 
         self._render.text( self._font, text_position, text_color * text_fade, self._text )
+
+        self._render.pop_clip_rect( )
         
     
     def __draw_input( self, fade: float ):
@@ -911,15 +923,18 @@ class c_text_input:
 
         seperate_color: color   = self._config.seperate_color
         input_width:    float   = self._animations.value( "InputWidth" )
+        width_fade:     float   = self._animations.value( "Width" )
         start_position: vector  = vector( self._position.x + self._start_for_input, self._position.y + self._height - 1 )
 
-        self._render.line( 
-            start_position,  
-            vector( start_position.x + input_width, start_position.y ),
-            seperate_color * fade
-        )
+        #self._render.line( 
+        #    start_position,  
+        #    vector( start_position.x + input_width, start_position.y ),
+        #    seperate_color * fade
+        #)
 
+        self._render.push_clip_rect( self._position, self._position + vector( width_fade, self._height ), True)
         self._handle.draw( fade )
+        self._render.pop_clip_rect( )
 
     # endregion
 
@@ -934,6 +949,9 @@ class c_text_input:
 
             Returns :   None
         """
+
+        if not self._is_visible:
+            return
 
         self._handle.event_mouse_position( event )
 
@@ -952,6 +970,7 @@ class c_text_input:
 
             self._is_hovered = False
         
+
     def __event_mouse_input( self, event ) -> None:
         """
             Mouse buttons input callback.
@@ -961,6 +980,9 @@ class c_text_input:
 
             Returns :   None
         """
+
+        if not self._is_visible:
+            return
         
         self._handle.event_mouse_input( event )
 
@@ -969,6 +991,38 @@ class c_text_input:
 
         if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
             self._should_type = self._is_hovered
+
+        
+    def __event_char_input( self, event ) -> None:
+        """
+            Captures what char was pressed.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_visible:
+            return
+
+        self._handle.event_char_input( event )
+
+    
+    def __event_keyboard_input( self, event ) -> None:
+        """
+            General keyboard input handle.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_visible:
+            return
+
+        self._handle.event_keyboard_input( event )
 
     # endregion
 
@@ -1003,6 +1057,25 @@ class c_text_input:
         """
 
         return vector( self._animations.value( "Width" ), self._height )
+
+
+    def visible( self, new_value: bool = None ) -> bool:
+        """
+            Access / Update text input visibility.
+
+            Receive :   
+            - new_value [optional] - New visibility value
+
+            Returns :   Result
+        """
+
+        if new_value is None:
+            return self._is_visible
+        
+        self._is_visible = new_value
+
+        return self._is_visible
+
 
     def get( self ) -> str:
         """

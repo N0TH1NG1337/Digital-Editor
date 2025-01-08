@@ -79,7 +79,7 @@ class editor_config_t:
     line_color:     color   = color( 255, 255, 255 )
     locked_color:   color   = color( 255, 100, 100 )
     back_color:     color   = color( 10, 10, 30, 100 )
-    seperate_color: color   = color( 150, 150, 255 )
+    seperate_color: color   = color( 216, 208, 215 )
 
 
 class c_line:
@@ -275,9 +275,9 @@ class c_editor:
         self._render.gradiant(
             self._position, self._position + self._size,
             color( 0, 0, 0, 100 ) * fade,
-            color( 0, 0, 0, 100 )* fade,
-            color( 0, 0, 0, 0 ),
-            color( 0, 0, 0, 0 ),
+            color( 0, 0, 0, 100 ) * fade,
+            color( 0, 0, 0, 100 ) * fade,
+            color( 0, 0, 0, 100 ) * fade,
             10
         )
 
@@ -1152,6 +1152,25 @@ class c_editor:
     # endregion
 
     # region : Utilities
+
+    def position( self, new_value: vector = None ) -> vector:
+        """
+            Access / Update editor's position.
+
+            Receive :
+            - new_value - New position in the parent
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._position
+        
+        self._position.x = new_value.x
+        self._position.y = new_value.y
+
+        return new_value
+
 
     def size( self, new_value: vector = None ) -> vector:
         """
