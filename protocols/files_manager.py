@@ -38,14 +38,14 @@ class c_virtual_file:
     # NOTE ! Virtual files can be or reference to a real file or just empty name without content
 
     _name:                  str     # File's name. Indcluding the type.
-    _log_changes:           bool
+    _log_changes:           bool    # Should log changes of the file
 
     _original_path:         str     # Original file. DO NOT TOUCH
     _normal_path:           str     # Project new folder path
 
     _access_level:          int     # File's access level
 
-    _content:               list
+    _content:               list    # File's content
 
     # region : Initialize
 
@@ -85,8 +85,8 @@ class c_virtual_file:
         
 
         file_name, file_type = self.name( True )
+        
         file_name = f"{ file_name }_changes.txt"
-
         file_path = f"{ self._normal_path }\\{ file_name }"
 
         with open( file_path, "w" ) as f:
@@ -213,7 +213,7 @@ class c_virtual_file:
         return self._access_level
 
 
-    def file_size( self, virtual_content: bool = False ) -> int:
+    def size( self, virtual_content: bool = False ) -> int:
         """
             Get virtual file's content size.
 
@@ -237,6 +237,33 @@ class c_virtual_file:
         size:       int = os.path.getsize( file_path )
 
         return size
+
+    # endregion
+
+    # region : File content
+
+    def read( self, start: int, end: int ) -> any:
+        """
+            Read specific chunk from the file.
+
+            Receive :
+            - start - Start byte of the chunk
+            - end   - End file of the chunk
+
+            Returns :   Bytes
+        """
+
+        if self._normal_path is None:
+            return None
+        
+        file_path   = f"{ self._normal_path }\\{ self._name }"
+        data        = b''
+
+        with open( file_path, 'rb' ) as f:
+            f.seek( start )
+            data = f.read( end - start )
+
+        return data
 
     # endregion
     

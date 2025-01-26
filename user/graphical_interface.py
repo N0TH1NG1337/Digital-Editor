@@ -47,7 +47,8 @@ class c_user_gui:
 
     _button_close:          c_icon_button
     _button_placehoder1:    c_button
-    _button_placehoder2:    c_button
+
+    _solution_explorer:     c_solution_explorer
 
     _opened_what:           int
     _temp:                  dict
@@ -120,7 +121,8 @@ class c_user_gui:
             Returns :   None
         """
 
-        self._logic.set_event( "on_post_disconnect", self.__event_post_disconnect, "gui_post_disconnect", False )
+        self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,   "gui_post_disconnect",  False )
+        self._logic.set_event( "on_register_file",      self.__event_register_file,     "gui_file_register",    True )
 
     
     def __initialize_resources( self ):
@@ -537,6 +539,11 @@ class c_user_gui:
         close_icon:     c_image = self._application.image( "Close" )
         copy_icon:      c_image = self._application.image( "Copy" )
 
+        solution_config = solution_explorer_config_t( )
+
+        solution_config.folder_icon = self._application.image( "Folder" )
+        solution_config.item_icon   = self._application.image( "File" )
+
         self._editor        = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
         self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ), menu_icon, self.__callback_on_press_menu )
@@ -545,7 +552,9 @@ class c_user_gui:
         self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ), close_icon, self.__callback_on_press_close )
 
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", None )
-        self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", None )
+        #self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", None )
+
+        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 600 ), button_font, solution_config )
 
         # Utilites
         self._editor.add_line( "Welcome to the Digital Editor" )
@@ -640,17 +649,17 @@ class c_user_gui:
         """
 
         elements_visible = {
-            0: [ False, False, False ],
-            1: [ True, False, True ],
-            2: [ False, True, False ],
+            0: [ False, False ],
+            1: [ True, False ],
+            2: [ False, True ],
         }
 
         current = elements_visible[ self._opened_what ]
 
         self._button_placehoder1.visible(   current[ 0 ] )
-        self._button_placehoder2.visible(   current[ 1 ] )
-        self._button_close.visible(         current[ 2 ] )
-    
+        self._button_close.visible(         current[ 0 ] )
+        self._solution_explorer.visible(    current[ 1 ] )
+       
 
     def __callback_on_press_close( self ):
         """
@@ -683,6 +692,22 @@ class c_user_gui:
         self._temp[ "setup_proccess" ] = 0
         self.__scene_setup_update( )
 
+    
+    def __event_register_file( self, event ):
+        """
+            After client successfuly register.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:      str = event( "file_name" )
+        access_level:   int = event( "access_level" )
+
+        self._solution_explorer.add_item( file_name, lambda: self._logic.request_file( file_name ) )
+        
     # endregion
 
     def execute( self ):

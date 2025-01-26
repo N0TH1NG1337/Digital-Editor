@@ -49,6 +49,7 @@ class c_host_gui:
     _button_close:          c_icon_button
     _button_share:          c_button
     _button_logs:           c_button
+    _solution_explorer:     c_solution_explorer
     _button_placehoder1:    c_button
     _button_placehoder2:    c_button
 
@@ -98,6 +99,8 @@ class c_host_gui:
         self.__scene_wait_initialize( )
         self.__scene_project_initialize( )
 
+        self._application.set_event( "unload", self.__event_close_application, "Close Application" )
+
 
     def __initialize_logic( self ):
         """
@@ -109,6 +112,20 @@ class c_host_gui:
         """
 
         self._logic = c_host_business_logic( )
+
+        self.__initialize_logic_events( )
+
+
+    def __initialize_logic_events( self ):
+        """
+            Initialize the logic's events callbacks.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._logic.set_event( "on_files_refresh", self.__event_update_files_list, "Update files list" )
 
     
     def __initialize_resources( self ):
@@ -168,6 +185,7 @@ class c_host_gui:
         """
 
         self._scene_loadup_config = scene_config_t( )
+        self._scene_loadup_config.animate_movement = True
 
         self._scene_loadup = self._application.new_scene( self._scene_loadup_config )
 
@@ -535,6 +553,11 @@ class c_host_gui:
         close_icon:     c_image = self._application.image( "Close" )
         copy_icon:      c_image = self._application.image( "Copy" )
 
+        solution_config = solution_explorer_config_t( )
+        
+        solution_config.folder_icon = self._application.image( "Folder" )
+        solution_config.item_icon   = self._application.image( "File" )
+
         self._editor        = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
         self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ), menu_icon, self.__callback_on_press_menu )
@@ -543,8 +566,10 @@ class c_host_gui:
 
         self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ), close_icon, self.__callback_on_press_close )
 
+        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 600 ), button_font, solution_config )
+
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", self.__callback_on_press_admin )
-        self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
+        # self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
 
         self._button_share  = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, copy_icon, "Share", self.__callback_on_press_share )
         self._button_logs   = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, menu_icon, "Logs", self.__callback_on_press_logs )
@@ -595,8 +620,7 @@ class c_host_gui:
 
         self._button_close.position( vector( 50, screen.y - 50 - self._button_close.size( ).y ) )
 
-    
-    # region : Events
+    # region : Callbacks
 
     def __callback_on_press_menu( self ):
         """
@@ -659,19 +683,22 @@ class c_host_gui:
         """
 
         elements_visible = {
-            0: [ False, False, False, False, False ],
-            1: [ True, False, True, False, False ],
-            2: [ False, True, False, False, False ],
-            3: [ False, False, False, True, True ]
+            0: [ False, False, False ],
+            1: [ True, False, False ],
+            2: [ False, True, False ],
+            3: [ False, False, True ]
         }
 
         current = elements_visible[ self._opened_what ]
 
+        self._button_close.visible(         current[ 0 ] )
         self._button_placehoder1.visible(   current[ 0 ] )
-        self._button_placehoder2.visible(   current[ 1 ] )
-        self._button_close.visible(         current[ 2 ] )
-        self._button_share.visible(         current[ 3 ] )
-        self._button_logs.visible(          current[ 4 ] )
+
+        #self._button_placehoder2.visible(   current[ 1 ] )
+        self._solution_explorer.visible(    current[ 1 ] )
+        
+        self._button_share.visible(         current[ 2 ] )
+        self._button_logs.visible(          current[ 2 ] )
     
 
     def __callback_on_press_close( self ):
@@ -737,6 +764,51 @@ class c_host_gui:
         winodw_config.shadow_color  = color( 216, 208, 215, 255 )
 
         new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), winodw_config )
+
+    # endregion
+
+    # region : Events
+
+    def __event_close_application( self, event ):
+        """
+            Event callback when the application is closed.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+        
+        self._logic.terminate( )
+
+
+    def __event_update_files_list( self, event ):
+        """
+            Event callback to update files list.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        files: list = event( "files" )
+
+        def add_file( file: str ):
+            # I AM ACTUALLY GOING INSANE
+            self._solution_explorer.add_item( file, lambda: print( f"Left clicked on { file }" ) )
+
+        for file in files:
+
+            add_file( file )
+
+            # YOU CANNOT CALL THE FUNCTION DIRECTLY 
+            # BECAUSE IT WILL BREAK AND ADD THE SAME CALLBACK TO ALL FILES
+            # self._solution_explorer.add_item( file, lambda: print( f"Left clicked on { file }" ) )
+    
+    # region : Utilities
+
+    # endregion
 
     # endregion
 

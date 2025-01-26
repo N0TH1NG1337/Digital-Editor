@@ -29,12 +29,13 @@ from user_interface.animations  import c_animations
 from user_interface.scene       import *
 
 # Import Widgets
-from user_interface.widgets.button          import *
-from user_interface.widgets.text_input      import *
-from user_interface.widgets.select_list     import *
-from user_interface.widgets.path_select     import *
-from user_interface.widgets.editor          import *
-from user_interface.widgets.color_picker    import *
+from user_interface.widgets.button              import *
+from user_interface.widgets.text_input          import *
+from user_interface.widgets.select_list         import *
+from user_interface.widgets.path_select         import *
+from user_interface.widgets.editor              import *
+from user_interface.widgets.color_picker        import *
+from user_interface.widgets.solution_explorer   import *
 
 
 class application_config_t:
@@ -442,6 +443,23 @@ class c_application:
         
         # Register that we done initializing events
         self._data[ "is_events_initialize" ] = True
+
+    
+    def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
+        """
+            Add function to be called on specific event.
+
+            Receive :
+            - event_type    - Event name
+            - callback      - Function to execute
+            - index         - Function index
+        """
+
+        if not event_type in self._events:
+            raise Exception( "Invalid event type to attach" )
+        
+        event: c_event = self._events[ event_type ]
+        event.set( callback, index, allow_arguments )
 
     
     def __event_keyboard_input( self, window, key, scancode, action, mods ) -> None:

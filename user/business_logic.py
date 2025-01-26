@@ -1,8 +1,16 @@
+"""
+    project     : Digital Editor
 
+    type:       : User
+    file        : Business Logic
+
+    description : User Business Logic class
+"""
 
 from protocols.network          import *
 from protocols.files_manager    import *
 from protocols.registration     import *
+from protocols.security         import *
 from utilities.event            import c_event
 from utilities.wrappers         import safe_call, standalone_execute
 
@@ -21,6 +29,7 @@ class c_user_business_logic:
     _network:       c_network_protocol
     _files:         c_files_manager_protocol
     _registration:  c_registration_protocol
+    _security:      c_security
 
     _information:   dict
     _events:        dict
@@ -55,9 +64,13 @@ class c_user_business_logic:
             Returns:    None
         """
 
-        self._network       = c_network_protocol()
-        self._files         = c_files_manager_protocol()
+        self._network       = c_network_protocol( )
+
+        self._files         = c_files_manager_protocol( )
+
         self._registration  = c_registration_protocol( )
+        
+        self._security      = c_security( )
     
 
     def __initialize_events( self ):
@@ -107,7 +120,8 @@ class c_user_business_logic:
         }
 
         self._commands = {
-            FILES_COMMAND_RES_FILES: self.__command_received_files
+            FILES_COMMAND_RES_FILES: self.__command_received_files,
+            FILES_COMMAND_SET_FILE: self.__command_set_file,
         }
 
     # endregion
@@ -131,7 +145,8 @@ class c_user_business_logic:
 
         self._information[ "is_connected" ] = self.__try_to_connect( ip, port )
         
-        # TODO ! Establish safe communication . aka encryption and more
+        if not self.__preform_safety_registration( ):
+            return self.__end_connection( )
 
         self.__preform_registration( username, password, register_type )
 
@@ -180,6 +195,31 @@ class c_user_business_logic:
             return False
         
     
+    def __preform_safety_registration( self ) -> bool:
+        """
+            Initialize and establish safety for the communication.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        # Quick 3 hand shake thing :P
+
+        # Share this client public key
+        self._network.send_bytes( self._security.share( SHARE_TYPE_LONG_PART ) )
+        
+        # Receive host's public key
+        self._security.share( SHARE_TYPE_LONG_PART, self._network.receive( ) )
+
+        # Receive the quick key
+        self._security.share( SHARE_TYPE_QUICK_PART, self._network.receive( ) )
+
+        # TODO ! Add check if everything is fine.
+
+        return True
+
+    
     def __preform_registration( self, username: str, password: str, register_type: str ):
         """
             Preform a registration process for this user.
@@ -200,7 +240,10 @@ class c_user_business_logic:
         }
 
         message: str = self._registration.format_message( register_command[ register_type ], [ username, password ] )
-        self._network.send( message )
+
+        self._network.send_bytes( self._security.strong_protect( message.encode( ) ) )
+
+        # Preform the checks here...
 
     
     def disconnect( self ):
@@ -222,11 +265,10 @@ class c_user_business_logic:
         self.__event_pre_disconnect( )
 
         # Notify the server we disconnect
-        self._network.send( DISCONNECT_MSG )
+        self.__send_quick_message( DISCONNECT_MSG )
 
         # In general words, we just notify the server we are going to disconnect from it,
         # and if the server tries to send more information, it will be just lost.
-        # TODO ! Need later to add check if the client received a DISCONNECT_MSG from server while working, just end connection
         self.__end_connection( )
 
 
@@ -273,10 +315,24 @@ class c_user_business_logic:
 
         while self._network.is_valid( ):
 
-            receive = self._network.receive( TIMEOUT_MESSAGE )
+            # Receive the key and remove the protection
+            key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MESSAGE ) )
+            if not key:
+                continue
+                
+            # Receive the message
+            message: bytes = self._network.receive( TIMEOUT_MESSAGE )
 
-            if receive is not None:
-                self.__handle_receive( receive.decode( ) )
+            # If there is no message, continue
+            if message is None:
+                continue
+
+            # Remove shuffle and protection
+            message: bytes = self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+            if not message:
+                continue # If the message cannot be decrypted, there is a problem
+
+            self.__handle_receive( message.decode( ) )
 
     # endregion
 
@@ -291,8 +347,6 @@ class c_user_business_logic:
 
             Returns :   None
         """
-
-        print( receive )
 
         if receive == DISCONNECT_MSG:
             return self.__end_connection( )
@@ -340,13 +394,60 @@ class c_user_business_logic:
             name:           str = arguments[ i ] 
             access_level:   int = int( arguments[ i + 1 ] ) 
 
-            print(f"Name: {name}, Access Level: {access_level}") 
+            self.__event_register_file( name, access_level )
 
-            self._files.create_new_file( name, access_level, False )
+    
+    def __command_set_file( self, arguments: list ):
+        """
+            Command method for setting file content.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name: str = arguments[ 0 ]
+        file_size: int = int( arguments[ 1 ] )
+
+        key: bytes = self._security.remove_strong_protection( self._network.receive( ) )
+        if not key:
+            return
+                
+        message: list = self._network.receive( -1, True )
+        if message is None:
+            return
+
+        data = b''
+        for chunk in message:
+            data += self._security.remove_quick_protection( self._security.unshuffle( key, chunk ) )
+
+        # Clear list with information to avoid filling the memory
+        message.clear( )
+
+        print( file_size )
+        print( len( data ) )
+        
 
     # endregion
 
     # region : Communication
+
+    def __send_quick_message( self, message: str ):
+        """
+            Send a quick message to the host.
+
+            Receive :
+            - message - Message to send
+
+            Returns :   None
+        """
+
+        key: bytes = self._security.generate_shaffled_key( )
+        
+        self._network.send_bytes( self._security.strong_protect( key ) )
+        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
+
 
     def request_files( self ):
         """
@@ -357,12 +458,33 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        if not self._network.is_valid( True ):
+        if not self._network.is_valid( False ):
             return
 
         message: str = self._files.format_message( FILES_COMMAND_REQ_FILES, ["unk"] )
 
-        self._network.send( message )
+        self.__send_quick_message( message )
+
+    
+    def request_file( self, file_name: str ):
+        """
+            Request specific file from the host.
+
+            Receive :
+            - file_name - File name
+
+            Returns :   None
+        """
+
+        if not self._network.is_valid( False ):
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if file is None:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_GET_FILE, [ file_name ] )
+        self.__send_quick_message( message )
 
     # endregion
 
@@ -412,6 +534,27 @@ class c_user_business_logic:
         """
 
         event: c_event = self._events[ "on_post_disconnect" ]
+
+        event.invoke( )
+
+    
+    def __event_register_file( self, file_name: str, access_level: int ):
+        """
+            Event callback when the user registers a new file.
+
+            Receive :
+            - file_name     - File name
+            - access_level  - File access level
+
+            Returns :   None
+        """
+
+        self._files.create_new_file( file_name, access_level, False )
+
+        event: c_event = self._events[ "on_register_file" ]
+
+        event.attach( "file_name", file_name )
+        event.attach( "access_level", access_level )
 
         event.invoke( )
 

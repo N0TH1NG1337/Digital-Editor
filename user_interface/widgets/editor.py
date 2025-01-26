@@ -78,7 +78,7 @@ class editor_config_t:
     text_color:     color   = color( 255, 255, 255)
     line_color:     color   = color( 255, 255, 255 )
     locked_color:   color   = color( 255, 100, 100 )
-    back_color:     color   = color( 10, 10, 30, 100 )
+    back_color:     color   = color( 0, 0, 0, 100 )
     seperate_color: color   = color( 216, 208, 215 )
 
 
@@ -272,12 +272,9 @@ class c_editor:
         self.__animate( )
         self.__preform( )
         
-        self._render.gradiant(
+        self._render.rect(
             self._position, self._position + self._size,
-            color( 0, 0, 0, 100 ) * fade,
-            color( 0, 0, 0, 100 ) * fade,
-            color( 0, 0, 0, 100 ) * fade,
-            color( 0, 0, 0, 100 ) * fade,
+            self._config.back_color * fade,
             10
         )
 

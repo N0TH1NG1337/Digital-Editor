@@ -10,6 +10,7 @@
 from protocols.network          import *
 from protocols.files_manager    import *
 from protocols.registration     import *
+from protocols.security         import *
 from utilities.event            import c_event
 from utilities.wrappers         import safe_call, standalone_execute
 
@@ -112,6 +113,7 @@ class c_client_handle:
     _network:           c_network_protocol          # Clients handle network connection
     _files:             c_files_manager_protocol    # Clients handle files
     _registration:      c_registration_protocol     # Clients register process
+    _security:          c_security                  # Clients security protocol
 
     _information:       dict                        # Clients information
     _events:            dict                        # Each client events
@@ -182,6 +184,7 @@ class c_client_handle:
         self._network       = None
         self._files         = c_files_manager_protocol( )
         self._registration  = c_registration_protocol( )
+        self._security      = c_security( )
 
         self._information = {
             "last_error":   "",
@@ -196,7 +199,7 @@ class c_client_handle:
         self._files_commands = {
             FILES_COMMAND_REQ_FILES:        self.__share_files,
 
-            FILES_COMMAND_GET_FILE:         None,
+            FILES_COMMAND_GET_FILE:         self.__get_file,
 
             FILES_COMMAND_PREPARE_UPDATE:   None,
             FILES_COMMAND_PREPARE_RESPONSE: None,
@@ -224,6 +227,10 @@ class c_client_handle:
 
         # Attach connection
         self.__attach_connection( socket_object, address )
+
+        # Protect connection
+        if not self.__secure_connection( ):
+            return self.disconnect( False )
 
         # Register the connection
         self.__register_connection( )
@@ -256,7 +263,31 @@ class c_client_handle:
         # Create and attach the connection to the protocol
         self._network = c_network_protocol( new_connection )
 
+
+    def __secure_connection( self ) -> bool:
+        """
+            Protect the communication between the host and the client.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        # Receive Client's public key
+        self._security.share( SHARE_TYPE_LONG_PART, self._network.receive( ) )
+
+        # Share host's client handle public key
+        self._network.send_bytes( self._security.share( SHARE_TYPE_LONG_PART ) )
+
+        # Generate quick key
+        self._security.generate_quick_key( )
+
+        # Share the quick key with the client
+        self._network.send_bytes( self._security.share( SHARE_TYPE_QUICK_PART ) )
+
+        return True
     
+
     def __register_connection( self ):
         """
             Register the connection to the server.
@@ -267,10 +298,9 @@ class c_client_handle:
         """
 
         # Here will be the registration process
-        # First the client will need to exchange encryption keys with the server
-        # Afterwards it will register itself with a password and username
 
-        raw_msg: str = self._network.receive( ).decode( )
+        raw_msg: str = self._security.remove_strong_protection( self._network.receive( ) ).decode( )
+        
         if not raw_msg.startswith( self._registration.get_header( ) ):
             self._information[ "last_error" ] = "Cannot receive normalized registration information about client"
             return self.disconnect( False )
@@ -310,7 +340,7 @@ class c_client_handle:
 
         # Potentially notify the client
         if notify_the_client:
-            self._network.send( DISCONNECT_MSG )
+            self.__send_quick_message( DISCONNECT_MSG )
 
         # End the connection
         self._network.end_connection( )
@@ -337,17 +367,27 @@ class c_client_handle:
         # Run the process while the network is valid
         while self._network.is_valid( ):
             
+            # Receive the key and remove the protection
+            key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MSG ) )
+            if not key:
+                continue
+                
             # Receive the message
-            result = self._network.receive( TIMEOUT_MSG )
+            message: bytes = self._network.receive( TIMEOUT_MSG )
 
             # If there is no message, continue
-            if result is None:
+            if message is None:
                 continue
+
+            # Remove shuffle and protection
+            message: bytes = self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+            if not message:
+                continue # If the message cannot be decrypted, there is a problem
             
             # Decode the message
-            result = result.decode( )
+            message: str = message.decode( )
         
-            self.__handle_message( result )
+            self.__handle_message( message )
 
 
     def __handle_message( self, message: str ):
@@ -359,8 +399,6 @@ class c_client_handle:
 
             Returns :   None
         """
-
-        print( message )
 
         if message == DISCONNECT_MSG:
             return self.disconnect( False )
@@ -384,7 +422,7 @@ class c_client_handle:
 
             callback = self._files_commands[ command ]
             if callback is not None:
-                return callback( command )
+                return callback( new_command )
 
         # If it cannot, attach the command to the pool
         self.__event_client_command( new_command )
@@ -430,6 +468,22 @@ class c_client_handle:
 
         return True
 
+
+    def __send_quick_message( self, message: str ):
+        """
+            Send a quick message to the host.
+
+            Receive :
+            - message - Message to send
+
+            Returns :   None
+        """
+
+        key: bytes = self._security.generate_shaffled_key( )
+        
+        self._network.send_bytes( self._security.strong_protect( key ) )
+        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
+    
     # endregion
 
     # region : Events
@@ -534,10 +588,47 @@ class c_client_handle:
             Returns :   None
         """
 
+        print( "Client requested files" )
+
         files_list: str = self._files.share_files( )
+        self.__send_quick_message( files_list )
 
-        self._network.send( files_list )
+    
+    def __get_file( self, command: c_command ):
+        """
+            Share the file with the client.
 
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        file_name: str = command.arguments( )[ 0 ]
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if file is None:
+            return 
+        
+        print( f"Cliented requested file { file.name( ) }" )
+
+        self._selected_file = file
+
+        file_size:  int     = file.size()
+        config:     list    = self._network.get_raw_details( file_size )
+
+        self.__send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
+
+        key: bytes = self._security.generate_shaffled_key( )
+        self._network.send_bytes( self._security.strong_protect( key ) )
+
+        for chunk_info in config:
+            start = chunk_info[ 0 ]
+            end = chunk_info[ 1 ]
+            has_next = chunk_info[ 2 ]
+
+            file_chunk = file.read( start, end )
+            self._network.send_raw( self._security.shuffle( key, self._security.quick_protect( file_chunk ) ), has_next )
 
     # endregion
 
@@ -734,6 +825,8 @@ class c_host_business_logic:
             "on_client_connected":      c_event( ),
             "on_client_disconnected":   c_event( ),
             "on_client_command":        c_event( ),
+
+            "on_files_refresh":         c_event( )
         }
 
 
@@ -828,6 +921,9 @@ class c_host_business_logic:
 
             Returns:    None
         """
+
+        if not self._information[ "running" ]:
+            return
 
         # Update is Running flag
         self._information[ "running" ] = False
@@ -974,6 +1070,8 @@ class c_host_business_logic:
 
         self.__setup_files( )
 
+        self.__event_files_refresh( )
+
 
     def __setup_default_access_level( self ):
         """
@@ -1065,8 +1163,6 @@ class c_host_business_logic:
 
                     if r is not None:
                         print( r )
-                    else:
-                        print( file.name( ) )
 
                 if entry.is_dir( ) and entry.name != DEFAULT_FOLDER_NAME and not entry.name.startswith( "." ):
                     # Is Folder
@@ -1076,23 +1172,6 @@ class c_host_business_logic:
     # endregion
 
     # region : Files operations
-
-    def __operation_request_files( self, arguments: list, client: c_client_handle ):
-        """
-            Preform operation on request files.
-
-            Receive :
-            - arguments - Arguments from request
-            - client    - Client handle
-
-            Returns :   None
-        """
-
-        network: c_network_protocol = client.network( )
-
-        files_list: str = client.files( ).share_files( )
-
-        network.send( files_list )
 
     # endregion
 
@@ -1197,5 +1276,45 @@ class c_host_business_logic:
         # Call the event
         event: c_event = self._events[ "on_client_command" ]
         event.invoke( )
+
+    
+    def __event_files_refresh( self ):
+        """
+            Event when the host files are refreshed.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        files = self._files.get_files( )
+
+        result = [ ]
+        for index in files:
+            file: c_virtual_file = files[ index ]
+
+            result.append( file.name( ) )
+
+        event: c_event = self._events[ "on_files_refresh" ]
+        event.attach( "files", result )
+
+        event.invoke( )
+
+    
+    def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
+        """
+            Add function to be called on specific event.
+
+            Receive :
+            - event_type    - Event name
+            - callback      - Function to execute
+            - index         - Function index
+        """
+
+        if not event_type in self._events:
+            raise Exception( "Invalid event type to attach" )
+        
+        event: c_event = self._events[ event_type ]
+        event.set( callback, index, allow_arguments )
 
     # endregion

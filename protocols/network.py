@@ -218,6 +218,7 @@ class c_network_protocol:
             return None, None
         
 
+    @safe_call( None )
     def send( self, value: str ):
         """
             Send string value.
@@ -274,6 +275,7 @@ class c_network_protocol:
         return result
     
 
+    @safe_call( None )
     def send_raw( self, raw_chunk: bytes, has_next: bool ):
         """
             Send raw bytes chunk.
@@ -291,15 +293,37 @@ class c_network_protocol:
             self._connection( ).send( i )
 
 
+    def send_bytes( self, raw_bytes: bytes ):
+        """
+            Send full raw bytes.
+
+            Receive :
+            - raw_bytes - Full length bytes to send
+
+            Returns :   None
+        """
+
+        config = self.get_raw_details( len( raw_bytes ) )
+
+        for chunk_info in config:
+            start = chunk_info[ 0 ]
+            end = chunk_info[ 1 ]
+            has_next = chunk_info[ 2 ]
+
+            chunk = raw_bytes[ start:end ]
+            self.send_raw( chunk, has_next )
+
+
     @safe_call( None )
-    def receive( self, timeout: int = -1 ) -> bytes:
+    def receive( self, timeout: int = -1, receive_as_list: bool = False ) -> any:
         """
             Pop bytes from buffer. 
 
             Receive : 
             - timeout [optional] - Timeout for receiving something.
+            - receive_as_list [optional] - If you want to receive as list
 
-            Returns :   Bytes
+            Returns :   Bytes / List
         """
 
         # TODO ! Although this works, for large amount of bytes files it can be a problem.
@@ -311,14 +335,21 @@ class c_network_protocol:
         if timeout != -1:
             self._connection( ).settimeout( timeout )
 
-        data = b''
+        if receive_as_list:
+            data = [ ]
+        else:
+            data = b''
+
         has_next: bool = True
 
         while has_next:
             has_next:   bool    = self._connection( ).recv( 1 ).decode( ) == "1"
             length:     int     = int( self._connection( ).recv( HEADER_SIZE ).decode( ) )
             
-            data += self.__receive_fixed( length )
+            if receive_as_list:
+                data.append( self.__receive_fixed( length ) )
+            else:
+                data += self.__receive_fixed( length )
 
         return data
         
