@@ -62,7 +62,8 @@ class c_renderer:
         for index in self._measures:
             measure = self._measures[ index ]
 
-            measure[ 0 ] = self.measure_text( measure[ 1 ], measure[ 2 ] )
+            if measure[ 0 ].x == 0 and measure[ 0 ].y == 0:
+                measure[ 0 ] = self.measure_text( measure[ 1 ], measure[ 2 ] )
 
     # endregion
 
@@ -144,11 +145,9 @@ class c_renderer:
         imgui.push_font( font( ) )
 
         result      = vector( )
-        result.y    = imgui.calc_text_size( text )[ 1 ]
 
-        result.x = 0
-        for c in text:
-            result.x += imgui.calc_text_size( c )[ 0 ]
+        result.y    = imgui.calc_text_size( text )[ 1 ]
+        result.x    = imgui.calc_text_size( text )[ 0 ]
 
         imgui.pop_font( )
 
@@ -186,6 +185,37 @@ class c_renderer:
 
         del self._measures[ index ]
 
+    
+    def wrap_text( self, font: c_font, text: str, length: int ) -> str:
+        """
+            Wraps text to fit within a specified length.
+
+            Receive :
+            - font      - Font object
+            - text      - Text to wrap
+            - length    - Max allowed length
+
+            Returns :   List with wraped lines
+        """
+
+        lines: list = [ ]
+        words = text.split( )
+
+        line = ""
+        for word in words:
+            temp_line = f"{ line } { word }"
+
+            size: int = self.measure_text( font, temp_line ).x
+            
+            if size > length:
+                lines.append( line.strip( ) )
+                line = f"{ word }"
+            else:
+                line = temp_line
+
+        lines.append( line.strip( ) )
+        return "\n".join( lines )
+
     # endregion
 
     # region : Show Textures
@@ -222,8 +252,7 @@ class c_renderer:
     
     def text( self, font: c_font, position: vector, clr: color, text: str, flags: str = "" ) -> None:
         """
-            Renders Image in a specific place with specific size.
-            Recommended : use original size for the image while loading and while using
+            Renders Text in a specific place.
 
             Receives:   
             - font              - Font object
@@ -238,9 +267,6 @@ class c_renderer:
         add_position    = self.__get_last_position( )
         position        = position + add_position
 
-        # WARNING ! FULL TEXT WIDTH WILL BE SHOERTER THAN EACH CHAR RENDER
-        # I AM LOSING EACH MINUTE A BRAINCELL
-
         imgui.push_font( font( ) )
 
         # Use to center text
@@ -248,17 +274,12 @@ class c_renderer:
         if 'c' in flags:
             text_size = self.measure_text( font, text )
 
-        # Draw text
-        offset = 0.0
-        for c in text:
-            self._draw_list.add_text( 
-                position.x - text_size.x / 2 + offset, 
-                position.y - text_size.y / 2, 
-                clr( ), 
-                c 
-            )
-
-            offset += imgui.calc_text_size( c )[ 0 ]
+        self._draw_list.add_text( 
+            position.x - text_size.x / 2,
+            position.y - text_size.y / 2,
+            clr( ), 
+            text
+        )
 
         imgui.pop_font( )
 

@@ -35,9 +35,9 @@ class window_config_t:
 
     show_bar:           bool    = False
 
-    back_color:         color   = color( 0, 0, 0, 100 )
+    back_color:         color   = color( 0, 0, 0, 150 )
     outline_color:      color   = color( 100, 100, 100, 150 )
-    shadow_color:       color   = color( 0, 0, 0, 50 )
+    shadow_color:       color   = color( 216, 208, 215, 255 )
 
     bar_color:          color   = color( )
 

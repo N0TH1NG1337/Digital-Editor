@@ -14,12 +14,11 @@ def safe_call( call_on_fail: any = None ):
     """
         Protected call wrap function
 
-        Receives:   
-
+        Receive :   
         - call_on_fail [optional]   - execute function on fail
         - function                  - function to protect
 
-        Returns:    Wrap function
+        Returns :   Wrap function
     """
 
     def decorator( function ):
@@ -49,11 +48,10 @@ def standalone_execute( function ):
         Standalone call wrap function.
         Can execute functions without messing up the program flow.
 
-        Receives:   
+        Receive :   
+        - function - function to protect
 
-        - function                  - function to protect
-
-        Returns:    Wrap function
+        Returns :   Wrap function
     """
 
     @wraps( function )
@@ -63,5 +61,28 @@ def standalone_execute( function ):
         thread.start( )
 
         return thread
+
+    return execute
+
+
+def static_arguments( function ):
+    """
+        A function wrapper that receives static arguments.
+        This allows to set once the arguments, and call the function with same
+        arguments.
+
+        Receive :
+        - function - Function to wrap
+
+        Returns :   Wrap function
+    """
+
+    @wraps( function )
+    def execute( *args ):
+
+        def static( ):
+            return function( *args )
+        
+        return static
 
     return execute

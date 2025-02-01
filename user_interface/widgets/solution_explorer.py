@@ -5,6 +5,8 @@
     file        : Solution explorer
 
     description : Solution explorer classes
+
+    TODO ! FIX INPUT... THIS IS COMPLETE CANCER
 """
 
 import glfw

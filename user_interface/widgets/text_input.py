@@ -396,17 +396,33 @@ class c_single_input_logic:
             return
         
         selected_index: int     = 0
-        input_width:    float   = 0.0
 
-        while selected_index < len( text ):
-            width = self._render.measure_text( self._font, text[ selected_index ] ).x
+        # Credit - My friend
+        # The use of https://github.com/BalazsJako/ImGuiColorTextEdit/blob/master/TextEditor.cpp#L324
+        # logic is complete cancer since ImGui calculations for each char and whole text are diffrent...
 
-            if input_width + ( width * 0.5 ) > self._click_delta:
+        text_length = len( text )
+
+        for i in range( text_length + 1 ):
+
+            substring:  str     = text[ :i ]
+            width:      float   = self._render.measure_text( self._font, substring ).x
+
+            if width > self._click_delta:
+
+                fixed_index:    int     = max( 0, i - 1 )
+                prev_width:     float   = self._render.measure_text( self._font, text[ :fixed_index ] ).x
+
+                if abs( width - self._click_delta ) < abs( prev_width - self._click_delta ):
+                    selected_index = i
+                else:
+                    selected_index = fixed_index
+
                 break
 
-            input_width     += width
-            selected_index  += 1
-
+            else:
+                selected_index = i
+            
         self._click_delta = None
         self._input_index = selected_index
 

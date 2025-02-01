@@ -123,6 +123,8 @@ class c_user_gui:
 
         self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,   "gui_post_disconnect",  False )
         self._logic.set_event( "on_register_file",      self.__event_register_file,     "gui_file_register",    True )
+        self._logic.set_event( "on_file_set",           self.__event_clear_editor,      "gui_clear_editor",     False )
+        self._logic.set_event( "on_file_update",        self.__event_add_editor_line,   "gui_update_editor",    True )
 
     
     def __initialize_resources( self ):
@@ -487,16 +489,23 @@ class c_user_gui:
         self._application.active_scene( self._scene_wait.index( ) )
 
         # TODO ! Start the user program
-        self._logic.connect( 
+        result: bool = self._logic.connect( 
             self._entry_project_code.get( ),
             self._entry_username.get( ),
             self._entry_password.get( ),
             self._registration_type.get( )
         )
 
-        time.sleep( LOADING_MIN_TIME )
+    
+        if result:
+            time.sleep( LOADING_MIN_TIME )
+            self._application.active_scene( self._scene_project.index( ) )
 
-        self._application.active_scene( self._scene_project.index( ) )
+        else:
+
+            self.__show_error_message( self._logic( "last_error" ), self._scene_setup )
+            time.sleep( LOADING_MIN_TIME )
+            self._application.active_scene( self._scene_setup.index( ) )
         
 
     def __scene_project_initialize( self ):
@@ -558,6 +567,7 @@ class c_user_gui:
 
         # Utilites
         self._editor.add_line( "Welcome to the Digital Editor" )
+        self._editor.set_event( "request_line", self.__event_editor_request_line, "gui_editor_request_line" )
         
         self.__update_sidebar_elements( )
 
@@ -707,7 +717,94 @@ class c_user_gui:
         access_level:   int = event( "access_level" )
 
         self._solution_explorer.add_item( file_name, lambda: self._logic.request_file( file_name ) )
+
+    
+    def __event_clear_editor( self ):
+        """
+            Event callback for clearing the editor.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._editor.clear( )
+
+
+    def __event_add_editor_line( self, event ):
+        """
+            Event callback for adding new line.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:       str     = event( "file" )
+        line_text:  str     = event( "line_text" )
+
+        self._editor.set_file( file )
+        self._editor.add_line( line_text )
+
+    
+    def __event_editor_request_line( self, event ):
+        """
+            Client requests line from the server.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        print( f"Line request { file } -> { line }" )
         
+    # endregion
+
+    # region : Utilities
+
+    def __show_error_message( self, message: str, scene: c_scene ):
+        """
+            Create and attach error message to a scene.
+
+            Receive :
+            - message - Error message
+            - scene_index - Scene index to attach the error screen
+
+            Returns :   None
+        """
+
+        size:   vector = vector( 500, 250 )
+        screen: vector = self._application.window_size( ) / 2
+
+        error_window_config = window_config_t( )
+        error_window_config.show_bar = True
+
+        new_window = scene.create_window( screen - ( size / 2 ), size, error_window_config )
+
+        render: c_renderer  = self._application.render( )
+
+        big_font:   c_font      = self._application.font( "SubTitle" )
+        font:       c_font      = self._application.font( "TextInput" )
+        icon_copy:  c_image     = self._application.image( "Copy" )
+
+        c_icon_button( new_window, vector( 430, 10 ), icon_copy, lambda: glfw.set_clipboard_string( None, message ) )
+
+        def draw( event ):
+
+            fade:   float       = new_window.animations( ).value( "Fade" )
+
+            render.push_clip_rect( vector( ), vector( 500, 300 ) )
+            render.text( big_font, vector( 10, 10 ), color( ) * fade, "Error occured" )
+            render.text( font, vector( 10, 80 ), color( 180, 180, 180 ) * fade, render.wrap_text( font, message, 480 ) )
+            render.pop_clip_rect( )
+
+        new_window.set_event( "draw", draw, "ErrorMessageDraw" )
+
     # endregion
 
     def execute( self ):

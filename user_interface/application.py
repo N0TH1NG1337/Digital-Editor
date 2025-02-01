@@ -372,6 +372,20 @@ class c_application:
         self._active_scene = math.clamp( new_index, 0, len( self._scenes ) )
 
 
+    @safe_call( None )
+    def search_scene( self, index: int ) -> c_scene:
+        """
+            Search a specific scene.
+
+            Receive :
+            - index - Scene index
+
+            Returns :   Scene object or None
+        """
+
+        return self._scenes[ index ]
+
+
     def next_scene( self ) -> None:
         """
             Moves to the next scene

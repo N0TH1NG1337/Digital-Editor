@@ -13,7 +13,7 @@
 
     2. Add cursor
         [ x ] - render it
-        [ ] - animate ( if possible )
+        [  ] - animate ( if possible )
 
     3. Add char input based cursor
         [ x ] - add
@@ -37,7 +37,7 @@
     ?. Update
 
     Known issues.
-    [ ] - If lines > 1 and cursor is not on the first, pressing backspace resulting a full removal.
+    [ fixed ] - If lines > 1 and cursor is not on the first, pressing backspace resulting a full removal.
 """
 
 import glfw

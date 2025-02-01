@@ -619,7 +619,7 @@ class c_client_business_logic:
             Event callback for updating a file
 
             Receive :
-            - line - Line Text
+            - file - Virtual file with content
 
             Returns :   None
         """

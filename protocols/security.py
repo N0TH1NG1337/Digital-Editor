@@ -25,10 +25,13 @@ from cryptography.hazmat.primitives.ciphers     import Cipher, algorithms, modes
 
 from cryptography.hazmat.backends               import default_backend
 
+from cryptography.hazmat.primitives.kdf.scrypt  import Scrypt
+
 from utilities.wrappers                         import safe_call
 
 QUICK_KEY_SIZE      = 32
 SHUFFLE_KEY_SIZE    = 16
+SALT_SIZE           = 16
 
 SHARE_TYPE_LONG_PART    = 1
 SHARE_TYPE_QUICK_PART   = 2
@@ -298,6 +301,56 @@ class c_security:
 
     # endregion
 
+    # region : Hashing
+
+    def preform_hashing( self, value: any ) -> tuple:
+        """
+            Preform hashing with salt operation on value.
+
+            Receive : 
+            - value - String/Bytes value
+
+            Returns : Hashed value, Salt
+        """
+
+        if type( value ) == str:
+            value = value.encode( )
+
+        salt: bytes = os.urandom( SALT_SIZE ) 
+
+        kdf = self.__default_hashing_settings( salt )
+
+        hashed_value: bytes = kdf.derive( value )
+
+        return salt.hex( ), hashed_value.hex( )
+    
+
+    def verify( self, value: any, salt: str, hashed_value: str ) -> bool:
+        """
+            Verify if the value is matching the hashed value.
+
+            Receive :
+            - value         - Original value
+            - salt          - Salt value
+            - hashed_value  - Hashed value to check
+
+            Returns :   Result ( True/False )
+        """
+
+        if type( value ) == str:
+            value = value.encode( )
+
+        try:
+            kdf = self.__default_hashing_settings( bytes.fromhex( salt ) )
+            kdf.verify( value, bytes.fromhex( hashed_value ) )
+
+            return True
+        
+        except Exception as e:
+            return False
+
+    # endregion
+
     # region : Utilities
 
     def __default_padding( self ) -> padding.OAEP:
@@ -313,7 +366,26 @@ class c_security:
             mgf         = padding.MGF1( algorithm = hashes.SHA256( ) ),
             algorithm   = hashes.SHA256( ),
             label       = None
-        )   
+        )  
+    
+
+    def __default_hashing_settings( self, salt: bytes ) -> Scrypt:
+        """
+            Initialize a default instance of Scrypt with specific salt value.
+
+            Receive :
+            - salt - Salt bytes value
+
+            Returns :   Scrypt object
+        """
+
+        return Scrypt(
+            salt    = salt,
+            length  = 32,       # Desired key length
+            n       = 2**14,    # CPU/memory cost parameter (adjust as needed)
+            r       = 8,        # Block size parameter
+            p       = 1         # Parallelization parameter
+        )
 
 
     def __convert_shaffle_key( self, key: bytes ):
@@ -326,13 +398,13 @@ class c_security:
             Returns :   Normalized shuffle key
         """
 
-        random.seed(key)
+        random.seed( key )
 
         # Generate a random permutation of indices
-        indices = list(range(256))  # Assuming 256 possible byte values
-        random.shuffle(indices)
+        indices = list( range( 256 ) )  # Assuming 256 possible byte values
+        random.shuffle( indices )
 
-        return bytes(indices)
+        return bytes( indices )
     
     # endregion
     

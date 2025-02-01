@@ -93,8 +93,8 @@ class c_user_business_logic:
             "on_refresh_files":     c_event( ), # Called when user request to refresh files list
             "on_register_file":     c_event( ), # ?
 
-            "on_set_file":          c_event( ), # Called whenever the host is going to send the user specific file content.
-            "on_update_file":       c_event( ), # ?
+            "on_file_set":          c_event( ), # Called whenever the host is going to send the user specific file content.
+            "on_file_update":       c_event( ), # ?
 
             "on_accept_file":       c_event( ), # Called when the host response with the line lock request.
             "on_line_lock":         c_event( ), # Called when the host forces the user to lock a specific line. ( Used for other users locked lines )
@@ -137,24 +137,32 @@ class c_user_business_logic:
             - username      - Current username
             - password      - Current password
 
-            Receive :   None
+            Receive :   Result
         """
 
         # We receive code that need to be resolved into ip and port
         ip, port = self.__resolve_code( project_code )
 
-        self._information[ "is_connected" ] = self.__try_to_connect( ip, port )
+        if not self.__try_to_connect( ip, port ):
+            return False
         
         if not self.__preform_safety_registration( ):
-            return self.__end_connection( )
+            self.__end_connection( )
+            return False
 
-        self.__preform_registration( username, password, register_type )
+        if not self.__preform_registration( username, password, register_type ):
+            self.__end_connection( )
+            return False
 
         self.__attach_process( )
 
         self.__event_connect( ip, port )
 
         self.request_files( )
+
+        self._information[ "is_connected" ] = True
+
+        return True
 
     
     def __resolve_code( self, project_code: str ):
@@ -220,7 +228,7 @@ class c_user_business_logic:
         return True
 
     
-    def __preform_registration( self, username: str, password: str, register_type: str ):
+    def __preform_registration( self, username: str, password: str, register_type: str ) -> bool:
         """
             Preform a registration process for this user.
 
@@ -228,11 +236,8 @@ class c_user_business_logic:
             - username  - Current user username
             - password  - Current user password
 
-            Returns :   None
+            Returns :   Result if success
         """
-
-        if not self._information[ "is_connected" ]:
-            return
         
         register_command = {
             "Register":     REGISTRATION_COMMAND_REG,
@@ -241,9 +246,26 @@ class c_user_business_logic:
 
         message: str = self._registration.format_message( register_command[ register_type ], [ username, password ] )
 
-        self._network.send_bytes( self._security.strong_protect( message.encode( ) ) )
+        value: bytes = self._security.strong_protect( message.encode( ) )
+        if not value:
+            # This can happen only if the length is more than 190 bytes.
+            # This mean that the username + password are ( 190 - 16 ) 174 bytes
+            return False
+        
+        self._network.send_bytes( value )
 
         # Preform the checks here...
+        command, arguments = self._registration.parse_message( self.__receive( ).decode( ) )
+        if command != REGISTRATION_RESPONSE:
+            return False
+        
+        success:    bool    = arguments[ 0 ] == "1"
+
+        if not success:
+            self._information[ "last_error" ] = arguments[ 1 ]
+            return False
+        
+        return True
 
     
     def disconnect( self ):
@@ -316,27 +338,40 @@ class c_user_business_logic:
         while self._network.is_valid( ):
 
             # Receive the key and remove the protection
-            key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MESSAGE ) )
-            if not key:
-                continue
-                
-            # Receive the message
-            message: bytes = self._network.receive( TIMEOUT_MESSAGE )
-
-            # If there is no message, continue
-            if message is None:
-                continue
-
-            # Remove shuffle and protection
-            message: bytes = self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+            message: bytes = self.__receive( )
             if not message:
-                continue # If the message cannot be decrypted, there is a problem
+                continue
 
             self.__handle_receive( message.decode( ) )
 
     # endregion
 
     # region : Messages handle
+
+    def __receive( self ) -> bytes:
+        """
+            Wrap the receive and the security part.
+
+            Receive :   None
+
+            Returns :   Received Bytes
+        """
+
+        # Receive the key and remove the protection
+        key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MESSAGE ) )
+        if not key:
+            return None
+                
+        # Receive the message
+        message: bytes = self._network.receive( TIMEOUT_MESSAGE )
+
+        # If there is no message, continue
+        if message is None:
+            return None
+
+        # Remove shuffle and protection
+        return self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+
 
     def __handle_receive( self, receive: str ):
         """
@@ -425,9 +460,25 @@ class c_user_business_logic:
         # Clear list with information to avoid filling the memory
         message.clear( )
 
-        print( file_size )
-        print( len( data ) )
+        if len( data ) != file_size:
+            print( f"Failed to receive normally file { file_name }" )
+            return
+
+        lines: list = data.decode( ).splitlines( )
+        del data
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
         
+        self.__event_file_set( )
+
+        for line in lines:
+            file.add_content_line( line )
+
+        self.__event_file_update( file )
+
+        file.clear_content( )
 
     # endregion
 
@@ -558,6 +609,36 @@ class c_user_business_logic:
 
         event.invoke( )
 
+
+    def __event_file_set( self ):
+        """
+            Event when the the host user request file.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_file_set" ]
+        event.invoke( )
+
+    
+    def __event_file_update( self, file: c_virtual_file ):
+        """
+            Event callback for updating a file
+
+            Receive :
+            - file - Line Text
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_file_update" ]
+        event.attach( "file", file.name( ) )
+
+        for line in file.read_file_content( ):
+            event.attach( "line_text", line )
+            event.invoke( )
 
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """

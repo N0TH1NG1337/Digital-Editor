@@ -48,7 +48,9 @@ class c_host_gui:
 
     _button_close:          c_icon_button
     _button_share:          c_button
+    _button_users:          c_button
     _button_logs:           c_button
+
     _solution_explorer:     c_solution_explorer
     _button_placehoder1:    c_button
     _button_placehoder2:    c_button
@@ -125,7 +127,9 @@ class c_host_gui:
             Returns :   None
         """
 
-        self._logic.set_event( "on_files_refresh", self.__event_update_files_list, "Update files list" )
+        self._logic.set_event( "on_files_refresh",  self.__event_update_files_list, "Update files list" )
+        self._logic.set_event( "on_file_set",       self.__event_clear_editor,      "Clear editor",     False )
+        self._logic.set_event( "on_file_update",    self.__event_add_editor_line,   "Add editor line" )
 
     
     def __initialize_resources( self ):
@@ -503,9 +507,11 @@ class c_host_gui:
 
         self._application.active_scene( self._scene_wait.index( ) )
 
+        time.sleep( 1 )
+
         self._logic.initialize_path( self._path_select.get_path( ), self._list_access_level.get( ) )
 
-        self._logic.setup( self._entry_ip.get( ), int( self._entry_port.get( ) ) )
+        self._logic.setup( self._entry_ip.get( ), int( self._entry_port.get( ) ), self._entry_username.get( ) )
         self._logic.start( )
 
         time.sleep( LOADING_MIN_TIME )
@@ -572,10 +578,12 @@ class c_host_gui:
         # self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
 
         self._button_share  = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, copy_icon, "Share", self.__callback_on_press_share )
-        self._button_logs   = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, menu_icon, "Logs", self.__callback_on_press_logs )
+        self._button_users  = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, copy_icon, "Users", self.__callback_on_press_users )
+        self._button_logs   = c_button( self._scene_project, vector( 50, 280 ), 40, button_font, menu_icon, "Logs", self.__callback_on_press_logs )
 
         # Utilites
         self._editor.add_line( "Welcome to the Digital Editor" )
+        self._editor.set_event( "request_line", self.__event_editor_request_line, "gui_editor_request_line" )
         
         self.__update_sidebar_elements( )
 
@@ -698,6 +706,7 @@ class c_host_gui:
         self._solution_explorer.visible(    current[ 1 ] )
         
         self._button_share.visible(         current[ 2 ] )
+        self._button_users.visible(         current[ 2 ] )
         self._button_logs.visible(          current[ 2 ] )
     
 
@@ -729,8 +738,6 @@ class c_host_gui:
 
         winodw_config = window_config_t( )
         winodw_config.show_bar      = True
-        winodw_config.back_color    = color( 0, 0, 0, 100 )
-        winodw_config.shadow_color  = color( 216, 208, 215, 255 )
 
         new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 400, 150 ), winodw_config )
         
@@ -749,6 +756,21 @@ class c_host_gui:
         new_window.set_event( "draw", draw_code, "Draw Code" )
 
 
+    def __callback_on_press_users( self ):
+        """
+            Callback for the users button.
+
+            Receive : None
+
+            Returns : None
+        """
+
+        winodw_config = window_config_t( )
+        winodw_config.show_bar      = True
+
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), winodw_config )
+
+
     def __callback_on_press_logs( self ):
         """
             Callback for the logs button.
@@ -760,8 +782,6 @@ class c_host_gui:
 
         winodw_config = window_config_t( )
         winodw_config.show_bar      = True
-        winodw_config.back_color    = color( 0, 0, 0, 100 )
-        winodw_config.shadow_color  = color( 216, 208, 215, 255 )
 
         new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), winodw_config )
 
@@ -796,7 +816,7 @@ class c_host_gui:
 
         def add_file( file: str ):
             # I AM ACTUALLY GOING INSANE
-            self._solution_explorer.add_item( file, lambda: print( f"Left clicked on { file }" ) )
+            self._solution_explorer.add_item( file, self._logic.request_file( file ) )
 
         for file in files:
 
@@ -806,6 +826,51 @@ class c_host_gui:
             # BECAUSE IT WILL BREAK AND ADD THE SAME CALLBACK TO ALL FILES
             # self._solution_explorer.add_item( file, lambda: print( f"Left clicked on { file }" ) )
     
+
+    def __event_clear_editor( self ):
+        """
+            Event callback for clearing the editor.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._editor.clear( )
+
+
+    def __event_add_editor_line( self, event ):
+        """
+            Event callback for adding new line.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:       str     = event( "file" )
+        line_text:  str     = event( "line_text" )
+
+        self._editor.set_file( file )
+        self._editor.add_line( line_text )
+
+    
+    def __event_editor_request_line( self, event ):
+        """
+            Client requests line from the server.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        print( f"Line request { file } -> { line }" )
+
     # region : Utilities
 
     # endregion

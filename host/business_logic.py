@@ -12,7 +12,8 @@ from protocols.files_manager    import *
 from protocols.registration     import *
 from protocols.security         import *
 from utilities.event            import c_event
-from utilities.wrappers         import safe_call, standalone_execute
+from utilities.wrappers         import safe_call, standalone_execute, static_arguments
+from utilities.math             import math
 
 import threading
 import base64
@@ -233,7 +234,8 @@ class c_client_handle:
             return self.disconnect( False )
 
         # Register the connection
-        self.__register_connection( )
+        if not self.__register_connection( ):
+            return self.disconnect( False )
 
         self.__event_client_connected( address )
 
@@ -288,20 +290,20 @@ class c_client_handle:
         return True
     
 
-    def __register_connection( self ):
+    def __register_connection( self ) -> bool:
         """
             Register the connection to the server.
 
             Receive:    None
 
-            Returns:    None
+            Returns:    Result
         """
 
         # Here will be the registration process
 
         raw_msg: str = self._security.remove_strong_protection( self._network.receive( ) ).decode( )
         
-        if not raw_msg.startswith( self._registration.get_header( ) ):
+        if not raw_msg.startswith( self._registration.header( ) ):
             self._information[ "last_error" ] = "Cannot receive normalized registration information about client"
             return self.disconnect( False )
 
@@ -309,12 +311,43 @@ class c_client_handle:
         if not command or not arguments:
             self._information[ "last_error" ] = "Failed to parse message"
             return 
-
-        self._information[ "username" ] = arguments[ 0 ]
         
-        print( f"Client completed registration with { arguments }" )
+        success = False
 
-    
+        # username: str = arguments[ 0 ]
+        # password: str = arguments[ 1 ]
+
+        if command == REGISTRATION_COMMAND_REG:
+            # Register
+            
+            success:    bool        = self._registration.register_user( arguments[ 0 ], arguments[ 1 ] )
+        
+        elif command == REGISTRATION_COMMAND_LOG:
+            # Logic
+            
+            success:    bool        = self._registration.login_user( arguments[ 0 ], arguments[ 1 ] )
+
+
+        response:   str         = self._registration.format_message( 
+            REGISTRATION_RESPONSE, 
+            [ 
+                success and "1" or "0", 
+                self._registration.last_error( ) 
+            ] 
+        )
+
+        self.__send_quick_message( response )
+        
+        if success:
+            print( f"Client completed registration with { arguments }" )
+
+            self._information[ "username" ] = arguments[ 0 ]
+            return True
+
+        # Here we have a problem
+        return False
+        
+
     def __attach_processes( self ):
         """
             Attach processes for the client handle.
@@ -366,6 +399,9 @@ class c_client_handle:
 
         # Run the process while the network is valid
         while self._network.is_valid( ):
+
+            #if not self.check_trust_factor( ):
+            #    return self.disconnect( False )
             
             # Receive the key and remove the protection
             key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MSG ) )
@@ -382,6 +418,7 @@ class c_client_handle:
             # Remove shuffle and protection
             message: bytes = self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
             if not message:
+                print( f"Error in client { self._information[ 'username' ] } -> cannot decrypt information with length" )
                 continue # If the message cannot be decrypted, there is a problem
             
             # Decode the message
@@ -400,27 +437,29 @@ class c_client_handle:
             Returns :   None
         """
 
+        # Manual checks
         if message == DISCONNECT_MSG:
             return self.disconnect( False )
 
         if message == PING_MSG:
             return print( "Client ping" )
 
-        protocol, command, arguments = self.__parse_message( message )
+        # Try to parse the message and create new command object
+        new_command = self.__parse_message( message )
 
+        # Remove the message string it self
         del message
-
-        # Create a command object
-        new_command = c_command( self, protocol, command, arguments )
 
         if not self.__verify( new_command ):
             del new_command
             return
 
         # Check if the client handle can handle the command by it self
-        if protocol == ENUM_PROTOCOL_FILES:
+        # Note ! In some cases, there will be callback for a command, but later it will pass
+        # the command object to the command pool, to order the command result.
+        if new_command.protocol( ) == ENUM_PROTOCOL_FILES:
 
-            callback = self._files_commands[ command ]
+            callback = self._files_commands[ new_command.command( ) ]
             if callback is not None:
                 return callback( new_command )
 
@@ -428,7 +467,7 @@ class c_client_handle:
         self.__event_client_command( new_command )
 
     
-    def __parse_message( self, message: str ) -> tuple:
+    def __parse_message( self, message: str ) -> c_command:
         """
             Parse message from the client.
 
@@ -442,10 +481,10 @@ class c_client_handle:
             # Files protocol message
             command, arguments = self._files.parse_message( message )
 
-            return ENUM_PROTOCOL_FILES, command, arguments
+            return c_command( self, ENUM_PROTOCOL_FILES, command, arguments )
         
         # If failed
-        return ENUM_PROTOCOL_UNK, message, None
+        return c_command( self, ENUM_PROTOCOL_UNK, message, None )
 
 
     def __verify( self, command: c_command ) -> bool:
@@ -461,6 +500,7 @@ class c_client_handle:
         protocol = command.protocol( )
 
         if protocol == ENUM_PROTOCOL_UNK:
+            self.lower_trust_factor( 10, "Invalid command" )
             return False
 
         if protocol == ENUM_PROTOCOL_FILES:
@@ -577,6 +617,22 @@ class c_client_handle:
 
             self._files.copy( file )
 
+    
+    def load_database( self, path: str, username: str ):
+        """
+            Load path for database of registration protocol.
+
+            This must be called before .connect( )
+
+            Receive :
+            - path      - Path to database
+            - username  - Username of creator
+
+            Returns :   None
+        """
+
+        self._registration.load_path_for_database( path, username )
+
 
     def __share_files( self, command: c_command ):
         """
@@ -623,9 +679,9 @@ class c_client_handle:
         self._network.send_bytes( self._security.strong_protect( key ) )
 
         for chunk_info in config:
-            start = chunk_info[ 0 ]
-            end = chunk_info[ 1 ]
-            has_next = chunk_info[ 2 ]
+            start       = chunk_info[ 0 ]
+            end         = chunk_info[ 1 ]
+            has_next    = chunk_info[ 2 ]
 
             file_chunk = file.read( start, end )
             self._network.send_raw( self._security.shuffle( key, self._security.quick_protect( file_chunk ) ), has_next )
@@ -691,6 +747,36 @@ class c_client_handle:
         
         self._offsets.remove( offset )
         return True
+
+    # endregion
+
+    # region : Trust factor
+
+    def lower_trust_factor( self, value: int, reason: str ):
+        """
+            Register lowering the trust factor of a client.
+
+            Receive :
+            - value     - How much to lower the trust factor
+            - reason    - Reason for lowering
+
+            Returns :   None
+        """
+
+        self._trust_factor = math.clamp( self._trust_factor - value, 0, 100 )
+        self._issues.append( reason )
+
+    
+    def check_trust_factor( self ) -> bool:
+        """
+            Check if the current client trust factor is valid.
+
+            Receive :   None
+
+            Returns :   Result if valid
+        """
+        
+        return self._trust_factor > 0
 
     # endregion
 
@@ -826,7 +912,11 @@ class c_host_business_logic:
             "on_client_disconnected":   c_event( ),
             "on_client_command":        c_event( ),
 
-            "on_files_refresh":         c_event( )
+            "on_files_refresh":         c_event( ),
+
+            # Host user actions events
+            "on_file_set":              c_event( ),
+            "on_file_update":           c_event( ),
         }
 
 
@@ -853,7 +943,7 @@ class c_host_business_logic:
 
     # region : Connection
 
-    def setup( self, ip: str, port: int ):
+    def setup( self, ip: str, port: int, username: str ):
         """
             Setup the server for host business logic.
 
@@ -871,6 +961,7 @@ class c_host_business_logic:
             # Just save the information
             self._information[ "ip" ]       = ip
             self._information[ "port" ]     = port
+            self._information[ "username" ] = username
 
             # Start connection using network protocol
             self._network.start_connection( CONNECTION_TYPE_SERVER, ip, port )
@@ -881,8 +972,8 @@ class c_host_business_logic:
         except Exception as e:
 
             # In case of some error. Handle it
-            self._information["last_error"] = f"Error occured on .setup() : {e}"
-            self._information[ "success" ]  = False
+            self._information[ "last_error" ]   = f"Error occured on .setup() : {e}"
+            self._information[ "success" ]      = False
             
 
     def start( self ) -> bool:
@@ -1171,7 +1262,25 @@ class c_host_business_logic:
             
     # endregion
 
-    # region : Files operations
+    # region : Host actions
+
+    @static_arguments
+    def request_file( self, file_name: str ):
+        """
+            Trigger the set file event to receive a file's content.
+
+            Receive :
+            - file_name - File's name
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        self.__event_file_set( )
+        self.__event_file_update( file )
 
     # endregion
 
@@ -1223,6 +1332,9 @@ class c_host_business_logic:
         # Set the client events
         new_client.set_event( "on_client_disconnected", self.__event_client_disconnected,   "Host Client Disconnect" )
         new_client.set_event( "on_client_command",      self.__event_client_command,        "Host Client Command" )
+
+        # Load path for database.
+        new_client.load_database( self._information[ "normal_path" ], self._information[ "username" ] )
 
         # Attach files for client
         new_client.load_files( self._files )
@@ -1299,6 +1411,37 @@ class c_host_business_logic:
         event.attach( "files", result )
 
         event.invoke( )
+
+
+    def __event_file_set( self ):
+        """
+            Event when the the host user request file.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_file_set" ]
+        event.invoke( )
+
+    
+    def __event_file_update( self, file: c_virtual_file ):
+        """
+            Event callback for updating a file
+
+            Receive :
+            - file - Line Text
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_file_update" ]
+        event.attach( "file", file.name( ) )
+
+        for line in file.read_lines( ):
+            event.attach( "line_text", line )
+            event.invoke( )
 
     
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):

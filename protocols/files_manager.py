@@ -44,6 +44,7 @@ class c_virtual_file:
     _normal_path:           str     # Project new folder path
 
     _access_level:          int     # File's access level
+    _locked_lines:          list    # File's locked lines
 
     _content:               list    # File's content
 
@@ -69,6 +70,7 @@ class c_virtual_file:
         self._normal_path   = None
 
         self._content       = [ ]
+        self._locked_lines  = [ ]
 
 
     def __create_logging_file( self ):
@@ -174,6 +176,7 @@ class c_virtual_file:
         
         self._original_path = original._original_path
         self._normal_path   = original._normal_path
+        self._locked_lines  = original._locked_lines
         
         return self 
 
@@ -264,7 +267,65 @@ class c_virtual_file:
             data = f.read( end - start )
 
         return data
+    
 
+    def read_lines( self ) -> list:
+        """
+            Reads file's data and converts into Lines.
+
+            Receive :   None
+
+            Returns :   List [ str ]
+        """
+
+        if self._normal_path is None:
+            return None
+        
+        file_path   = f"{ self._normal_path }\\{ self._name }"
+        data        = b''
+
+        with open( file_path, 'rb' ) as f:
+            data = f.read( )
+
+        return data.decode( ).splitlines( )
+    
+
+    def add_content_line( self, line: str ):
+        """
+            Add line for the file.
+
+            Receive :
+            - line - Text of a specific line
+
+            Returns :   None
+        """
+        
+        self._content.append( line )
+
+    
+    def clear_content( self ):
+        """
+            Clear file's content.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._content.clear( )
+    
+
+    def read_file_content( self ) -> list:
+        """
+            Read from file's content.
+
+            Receive :   None
+
+            Returns :   List with lines
+        """
+
+        return self._content
+    
     # endregion
     
 
