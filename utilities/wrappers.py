@@ -10,12 +10,13 @@
 from functools import   wraps
 import                  threading
 
-def safe_call( call_on_fail: any = None ):
+def safe_call( call_on_fail: any = None, ignore_errors: list = [ ] ):
     """
         Protected call wrap function
 
         Receive :   
         - call_on_fail [optional]   - execute function on fail
+        - ignore_errors [optional]  - ignore specific errors
         - function                  - function to protect
 
         Returns :   Wrap function
@@ -30,8 +31,21 @@ def safe_call( call_on_fail: any = None ):
                 return function( *args, **kwargs )
 
             except Exception as e:
+                
+                e_str: str = str( e )
 
-                error_msg = f"Found error in function { function.__name__ }:\n{ e }"
+                for error in ignore_errors:
+                    error: str = error
+
+                    if error == e_str or e_str.startswith( error ):
+                        return
+
+                if hasattr( function, "__qualname__" ):
+                    class_name = function.__qualname__.split( '.' )[ 0 ]
+                    error_msg = f"Found error in function { function.__name__ }(...) from class { class_name }:\n{ e }\n"
+
+                else:
+                    error_msg = f"Found error in function { function.__name__ }:\n{ e }\n"
 
                 if call_on_fail is not None:
                     call_on_fail( error_msg )

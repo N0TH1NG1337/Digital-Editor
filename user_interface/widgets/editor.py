@@ -7,37 +7,20 @@
     description : Test Editor class
 
     TODO ! 
-    1. Change the line select
-        [ x ] - set it only to render once and not for all lines
-        [ x ] - animate it
 
-    2. Add cursor
-        [ x ] - render it
+    1. Add cursor
         [  ] - animate ( if possible )
 
-    3. Add char input based cursor
-        [ x ] - add
-        [ x ] - remove char
-        [ x ] - add new line
-        [ x ] - remove line if empty
+    2. Add char input based cursor
         [  ] - add copied text
 
-    4. Add cursor operations
-        [ x ] - Move left
-        [ x ] - Move right
-        [ x ] - move up on multiple lines
-        [ x ] - move down on multiple lines
+    3. Add select text operations
+        [  ] - select multi line text ( should work for single line also )
+        [  ] - add option to delete selected text
+        [  ] - add option to add insted of selected text
+        [  ] - add copy selected text
 
-    5. Add select text operations
-        [ ] - select multi line text ( should work for single line also )
-        [ ] - add option to delete selected text
-        [ ] - add option to add insted of selected text
-        [ ] - add copy selected text
-
-    ?. Update
-
-    Known issues.
-    [ fixed ] - If lines > 1 and cursor is not on the first, pressing backspace resulting a full removal.
+    4. ?
 """
 
 import glfw
@@ -113,7 +96,8 @@ class c_editor:
 
     _events:                dict
 
-    _offset:                int
+    _offset:                float
+    _width_offset:          float
     _mouse_position:        vector
     _is_hovered:            bool
     _is_hovered_discard:    bool
@@ -125,6 +109,7 @@ class c_editor:
     _file:                  str     # File name
     _lines:                 list    # This is a little bit different from default editor
     _line_height:           int
+    _longest_line:          float
 
     _selected_line:         int
     _selected_position:     vector
@@ -132,6 +117,8 @@ class c_editor:
     _cursor:                vector
     _amount_of_lines:       int
     _is_typing:             bool
+
+    _read_only:             bool
 
     # region : Initialize editor
 
@@ -195,6 +182,7 @@ class c_editor:
         self._animations = c_animations( )
 
         self._animations.prepare( "Scroll",             0 )
+        self._animations.prepare( "ScrollWidth",        0 )
         self._animations.prepare( "ShowActions",        0 )
 
         self._animations.prepare( "SelectPosition",     self._position + vector( self._config.pad_for_number, 0 ) )
@@ -216,6 +204,7 @@ class c_editor:
         self._lines                 = [ ]
 
         self._offset                = 0
+        self._width_offset          = 0 
         self._line_height           = self._font.size( ) + self._config.pad
 
         self._selected_line         = 0 # -number < will represent that we wait
@@ -234,8 +223,10 @@ class c_editor:
         self._is_hovered_update     = False
 
         self._is_typing             = False
+        self._read_only             = False
 
         self._amount_of_lines       = 0
+        self._longest_line          = 0
 
     
     def __initialize_events( self ):
@@ -312,6 +303,7 @@ class c_editor:
         self._animations.update( )
 
         scroll: float = self._animations.preform( "Scroll", self._offset, speed, 1 )
+        self._animations.preform( "ScrollWidth", self._width_offset, speed, 1 )
 
         self._animations.preform( "ShowActions", self._selected_line > 0 and 1 or 0, speed )
 
@@ -370,10 +362,13 @@ class c_editor:
         line_color:     color   = self._config.line_color
 
         scroll:         float   = self._animations.value( "Scroll" )
+        scroll_width:   float   = self._animations.value( "ScrollWidth" )
         start_position: vector  = vector( self._position.x + pad_for_number + pad * 2, self._position.y + pad + scroll )
 
         index   = 0
         drop    = 0
+
+        self._longest_line = 0
 
         for line in self._lines:
             index = index + 1   # Line index
@@ -386,7 +381,7 @@ class c_editor:
             normalized_drop = drop + pad / 2
 
             line.position   = vector( 0, normalized_drop + scroll + pad )
-            text_position   = start_position + vector( 0, normalized_drop )
+            text_position   = start_position + vector( scroll_width, normalized_drop )
             number_position = start_position + vector( - self._render.measure_text( self._font, line_number ).x - pad * 2, normalized_drop )
 
             if line.is_locked:
@@ -429,13 +424,21 @@ class c_editor:
             else:
                 line.pad = self._animations.fast_preform( line.pad, 1, speed )
 
-            text_position.x += ( line.pad - 1) * 50
+            text_position.x += ( line.pad - 1) * 50 
 
             fixed_line_legnth = round( len( line.text ) * line.pad )
+
+            width = self._render.measure_text( self._font, line.text ).x
+            if width > self._longest_line:
+                self._longest_line = width
+
+            # Render the text itself
             self._render.text( self._font, text_position, text_color * line.alpha * line.pad, line.text[ :fixed_line_legnth ] )
             self._render.text( self._font, number_position, line_color * line.alpha, line_number )
 
             drop = drop + self._line_height
+        
+        self._longest_line += pad_for_number + pad * 3
             
     
     def __draw_select( self, fade: float ):
@@ -597,7 +600,6 @@ class c_editor:
 
             Returns :   None
         """
-        
         x = event( "x" )
         y = event( "y" )
 
@@ -605,8 +607,11 @@ class c_editor:
         self._mouse_position.y = y
 
         self.__hover_editor( )
-        self.__hover_buttons( )
 
+        if self._read_only:
+            return
+        
+        self.__hover_buttons( )
         self.__hover_lines( )
 
 
@@ -619,6 +624,9 @@ class c_editor:
 
             Returns :   None
         """
+
+        if self._read_only:
+            return
 
         button = event( "button" )
         action = event( "action" )
@@ -648,6 +656,7 @@ class c_editor:
         if not self._is_hovered:
             return
 
+        x_offset = event( "x_offset" )
         y_offset = event( "y_offset" )
 
         amount_items    = len( self._lines )
@@ -660,7 +669,13 @@ class c_editor:
         else:
             drop_min = 0
 
-        self._offset = math.clamp( self._offset + y_offset * 20, drop_min, 0 )
+        if self._longest_line > self._size.x:
+            sideways_min = self._size.x - self._longest_line
+        else:
+            sideways_min = 0
+
+        self._offset        = math.clamp( self._offset + y_offset * 20, drop_min, 0 )
+        self._width_offset  = math.clamp( self._width_offset + x_offset * 30, sideways_min, 0 )
 
 
     def __event_char_input( self, event ):
@@ -859,7 +874,10 @@ class c_editor:
                 self._cursor.x = math.clamp( self._cursor.x, 0, len( self.get_cursor_line( ).text ) )
         
         return True
+    
+    # endregion
 
+    # region : Events
     
     def __event_request_line( self, line: int ):
         """
@@ -943,7 +961,7 @@ class c_editor:
 
         correct_changed_lines = [ ]
         for line in changed_lines:
-            correct_changed_lines.append( base64.b64encode( line.text.encode( ) ).decode( ) )
+            correct_changed_lines.append( line.text ) #base64.b64encode( line.text.encode( ) ).decode( ) )
             line.prev = line.text
 
         event.attach( "lines", correct_changed_lines )
@@ -1221,6 +1239,14 @@ class c_editor:
         self._offset = 0
     
 
+    def enable_read_only( self ):
+        self._read_only = True
+
+
+    def disable_read_only( self ):
+        self._read_only = False
+
+
     def add_line( self, text: str ):
         #### ?????
 
@@ -1447,18 +1473,26 @@ class c_editor:
         result.y = math.clamp( int( relative_vector.y // self._line_height ), 0, len( self._lines ) - 1 )
 
         line:               c_line  = self._lines[ result.y ]
-        selected_index:     int     = 0
-        input_width:        float   = 0.0
+        text_length:        int     = len( line.text )
 
-        # Find the desired index from the center of each char
-        while selected_index < len( line.text ):
-            width = self._render.measure_text( self._font, line.text[ selected_index ] ).x
-            
-            if input_width + ( width * 0.5 ) > relative_vector.x:
+        for i in range( text_length + 1 ):
+
+            substring:  str     = line.text[ :i ]
+            width:      float   = self._render.measure_text( self._font, substring ).x
+
+            if width > relative_vector.x:
+
+                fixed_index:    int     = max( 0, i - 1 )
+                prev_width:     float   = self._render.measure_text( self._font, line.text[ :fixed_index ] ).x
+
+                if abs( width - relative_vector.x ) < abs( prev_width - relative_vector.x ):
+                    selected_index = i
+                else:
+                    selected_index = fixed_index
+
                 break
 
-            input_width += width
-            selected_index += 1
+            selected_index = i
 
         result.x = selected_index
 

@@ -26,6 +26,7 @@ REGISTRATION_RESPONSE       = "RegRes"
 
 from protocols.security import c_security
 from utilities.wrappers import safe_call
+from utilities.debug    import *
 
 import datetime
 import base64
@@ -112,7 +113,7 @@ class c_registration_protocol:
 
     # region : Registration
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def register_user( self, username: str, password: str ) -> bool:
         """
             Try to register a new user.
@@ -163,7 +164,7 @@ class c_registration_protocol:
 
     # region : Login
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def login_user( self, username: str, password: str ) -> bool:
         """
             Try to login an user.

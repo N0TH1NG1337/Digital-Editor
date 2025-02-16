@@ -738,7 +738,7 @@ class c_text_input:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Fade",       1 )
+        self._animations.prepare( "Fade",       0 )
         self._animations.prepare( "Text",       0.3 )
         self._animations.prepare( "Width",      0 )
         self._animations.prepare( "Seperate",   0 )

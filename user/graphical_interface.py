@@ -10,6 +10,7 @@
 from user.business_logic        import *
 from user_interface.application import *
 from utilities.paths            import *
+from utilities.debug            import *
 
 LOADING_MIN_TIME = 2
 
@@ -57,14 +58,18 @@ class c_user_gui:
 
     # region : Initialization
 
-    def __init__( self ):
+    def __init__( self, should_debug: bool = False ):
         """
             Default constructor for the user interface.
 
-            Receive :   None
+            Receive :   
+            - should_debug [optional] - Should enable debug logging
 
             Returns :   User GUI object
         """
+
+        if should_debug:
+            c_debug.load_basic_debugging( "user_debug.log" )
 
         self._temp          = { }
         self._opened_what   = 0
@@ -121,10 +126,15 @@ class c_user_gui:
             Returns :   None
         """
 
-        self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,   "gui_post_disconnect",  False )
-        self._logic.set_event( "on_register_file",      self.__event_register_file,     "gui_file_register",    True )
-        self._logic.set_event( "on_file_set",           self.__event_clear_editor,      "gui_clear_editor",     False )
-        self._logic.set_event( "on_file_update",        self.__event_add_editor_line,   "gui_update_editor",    True )
+        self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,   "gui_post_disconnect",      False )
+        self._logic.set_event( "on_register_file",      self.__event_register_file,     "gui_file_register",        True )
+        self._logic.set_event( "on_file_set",           self.__event_clear_editor,      "gui_clear_editor",         True )
+        self._logic.set_event( "on_file_update",        self.__event_add_editor_line,   "gui_update_editor",        True )
+        self._logic.set_event( "on_accept_line",        self.__event_accept_line,       "gui_editor_accept_line",   True )
+        self._logic.set_event( "on_line_lock",          self.__event_lock_line,         "gui_editor_line_lock",     True )
+        self._logic.set_event( "on_line_unlock",        self.__event_unlock_line,       "gui_editor_line_unlock",   True )
+        self._logic.set_event( "on_line_update",        self.__event_change_lines,      "gui_editor_line_update",   True )
+        self._logic.set_event( "on_line_delete",        self.__event_remove_line,       "gui_editor_line_remove",   True  )
 
     
     def __initialize_resources( self ):
@@ -321,7 +331,7 @@ class c_user_gui:
         self._registration_type.set_value( "Register" )
 
 
-    @safe_call( print )
+    @safe_call( c_debug.log_error )
     def __scene_setup_draw( self, event ):
         """
             Main draw function for Setup Scene.
@@ -434,9 +444,8 @@ class c_user_gui:
         self.__scene_setup_update( )
 
     
-    @safe_call( print )
+    @safe_call( c_debug.log_error )
     def __scene_setup_update( self ):
-        
         
         process_index = self._temp[ "setup_proccess" ]
 
@@ -563,11 +572,15 @@ class c_user_gui:
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", None )
         #self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", None )
 
-        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 600 ), button_font, solution_config )
+        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 400 ), button_font, solution_config )
 
         # Utilites
         self._editor.add_line( "Welcome to the Digital Editor" )
-        self._editor.set_event( "request_line", self.__event_editor_request_line, "gui_editor_request_line" )
+        self._editor.set_event( "request_line",     self.__event_editor_request_line,   "gui_editor_request_line" )
+        self._editor.set_event( "discard_line",     self.__event_discard_line,          "gui_editor_discard_line" ) 
+        self._editor.set_event( "update_line",      self.__event_update_line,           "gui_editor_update_line" ) 
+        self._editor.set_event( "delete_line",      self.__event_delete_line,           "gui_editor_delete_line" )
+        self._editor.set_event( "correct_offset",   self.__event_verify_offset,         "gui_editor_correct_offset" )
         
         self.__update_sidebar_elements( )
 
@@ -719,7 +732,7 @@ class c_user_gui:
         self._solution_explorer.add_item( file_name, lambda: self._logic.request_file( file_name ) )
 
     
-    def __event_clear_editor( self ):
+    def __event_clear_editor( self, event ):
         """
             Event callback for clearing the editor.
 
@@ -728,7 +741,16 @@ class c_user_gui:
             Returns :   None
         """
 
+        file:           str     = event( "file" )
+        read_only:      bool     = event( "read_only" )
+
         self._editor.clear( )
+        self._editor.set_file( file )
+
+        if read_only:
+            self._editor.enable_read_only( )
+        else:
+            self._editor.disable_read_only( )
 
 
     def __event_add_editor_line( self, event ):
@@ -741,10 +763,7 @@ class c_user_gui:
             Returns :   None
         """
 
-        file:       str     = event( "file" )
         line_text:  str     = event( "line_text" )
-
-        self._editor.set_file( file )
         self._editor.add_line( line_text )
 
     
@@ -761,8 +780,158 @@ class c_user_gui:
         file:   str     = event( "file" )
         line:   int     = event( "line" )
 
-        print( f"Line request { file } -> { line }" )
-        
+        self._logic.request_line( file, line )
+    
+
+    def __event_accept_line( self, event ):
+        """
+            Response from the host if the line can be used by us.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+        accept: bool    = event( "accept" )
+
+        self._editor.accept_line( file, line, accept )
+
+    
+    def __event_lock_line( self, event ): 
+        """
+            Response from host to client in order to lock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+
+        self._editor.lock_line( line )
+
+    
+    def __event_unlock_line( self, event ):
+        """
+            Response from host to client in order to unlock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+
+        self._editor.unlock_line( line )
+    
+
+    def __event_discard_line( self, event ):
+        """
+            Message to the host in order to discard line changes.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str = event( "file" )
+        line:       int = event( "line" )
+
+        self._logic.discard_line( file_name, line )
+
+    
+    def __event_update_line( self, event ):
+        """
+            Message to the host in order to commit changes.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        lines:  list    = event( "lines" )
+
+        self._logic.update_line( file, line, lines )
+
+        lines.clear( )
+
+    
+    def __event_delete_line( self, event ):
+        """
+            Message to server in order to delete a line.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        self._logic.delete_line( file, line )
+
+    
+    def __event_change_lines( self, event ):
+        """
+            Response from host to client in order to change lines.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+        new_lines:  list    = event( "new_lines" )
+
+        self._editor.change_lines( file_name, line, new_lines )
+
+    
+    def __event_remove_line( self, event ):
+        """
+            Response from host to client in order to delete line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        self._editor.delete_line( file_name, line )
+
+    
+    def __event_verify_offset( self, event ):
+        """
+            Response to host, after a line offset change.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str = event( "file" )
+        offset: int = event( "offset" )
+
+        self._logic.accept_offset( file, offset )
+    
     # endregion
 
     # region : Utilities

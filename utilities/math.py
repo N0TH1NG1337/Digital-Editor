@@ -58,3 +58,20 @@ class math:
             return min_value
         
         return value
+    
+
+    @staticmethod
+    def cast_to_number( value: any ) -> any:
+        """
+            Try to cast value to a number.
+
+            Receive :   
+            - value - Any type of value
+
+            Returns :   Number or None
+        """
+
+        try:
+            return int( value )
+        except:
+            return None

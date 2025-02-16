@@ -732,6 +732,8 @@ class c_side_list:
 
         self._animations = c_animations( )
 
+        self._animations.prepare( "Fade", 0 )
+
 
     def __initialize_values( self ):
         """

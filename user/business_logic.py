@@ -12,6 +12,7 @@ from protocols.files_manager    import *
 from protocols.registration     import *
 from protocols.security         import *
 from utilities.event            import c_event
+from utilities.math             import math
 from utilities.wrappers         import safe_call, standalone_execute
 
 import threading
@@ -96,7 +97,7 @@ class c_user_business_logic:
             "on_file_set":          c_event( ), # Called whenever the host is going to send the user specific file content.
             "on_file_update":       c_event( ), # ?
 
-            "on_accept_file":       c_event( ), # Called when the host response with the line lock request.
+            "on_accept_line":       c_event( ), # Called when the host response with the line lock request.
             "on_line_lock":         c_event( ), # Called when the host forces the user to lock a specific line. ( Used for other users locked lines )
             "on_line_unlock":       c_event( ), # Called when the host unlocks a specific line for this user.
 
@@ -120,8 +121,16 @@ class c_user_business_logic:
         }
 
         self._commands = {
-            FILES_COMMAND_RES_FILES: self.__command_received_files,
-            FILES_COMMAND_SET_FILE: self.__command_set_file,
+            FILES_COMMAND_RES_FILES:        self.__command_received_files,
+            FILES_COMMAND_SET_FILE:         self.__command_set_file,
+
+            FILES_COMMAND_PREPARE_RESPONSE: self.__commad_response_line_lock,
+
+            FILES_COMMAND_PREPARE_UPDATE:   self.__command_line_lock,
+            FILES_COMMAND_DISCARD_UPDATE:   self.__command_line_unlock,
+
+            FILES_COMMAND_UPDATE_LINE:      self.__command_line_update,
+            FILES_COMMAND_DELETE_LINE:      self.__command_line_delete
         }
 
     # endregion
@@ -409,6 +418,7 @@ class c_user_business_logic:
 
     # region : Commands
 
+    @safe_call( c_debug.log_error )
     def __command_received_files( self, arguments: list ):
         """
             Command method for receiving files.
@@ -422,8 +432,8 @@ class c_user_business_logic:
         length = len( arguments )
 
         if length % 2 != 0:
-            raise Exception("Invalid arguments list. Number of arguments must be even.")
-
+            raise Exception( f"Invalid arguments list. Number of arguments must be even.\nReceived : { arguments }" )
+            
         for i in range( 0, length, 2 ):
 
             name:           str = arguments[ i ] 
@@ -432,6 +442,7 @@ class c_user_business_logic:
             self.__event_register_file( name, access_level )
 
     
+    @safe_call( c_debug.log_error )
     def __command_set_file( self, arguments: list ):
         """
             Command method for setting file content.
@@ -452,6 +463,10 @@ class c_user_business_logic:
         message: list = self._network.receive( -1, True )
         if message is None:
             return
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            raise Exception( f"Failed to find file { file_name }" )
 
         data = b''
         for chunk in message:
@@ -461,24 +476,161 @@ class c_user_business_logic:
         message.clear( )
 
         if len( data ) != file_size:
-            print( f"Failed to receive normally file { file_name }" )
-            return
+            raise Exception( f"Failed to receive normally file { file_name }" )
 
         lines: list = data.decode( ).splitlines( )
         del data
 
-        file: c_virtual_file = self._files.search_file( file_name )
-        if not file:
-            return
-        
-        self.__event_file_set( )
+        self.__event_file_set( file )
 
         for line in lines:
             file.add_content_line( line )
 
+        lines.clear( )
+
         self.__event_file_update( file )
 
         file.clear_content( )
+
+
+    @safe_call( c_debug.log_error )
+    def __commad_response_line_lock( self, arguments: list ):
+        """
+            Command method for geting line lock response.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:  str = arguments[ 0 ]
+        line:       int = math.cast_to_number( arguments[ 1 ] )
+        accept:     bool = arguments[ 2 ] == "0"
+
+        if line is None:
+            print( arguments[ 1 ] )
+            return
+        
+        self.__event_accept_line( file_name, line, accept )
+
+
+    @safe_call( c_debug.log_error )
+    def __command_line_lock( self, arguments: list ):
+        """
+            Command method for line lock.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:  str = arguments[ 0 ]
+        line:       int = math.cast_to_number( arguments[ 1 ] )
+
+        if line is None:
+            return
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        # Maybe lock the line here ? for later checks ?
+        
+        self.__event_line_lock( file.name( ), line )
+
+    
+    @safe_call( c_debug.log_error )
+    def __command_line_unlock( self, arguments: list ):
+        """
+            Command method for line unlock.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:  str = arguments[ 0 ]
+        line:       int = math.cast_to_number( arguments[ 1 ] )
+
+        if line is None:
+            return
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        # TODO ! Check if the line is locked
+        
+        self.__event_line_unlock( file.name( ), line )
+
+    
+    @safe_call( c_debug.log_error )
+    def __command_line_update( self, arguments: list ):
+        """
+            Command method for line update.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:      str = arguments[ 0 ]
+        line:           int = math.cast_to_number( arguments[ 1 ] )
+        lines_count:    int = math.cast_to_number( arguments[ 2 ] )
+
+        if line is None or lines_count is None:
+            return
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        new_lines: list = [ ]
+        for i in range( lines_count ):
+
+            received_line: bytes = self.__receive( )
+            if not received_line:
+                # Failed to do something
+                continue
+
+            fixed_line: str = base64.b64decode( received_line ).decode( )
+            del received_line
+
+            # Maybe better approuch will be to add '\n' for each line...
+            if fixed_line == "\n":
+                fixed_line = ""
+            
+            new_lines.append( fixed_line )
+
+        self.__event_line_update( file.name( ), line, new_lines )
+
+
+    @safe_call( c_debug.log_error )
+    def __command_line_delete( self, arguments: list ):
+        """
+            Command method for line delete.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:      str = arguments[ 0 ]
+        line:           int = math.cast_to_number( arguments[ 1 ] )
+
+        if line is None:
+            return
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        self.__event_line_delete( file.name( ), line )
 
     # endregion
 
@@ -498,6 +650,22 @@ class c_user_business_logic:
         
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
+
+    
+    def __send_quick_bytes( self, data: bytes ):
+        """
+            Send a quick bytes to the host.
+
+            Receive :
+            - message - Message to send
+
+            Returns :   None
+        """
+
+        key: bytes = self._security.generate_shaffled_key( )
+        
+        self._network.send_bytes( self._security.strong_protect( key ) )
+        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
 
 
     def request_files( self ):
@@ -535,6 +703,112 @@ class c_user_business_logic:
             return
         
         message: str = self._files.format_message( FILES_COMMAND_GET_FILE, [ file_name ] )
+        self.__send_quick_message( message )
+
+    
+    def request_line( self, file_name: str, line: int ):
+        """
+            Request specific line.
+
+            Receive : 
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file_name, str( line ) ] )
+        self.__send_quick_message( message )
+
+
+    def discard_line( self, file_name: str, line: int ):
+        """
+            Message of discard changes.
+
+            Receive : 
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file_name, str( line ) ] )
+        self.__send_quick_message( message )
+
+    
+    def update_line( self, file_name: str, line: int, lines: list ):
+        """
+            Message of updated lines.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+            - lines     - List of changed lines
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        # We have notified the host about the update
+        message: str = self._files.format_message( FILES_COMMAND_UPDATE_LINE, [ file.name( ), str( line ), str( len( lines ) ) ] )
+        self.__send_quick_message( message )
+
+        for line_str in lines:
+            line_str: str = line_str
+            if line_str == "":
+                line_str = "\n"
+            
+            self.__send_quick_bytes( base64.b64encode( line_str.encode( ) ) )
+
+    
+    def delete_line( self, file_name: str, line: int ):
+        """
+            Message of delete line.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file.name( ), str( line ) ] )
+        self.__send_quick_message( message )
+
+    
+    def accept_offset( self, file_name: str, offset: int ):
+        """
+            Message to correct offset.
+
+            Receive :
+            - file_name - File name
+            - offset    - Offset value
+
+            Returns :   None
+        """
+
+        # Without this, we will have problems
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ file.name( ), str( offset) ] )
         self.__send_quick_message( message )
 
     # endregion
@@ -610,16 +884,21 @@ class c_user_business_logic:
         event.invoke( )
 
 
-    def __event_file_set( self ):
+    def __event_file_set( self, file: c_virtual_file ):
         """
             Event when the the host user request file.
 
-            Receive :   None
+            Receive :
+            - file - Line Text
 
             Returns :   None
         """
 
         event: c_event = self._events[ "on_file_set" ]
+
+        event.attach( "file",           file.name( ) )
+        event.attach( "read_only",      file.access_level( ) == FILE_ACCESS_LEVEL_LIMIT )
+
         event.invoke( )
 
     
@@ -634,11 +913,110 @@ class c_user_business_logic:
         """
 
         event: c_event = self._events[ "on_file_update" ]
-        event.attach( "file", file.name( ) )
 
         for line in file.read_file_content( ):
             event.attach( "line_text", line )
             event.invoke( )
+
+
+    def __event_accept_line( self, file: str, line: int, accept: bool ):
+        """
+            Event callback for updating a file
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+            - accept    - Did host accept
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_accept_line" ]
+
+        event.attach( "file",   file )
+        event.attach( "line",   line )
+        event.attach( "accept", accept )
+
+        event.invoke( )
+
+
+    def __event_line_lock( self, file: str, line: int ):
+        """
+            Event callback for locking a line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_lock" ]
+
+        event.attach( "file", file )
+        event.attach( "line", line )
+
+        event.invoke( )
+
+
+    def __event_line_unlock( self, file: str, line: int ):
+        """
+            Event callback for unlocking a line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_unlock" ]
+
+        event.attach( "file", file )
+        event.attach( "line", line )
+
+        event.invoke( )
+
+    
+    def __event_line_update( self, file: str, line: int, new_lines: list ):
+        """
+            Event callback for updating line/lines.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+            - new_lines - New lines
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_update" ]
+
+        event.attach( "file",       file )
+        event.attach( "line",       line )
+        event.attach( "new_lines",  new_lines )
+
+        event.invoke( )
+
+    
+    def __event_line_delete( self, file: str, line: int ):
+        """
+            Event callback for deleting line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_delete" ]
+
+        event.attach( "file",       file )
+        event.attach( "line",       line )
+
+        event.invoke( )
+
 
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """

@@ -105,6 +105,31 @@ class c_command:
         """
 
         return self._arguments
+    
+
+    def clear_arguments( self ) -> None:
+        """
+            Clear the arguments list.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        self._arguments.clear( )
+
+    
+    def add_arguments( self, value: any ) -> None:
+        """
+            Add to the arguments any value.
+
+            Receive :
+            - value - Value to add
+
+            Returns :   None
+        """ 
+
+        self._arguments.append( value )
 
 
 class c_client_handle:
@@ -202,12 +227,15 @@ class c_client_handle:
 
             FILES_COMMAND_GET_FILE:         self.__get_file,
 
-            FILES_COMMAND_PREPARE_UPDATE:   None,
-            FILES_COMMAND_PREPARE_RESPONSE: None,
-            FILES_COMMAND_UPDATE_LINE:      None,
-            FILES_COMMAND_DELETE_LINE:      None,
-            FILES_COMMAND_DISCARD_UPDATE:   None,
-            FILES_COMMAND_APPLY_UPDATE:     None
+            FILES_COMMAND_PREPARE_UPDATE:   self.__request_line,
+            # FILES_COMMAND_PREPARE_RESPONSE: None, # No need since this is only for client
+
+            FILES_COMMAND_DISCARD_UPDATE:   self.__discard_line,
+
+            # These 3 commands are the most important
+            FILES_COMMAND_UPDATE_LINE:      self.__update_line,
+            FILES_COMMAND_DELETE_LINE:      self.__delete_line,
+            FILES_COMMAND_APPLY_UPDATE:     self.__apply_update
         }
 
     # endregion
@@ -224,7 +252,8 @@ class c_client_handle:
 
             Returns:    bool - Is the client connected successfully
         """
-        print( f"Connected { address }" )
+
+        c_debug.log_information( f"New connection. Ip - { address[ 0 ] } : Port - { address[ 1 ] }" )
 
         # Attach connection
         self.__attach_connection( socket_object, address )
@@ -336,10 +365,11 @@ class c_client_handle:
             ] 
         )
 
-        self.__send_quick_message( response )
+        self.send_quick_message( response )
         
         if success:
-            print( f"Client completed registration with { arguments }" )
+            
+            c_debug.log_information( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
 
             self._information[ "username" ] = arguments[ 0 ]
             return True
@@ -373,7 +403,7 @@ class c_client_handle:
 
         # Potentially notify the client
         if notify_the_client:
-            self.__send_quick_message( DISCONNECT_MSG )
+            self.send_quick_message( DISCONNECT_MSG )
 
         # End the connection
         self._network.end_connection( )
@@ -381,7 +411,7 @@ class c_client_handle:
         # Call the event
         self.__event_client_disconnected( notify_the_client )
 
-        print( f"Disconnected" )
+        c_debug.log_information( f"Client ( { self( 'username' ) } ) - disconnected" )
 
     # endregion
 
@@ -403,28 +433,40 @@ class c_client_handle:
             #if not self.check_trust_factor( ):
             #    return self.disconnect( False )
             
-            # Receive the key and remove the protection
-            key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MSG ) )
-            if not key:
-                continue
-                
-            # Receive the message
-            message: bytes = self._network.receive( TIMEOUT_MSG )
+            message: bytes = self.__receive( )
 
-            # If there is no message, continue
-            if message is None:
-                continue
-
-            # Remove shuffle and protection
-            message: bytes = self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
             if not message:
-                print( f"Error in client { self._information[ 'username' ] } -> cannot decrypt information with length" )
-                continue # If the message cannot be decrypted, there is a problem
+                continue
             
             # Decode the message
             message: str = message.decode( )
         
             self.__handle_message( message )
+
+
+    def __receive( self ) -> bytes:
+        """
+            Wrap the receive and the security part.
+
+            Receive :   None
+
+            Returns :   Received Bytes
+        """
+
+        # Receive the key and remove the protection
+        key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MSG ) )
+        if not key:
+            return None
+                
+        # Receive the message
+        message: bytes = self._network.receive( TIMEOUT_MSG )
+
+        # If there is no message, continue
+        if message is None:
+            return None
+
+        # Remove shuffle and protection
+        return self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
 
 
     def __handle_message( self, message: str ):
@@ -442,7 +484,7 @@ class c_client_handle:
             return self.disconnect( False )
 
         if message == PING_MSG:
-            return print( "Client ping" )
+            return c_debug.log_information( f"Client ( { self( 'username' ) } ) - pinged" )
 
         # Try to parse the message and create new command object
         new_command = self.__parse_message( message )
@@ -509,7 +551,7 @@ class c_client_handle:
         return True
 
 
-    def __send_quick_message( self, message: str ):
+    def send_quick_message( self, message: str ):
         """
             Send a quick message to the host.
 
@@ -524,6 +566,22 @@ class c_client_handle:
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
     
+
+    def send_quick_bytes( self, data: bytes ):
+        """
+            Send a quick bytes to the client.
+
+            Receive :
+            - message - Message to send
+
+            Returns :   None
+        """
+
+        key: bytes = self._security.generate_shaffled_key( )
+        
+        self._network.send_bytes( self._security.strong_protect( key ) )
+        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
+
     # endregion
 
     # region : Events
@@ -644,10 +702,10 @@ class c_client_handle:
             Returns :   None
         """
 
-        print( "Client requested files" )
+        c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested files" )
 
         files_list: str = self._files.share_files( )
-        self.__send_quick_message( files_list )
+        self.send_quick_message( files_list )
 
     
     def __get_file( self, command: c_command ):
@@ -666,14 +724,14 @@ class c_client_handle:
         if file is None:
             return 
         
-        print( f"Cliented requested file { file.name( ) }" )
+        c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested file { file.name( ) }" )
 
         self._selected_file = file
 
         file_size:  int     = file.size()
         config:     list    = self._network.get_raw_details( file_size )
 
-        self.__send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
+        self.send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
 
         key: bytes = self._security.generate_shaffled_key( )
         self._network.send_bytes( self._security.strong_protect( key ) )
@@ -686,6 +744,288 @@ class c_client_handle:
             file_chunk = file.read( start, end )
             self._network.send_raw( self._security.shuffle( key, self._security.quick_protect( file_chunk ) ), has_next )
 
+        # After we done with the file. need to notify the client with locked lines
+        lines: list = file.locked_lines( )
+        for line in lines:
+            message: str = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ) ] )
+            self.send_quick_message( message )
+
+
+    def __request_line( self, command: c_command ):
+        """
+            Client's request to lock a line.
+
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        # Here we just preform all the checks...
+        arguments:      list    = command.arguments( )
+
+        # Convert the arguments into real values
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = math.cast_to_number( arguments[ 1 ] )
+
+        if line_number is None:
+            # TODO ! Check maybe ?
+            return
+
+        if self._selected_line != 0:
+            # TODO ! Lower the trust factor
+            # Moreover ...
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            # TODO ! Lower the trust factor
+            return
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            # TODO ! Lower the trust factor
+            return
+        
+        # In general the locked lines should show up for the client
+        # and it doesnt need to request it if locked
+        if file.is_line_locked( line_number ):
+            # This can happen only in 1 cases.
+            # 1. The client didnt have time to register line lock
+            # 2. The client is modded
+
+            # To be sure, will add more checks later
+            self._is_modded = True  
+
+        c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested line { line_number } in file { file.name( ) }" )
+
+        # Change the command arguments into real values
+        command.clear_arguments( )
+        command.add_arguments( file_name )
+        command.add_arguments( line_number )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+
+
+    def __discard_line( self, command: c_command ):
+        """
+            Client's message to discard a line.
+
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        # Here we just preform all the checks...
+        arguments:      list    = command.arguments( )
+
+        # Convert the arguments into real values
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = math.cast_to_number( arguments[ 1 ] )
+
+        if line_number is None:
+            # TODO ! Check maybe ?
+            return
+
+        if self._selected_line == 0:
+            # TODO ! Lower the trust factor
+            # Moreover ...
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            # TODO ! Lower the trust factor
+            return
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            # TODO ! Lower the trust factor
+            return
+
+        # Fix the client offset...P
+        line_number += self.get_offset( )
+
+        if line_number != self.selected_line( ):
+            # TODO ! Lower the trust factor
+            return
+
+        # This check will pass anyway if [ line_number == self.selected_line( ) ]
+        # is_locked: bool = file.is_line_locked( line_number )
+        # if not is_locked:
+        #     # TODO ! Lower the trust factor
+        #     return
+
+        # Change the command arguments into real values
+        command.clear_arguments( )
+        command.add_arguments( file_name )
+        command.add_arguments( line_number )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+
+
+    def __update_line( self, command: c_command ):
+        """
+            Client's message to update a line.
+
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        # Here we just preform all the checks...
+        arguments:      list    = command.arguments( )
+
+        # Convert the arguments into real values
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = math.cast_to_number( arguments[ 1 ] )
+        lines_number:   int     = math.cast_to_number( arguments[ 2 ] )
+
+        if line_number is None or lines_number is None:
+            # TODO ! Check maybe ?
+            return
+
+        if self._selected_line == 0:
+            # TODO ! Lower the trust factor
+            # Moreover ...
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            # TODO ! Lower the trust factor
+            return
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            # TODO ! Lower the trust factor
+            return
+        
+        # Fix the client offset...
+        line_number += self.get_offset( )
+
+        if line_number != self.selected_line( ):
+            # TODO ! Lower the trust factor
+            return
+
+        new_lines: list = [ ]
+        for index in range( lines_number ):
+            new_line: bytes = self.__receive( )
+
+            if not new_line:
+                raise Exception( f"Failed to get line on index { index + 1 }" )
+            
+            new_line: str = base64.b64decode( new_line ).decode( )
+            if new_line == "\n":
+                new_line = ""
+            
+            new_lines.append( new_line )
+
+        # Change the command arguments into real values
+        command.clear_arguments( )
+        command.add_arguments( file.name( ) )
+        command.add_arguments( line_number )
+        command.add_arguments( new_lines )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+    
+
+    def __delete_line( self, command: c_command ):
+        """
+            Client's message to delete a line.
+
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        # Here we just preform all the checks...
+        arguments:      list    = command.arguments( )
+
+        # Convert the arguments into real values
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = math.cast_to_number( arguments[ 1 ] )
+
+        if line_number is None:
+            # TODO ! Check maybe ?
+            return
+
+        if self._selected_line == 0:
+            # TODO ! Lower the trust factor
+            # Moreover ...
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            # TODO ! Lower the trust factor
+            return
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            # TODO ! Lower the trust factor
+            return
+        
+        # Fix the client offset...
+        line_number += self.get_offset( )
+
+        if line_number != self.selected_line( ):
+            # TODO ! Lower the trust factor
+            return
+        
+        # Change the command arguments into real values
+        command.clear_arguments( )
+        command.add_arguments( file.name( ) )
+        command.add_arguments( line_number )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+
+
+    def __apply_update( self, command: c_command ):
+        """
+            Client's message to apply an update received before.
+
+            Receive :   
+            - command - Original command
+
+            Returns :   None
+        """
+
+        # Here we just preform all the checks...
+        arguments:      list    = command.arguments( )
+
+        # Convert the arguments into real values
+        file_name:      str     = arguments[ 0 ]
+        offset_number:  int     = math.cast_to_number( arguments[ 1 ] )
+
+        if offset_number is None:
+            # TODO ! Check maybe ?
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            # TODO ! Lower the trust factor
+            return
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            # TODO ! Lower the trust factor
+            return
+        
+        if not self.is_offset( offset_number ):
+            # TODO ! Lower the trust factor
+            return
+        
+        command.clear_arguments( )
+        command.add_arguments( offset_number )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+    
     # endregion
 
     # region : Offsets
@@ -750,6 +1090,58 @@ class c_client_handle:
 
     # endregion
 
+    # region : File and line
+
+    def selected_file( self, new_value: any = None ) -> str:
+        """
+            Get/Set active client's file.
+
+            Receive :   
+            - new_value [optional] - New value to set
+
+            Returns :   String
+        """
+
+        if new_value is None:
+
+            if self._selected_file is None:
+                return "Unknown"
+            
+            return self._selected_file.name( )
+        
+        new_value_type = type( new_value )
+
+        if new_value_type == str:
+            self._selected_file = self._files.search_file( new_value )
+
+        elif new_value_type == c_virtual_file:
+            self._selected_file = new_value
+        
+        return self._selected_file
+    
+    
+    def selected_line( self, new_value: int = None ) -> int:
+        """
+            Get/Set clients active line.
+
+            Receive :   
+            - new_value [optional] - New value to set
+
+            Returns :   Line number. ( 0 - is None )
+        """
+
+        if new_value is None:
+
+            if self._selected_file is None:
+                return 0
+            
+            return self._selected_line
+        
+        self._selected_line = new_value
+        return new_value
+
+    # endregion
+
     # region : Trust factor
 
     def lower_trust_factor( self, value: int, reason: str ):
@@ -777,6 +1169,18 @@ class c_client_handle:
         """
         
         return self._trust_factor > 0
+    
+
+    def get_trust_factor( self ) -> int:
+        """
+            Get client's trust factor value.
+
+            Receive :   None
+
+            Returns :   Number value
+        """
+
+        return self._trust_factor
 
     # endregion
 
@@ -862,6 +1266,9 @@ class c_host_business_logic:
 
     _clients:       list
 
+    _host_client:   c_client_handle     # For the host user should be also client that contains the information about file and line...
+    # It is easier to control the host user with client handle
+
     # endregion 
 
     # region : Initialization host business logic
@@ -917,6 +1324,11 @@ class c_host_business_logic:
             # Host user actions events
             "on_file_set":              c_event( ),
             "on_file_update":           c_event( ),
+
+            "on_accept_line":           c_event( ),
+
+            "on_line_lock":             c_event( ),
+            "on_line_unlock":           c_event( ),
         }
 
 
@@ -938,6 +1350,8 @@ class c_host_business_logic:
         self._clients = [ ]
 
         self._command_pool = queue.Queue( )
+
+        self._host_client = c_client_handle( )
 
     # endregion
 
@@ -1123,6 +1537,7 @@ class c_host_business_logic:
 
     # region : Commands
 
+    @safe_call( c_debug.log_error )
     def __handle_command( self, command: c_command ):
         """
             Handle command request.
@@ -1133,10 +1548,276 @@ class c_host_business_logic:
             Returns :   None
         """
 
-        protocol: int = command.protocol( )
+        base_command_callbacks = {
+            FILES_COMMAND_PREPARE_UPDATE:   self.__command_execute_prepare_update,
+            FILES_COMMAND_DISCARD_UPDATE:   self.__command_execute_discard_update,
+            FILES_COMMAND_UPDATE_LINE:      self.__command_execute_commit_update,
+            FILES_COMMAND_DELETE_LINE:      self.__command_execute_commit_delete,
+            FILES_COMMAND_APPLY_UPDATE:     self.__command_execute_accept_offset
+        }
 
-        print( command.command( ) )
-        print( command.arguments( ) )
+        base_command_callbacks[ command.command( ) ]( command.client( ), command.arguments( ) )
+
+        # Clear the memory from useless command that we processed already
+        del command
+
+    @safe_call( c_debug.log_error )
+    def __command_execute_prepare_update( self, client: c_client_handle, arguments: list ):
+        """
+            Command for prepare line update.
+
+            Receive :
+            - client    - Client handle that requested
+            - arguments - Arguments from the command
+
+            Returns :   None
+        """
+
+        file_name:      str = arguments[ 0 ]
+        line_number:    int = arguments[ 1 ]
+
+        file: c_virtual_file = client.files( ).search_file( file_name )
+
+        is_locked:  bool    = file.is_line_locked( line_number )
+        response:   str     = is_locked and "1" or "0"
+
+        if not is_locked:
+            client.selected_line( line_number )
+            file.lock_line( line_number )
+
+            self.__broadcast_for_shareable_clients( file, client, self.__broadcast_lock_line, line_number )
+
+            self.__event_line_lock( file.name( ), line_number )
+
+        message: str = self._files.format_message( FILES_COMMAND_PREPARE_RESPONSE, [ file.name( ), str( line_number ), response ] )
+        client.send_quick_message( message )
+
+
+    def __command_execute_discard_update( self, client: c_client_handle, arguments: list ):
+        """
+            Command for discard line update.
+
+            Receive :
+            - client    - Client handle that requested
+            - arguments - Arguments from the command
+
+            Returns :   None
+        """
+
+        file_name:      str = arguments[ 0 ]
+        line_number:    int = arguments[ 1 ]
+
+        file: c_virtual_file = client.files( ).search_file( file_name )
+
+        file.unlock_line( line_number )
+        client.selected_line( 0 )
+
+        self.__broadcast_for_shareable_clients( file, client, self.__broadcast_unlock_line, line_number )
+
+        self.__event_line_unlock( file.name( ), line_number )
+
+    
+    def __command_execute_commit_update( self, client: c_client_handle, arguments: list ):
+        """
+            Command for commit line update.
+
+            Receive :
+            - client    - Client handle that requested
+            - arguments - Arguments from the command
+
+            Returns :   None
+        """
+
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = arguments[ 1 ]
+        new_lines:      list    = arguments[ 2 ]
+
+        file: c_virtual_file = client.files( ).search_file( file_name )
+
+        file.unlock_line( line_number )
+        client.selected_line( 0 )
+
+        file.change_line( line_number, new_lines, { "user": client( "username" ) } )
+
+        self.__broadcast_for_shareable_clients( file, client, self.__broadcast_update_line, line_number, new_lines )
+    
+
+    def __command_execute_commit_delete( self, client: c_client_handle, arguments: list ):
+        """
+            Command for commit line delete.
+
+            Receive :
+            - client    - Client handle that requested
+            - arguments - Arguments from the command
+
+            Returns :   None
+        """
+
+        file_name:      str     = arguments[ 0 ]
+        line_number:    int     = arguments[ 1 ]
+
+        file: c_virtual_file = client.files( ).search_file( file_name )
+
+        file.unlock_line( line_number )
+        client.selected_line( 0 )
+
+        file.remove_line( line_number, { "user": client( "username" ) } )
+
+        self.__broadcast_for_shareable_clients( file, client, self.__broadcast_delete_line, line_number )
+
+
+    def __command_execute_accept_offset( self, client: c_client_handle, arguments: list ):
+        """
+            Command for accept offset change.
+
+            Receive :
+            - client    - Client handle that requested
+            - arguments - Arguments from the command
+
+            Returns :   None
+        """
+
+        # I know it technically cause bottleneck issue, but this is the system.
+        # Simple and kinda quick... ( or at least should be )
+
+        # This has to be ordered since the line change can be delayed
+
+        # For example
+        # Change [2]
+        # OTHER...
+        # Change [1]
+        # - HEAD OF THE QUEUE
+
+        # CHANGE 1 has been commited and the client accepted it, but 
+        # there is still Change [2]
+        # in the queue waiting. Without this, it will mess everything up.
+
+        offset: int = arguments[ 0 ]
+        client.remove_offset( offset )
+        
+    # endregion
+
+    # region : Broadcasting
+
+    def __broadcast_for_shareable_clients( self, file: c_virtual_file, exception: c_client_handle, broadcast_function: any, *args ):
+        """
+            Execute broadcase function for each client that shares the same file.
+
+            Receive :
+            - file                  - Specific shared file
+            - exception             - Avoid broadcasting to him
+            - broadcase_function    - Function to execute for each client
+
+            Returns :   None
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if client.selected_file( ) == file.name( ):
+                
+                if exception is None or client != exception:
+                    broadcast_function( client, file, *args )
+
+
+    def __broadcast_lock_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
+        """
+            Notify the client that a specific line is locked.
+
+            Receive :
+            - client    - Client to notify
+            - file      - File that is shared
+            - line      - Locked line
+
+            Returns :   None
+        """
+
+        # TODO ! Add check if the client can edit
+
+        message = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ) ] )
+        client.send_quick_message( message )
+    
+
+    def __broadcast_unlock_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
+        """
+            Notify the client that a specific line is unlocked.
+
+            Receive :
+            - client    - Client to notify
+            - file      - File that is shared
+            - line      - Locked line
+
+            Returns :   None
+        """
+
+        # TODO ! Add check if the client can edit
+
+        message = self._files.format_message( FILES_COMMAND_DISCARD_UPDATE, [ file.name( ), str( line ) ] )
+        client.send_quick_message( message )
+    
+
+    def __broadcast_update_line( self, client: c_client_handle, file: c_virtual_file, line: int, new_lines: list ):
+        """
+            Notify the client that a specific line is updated.
+
+            Receive :
+            - client    - Client to notify
+            - file      - File that is shared
+            - line      - Locked line
+            - new_lines - New lines
+
+            Returns :   None
+        """
+
+        client_line: int = client.selected_line( )
+        count_new_lines = len( new_lines ) - 1
+
+        if client_line > 0 and client_line > line:
+
+            if file.is_line_locked( client_line ):
+                file.unlock_line( client_line )
+                file.lock_line( client_line + count_new_lines )
+
+            client.add_offset( count_new_lines )
+            client.selected_line( client_line + count_new_lines )
+
+        message = self._files.format_message( FILES_COMMAND_UPDATE_LINE, [ file.name( ), str( line ), str( count_new_lines + 1 ) ] )
+        client.send_quick_message( message )
+
+        for new_line in new_lines:
+            new_line: str = new_line
+
+            if new_line == "":
+                new_line = "\n"
+
+            client.send_quick_bytes( base64.b64encode( new_line.encode( ) ) )
+
+
+    def __broadcast_delete_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
+        """
+            Notify the client that a specific line is deleted.
+
+            Receive :
+            - client    - Client to notify
+            - file      - File that is shared
+            - line      - Locked line
+
+            Returns :   None
+        """
+
+        client_line: int = client.selected_line( )
+
+        if client_line > 0 and client_line > line:
+
+            if file.is_line_locked( client_line ):
+                file.unlock_line( client_line )
+                file.lock_line( client_line - 1 )
+
+            client.add_offset( -1 )
+            client.selected_line( client_line - 1 )
+
+        message = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file.name( ), str( line ) ] )
+        client.send_quick_message( message )
 
     # endregion
 
@@ -1253,7 +1934,7 @@ class c_host_business_logic:
                     r = file.copy( original_path, normal_path )
 
                     if r is not None:
-                        print( r )
+                        c_debug.log_error( r )
 
                 if entry.is_dir( ) and entry.name != DEFAULT_FOLDER_NAME and not entry.name.startswith( "." ):
                     # Is Folder
@@ -1279,8 +1960,67 @@ class c_host_business_logic:
         if not file:
             return
         
-        self.__event_file_set( )
+        self._host_client.selected_file( file )
+        
+        self.__event_file_set( file )
         self.__event_file_update( file )
+
+        for line in file.locked_lines( ):
+            self.__event_line_lock( file.name( ), line )
+    
+
+    def request_line( self, file_name: str, line: int ):
+        """
+            Request specific line.
+
+            Receive : 
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        # First check if line is locked
+        is_locked: bool = file.is_line_locked( line )
+        if is_locked:
+            return
+        
+        file.lock_line( line )
+        self._host_client.selected_line( line )
+
+        self.__broadcast_for_shareable_clients( file, None, self.__broadcast_lock_line, line )
+
+        self.__event_accept_line( file.name( ), line )
+
+    
+    @standalone_execute
+    def discard_line( self, file_name: str, line: int ):
+        """
+            Message of discard changes.
+
+            Receive : 
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        is_locked: bool = file.is_line_locked( line )
+        if not is_locked:
+            return
+        
+        file.unlock_line( line )
+        self._host_client.selected_line( 0 )
+
+        self.__broadcast_for_shareable_clients( file, None, self.__broadcast_unlock_line, line )
 
     # endregion
 
@@ -1413,16 +2153,19 @@ class c_host_business_logic:
         event.invoke( )
 
 
-    def __event_file_set( self ):
+    def __event_file_set( self, file: c_virtual_file ):
         """
             Event when the the host user request file.
 
-            Receive :   None
+            Receive :
+            - file - File's reference
 
             Returns :   None
         """
 
         event: c_event = self._events[ "on_file_set" ]
+        event.attach( "file", file.name( ) )
+
         event.invoke( )
 
     
@@ -1431,17 +2174,79 @@ class c_host_business_logic:
             Event callback for updating a file
 
             Receive :
-            - file - Line Text
+            - file - File's reference
 
             Returns :   None
         """
 
         event: c_event = self._events[ "on_file_update" ]
-        event.attach( "file", file.name( ) )
-
+        
         for line in file.read_lines( ):
             event.attach( "line_text", line )
             event.invoke( )
+
+    
+    def __event_accept_line( self, file: str, line: int ):
+        """
+            Event callback for accepting the line
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_accept_line" ]
+
+        event.attach( "file",   file )
+        event.attach( "line",   line )
+
+        event.invoke( )
+
+    
+    def __event_line_lock( self, file: str, line: int ):
+        """
+            Event callback for locking a line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        if file != self._host_client.selected_file( ):
+            return
+
+        event: c_event = self._events[ "on_line_lock" ]
+
+        event.attach( "file", file )
+        event.attach( "line", line )
+
+        event.invoke( )
+
+
+    def __event_line_unlock( self, file: str, line: int ):
+        """
+            Event callback for unlocking a line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        if file != self._host_client.selected_file( ):
+            return
+
+        event: c_event = self._events[ "on_line_unlock" ]
+
+        event.attach( "file", file )
+        event.attach( "line", line )
+
+        event.invoke( )
 
     
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
@@ -1449,9 +2254,12 @@ class c_host_business_logic:
             Add function to be called on specific event.
 
             Receive :
-            - event_type    - Event name
-            - callback      - Function to execute
-            - index         - Function index
+            - event_type                    - Event name
+            - callback                      - Function to execute
+            - index                         - Function index
+            - allow_arguments [optional]    - Allow function to get arguments
+
+            Returns :   None
         """
 
         if not event_type in self._events:
@@ -1461,3 +2269,6 @@ class c_host_business_logic:
         event.set( callback, index, allow_arguments )
 
     # endregion
+
+    def clients( self ) -> list:
+        return self._clients

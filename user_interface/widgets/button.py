@@ -133,7 +133,7 @@ class c_button:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Fade",   1 )
+        self._animations.prepare( "Fade",   0 )
         self._animations.prepare( "Add",    0 )
         self._animations.prepare( "Width",  0 )
         self._animations.prepare( "Hover",  0 )
@@ -521,10 +521,8 @@ class c_icon_button:
 
         self._animations = c_animations( )
 
-        #self._animations.prepare( "Add",    0 )
-        #self._animations.prepare( "Width",  0 )
         self._animations.prepare( "Hover",  0 )
-        self._animations.prepare( "Fade",   1 )
+        self._animations.prepare( "Fade",   0 )
 
 
     def __initialize_values( self ):

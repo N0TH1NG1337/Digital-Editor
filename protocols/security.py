@@ -28,6 +28,7 @@ from cryptography.hazmat.backends               import default_backend
 from cryptography.hazmat.primitives.kdf.scrypt  import Scrypt
 
 from utilities.wrappers                         import safe_call
+from utilities.debug                            import *
 
 QUICK_KEY_SIZE      = 32
 SHUFFLE_KEY_SIZE    = 16
@@ -190,7 +191,7 @@ class c_security:
 
     # region : Encryption
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def strong_protect( self, data: bytes ) -> bytes:
         """
             Use strong protection to protect this data.
@@ -204,7 +205,7 @@ class c_security:
         return self._key.shared_public_key.encrypt( data, self.__default_padding( ) )
     
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def quick_protect( self, data: bytes ) -> bytes:
         """
             Use quick protection to protect this data.
@@ -226,7 +227,7 @@ class c_security:
 
     # region : Decryption
     
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def remove_strong_protection( self, data: bytes ) -> bytes:
         """
             Remove strong protection.
@@ -237,10 +238,13 @@ class c_security:
             Returns :   Unprotected bytes
         """
 
+        if data is None:
+            return None
+
         return self._key.private_key.decrypt( data, self.__default_padding( ) )
     
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def remove_quick_protection( self, data: bytes ) -> bytes:
         """
             Remove quick protection.
@@ -250,6 +254,9 @@ class c_security:
 
             Returns :   Unprotected bytes
         """
+
+        if data is None:
+            return None
 
         iv      = data[ :16 ]
         tag     = data[ -16: ]

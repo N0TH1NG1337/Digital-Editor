@@ -9,6 +9,7 @@
 
 
 from utilities.wrappers import safe_call
+from utilities.debug    import *
 import socket
 
 INVALID                 = None
@@ -218,7 +219,7 @@ class c_network_protocol:
             return None, None
         
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def send( self, value: str ):
         """
             Send string value.
@@ -275,7 +276,7 @@ class c_network_protocol:
         return result
     
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def send_raw( self, raw_chunk: bytes, has_next: bool ):
         """
             Send raw bytes chunk.
@@ -314,7 +315,12 @@ class c_network_protocol:
             self.send_raw( chunk, has_next )
 
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error, [ 
+        # Ignore these messages in the debug log
+        "timed out",                                    # Its fine...
+        "invalid literal for int() with base 10",       # Like I closed the socket and we .recv( ) returned invalid number,
+        "[WinError 10038]"                              # Pops up when close socket while the timeout is active
+    ] )
     def receive( self, timeout: int = -1, receive_as_list: bool = False ) -> any:
         """
             Pop bytes from buffer. 
@@ -326,8 +332,7 @@ class c_network_protocol:
             Returns :   Bytes / List
         """
 
-        # TODO ! Although this works, for large amount of bytes files it can be a problem.
-        # Bytes are premetive type and therefore they are copying and not just passing as refrence.
+        # Note ! These is a small chance to get error WinError 10038, inside the call.
 
         if self._connection( ) is INVALID:
             raise Exception( "Invalid connection. make sure you have established connection" )
@@ -339,8 +344,8 @@ class c_network_protocol:
             data = [ ]
         else:
             data = b''
-
-        has_next: bool = True
+            
+        has_next: bool  = True
 
         while has_next:
             has_next:   bool    = self._connection( ).recv( 1 ).decode( ) == "1"
@@ -352,7 +357,7 @@ class c_network_protocol:
                 data += self.__receive_fixed( length )
 
         return data
-        
+
 
     def __receive_fixed( self, length: int ) -> bytes:
         """

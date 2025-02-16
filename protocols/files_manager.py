@@ -8,9 +8,11 @@
 """
 
 from utilities.wrappers import safe_call
+from utilities.debug    import *
 
 import shutil
 import json
+import time
 import os
 
 FILES_MANAGER_HEADER = "FL_UNK"
@@ -184,7 +186,7 @@ class c_virtual_file:
 
     # region : File information
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def name( self, should_parse: bool = False ) -> any:
         """
             Returns the file's name.
@@ -327,6 +329,202 @@ class c_virtual_file:
         return self._content
     
     # endregion
+
+    # region : File actions
+
+    @safe_call( c_debug.log_error )
+    def change_line( self, line: int, new_lines: list, change_log: dict ) -> bool:
+        """
+            Preform change in files lines.
+
+            Receive :
+            - line          - Line to change
+            - new_lines     - New lines to add
+            - change_log    - Ready to add change log
+
+            Returns :   Result
+
+            Note ! This function removes the [line] and adds the new_lines[0] instead.
+        """
+
+        if self._normal_path is None:
+            return False
+        
+        file_path   = f"{ self._normal_path }\\{ self._name }"
+
+        # never use .readlines( ). 
+        # This trash actually breaks everything
+        # It has incorrect encoding and more
+
+        data = b''
+        with open( file_path, "rb" ) as f:
+            data = f.read( )
+
+        lines: list = data.decode( ).splitlines( )
+        del data
+
+        line -= 1
+        removed_line = lines.pop( line )
+
+        for new_line in new_lines:
+            new_line: str = new_line
+            lines.insert( line, new_line )
+
+            line += 1
+
+        with open( file_path, "wb" ) as f:
+            f.write( os.linesep.join( lines ).encode( ) )
+        
+        lines.clear( )
+
+        if not self._log_changes:
+            return True
+        
+        file_name, file_type = self.name( True )
+        
+        file_name = f"{ file_name }_changes.txt"
+        file_path = f"{ self._normal_path }\\{ file_name }"
+
+        changes: dict
+        with open( file_path, "r" ) as f:
+            changes = json.load( f )
+
+        cur_time = time.strftime( "%y-%m-%d %H:%M:%S", time.localtime( ) )
+
+        change_log[ "line" ]    = line - len( new_lines ) + 1
+        change_log[ "removed" ] = removed_line
+        change_log[ "added" ]   = new_lines
+
+        changes[ cur_time ] = change_log
+
+        with open( file_path, "w" ) as f:
+            json.dump( changes, f )
+
+        return True
+
+    
+    @safe_call( c_debug.log_error )
+    def remove_line( self, line: int, change_log: dict ) -> bool:
+        """
+            Remove a specific line from the file.
+
+            Receive :
+            - line_number - The line index to remove
+
+            Returns :   None
+        """
+
+        if self._normal_path is None:
+            return False
+        
+        file_path   = f"{ self._normal_path }\\{ self._name }"
+
+        # never use .readlines( ). 
+        # This trash actually breaks everything
+        # It has incorrect encoding and more
+
+        data = b''
+        with open( file_path, "rb" ) as f:
+            data = f.read( )
+
+        lines: list = data.decode( ).splitlines( )
+        del data
+
+        removed_line: str = lines.pop( line - 1 )
+
+        with open( file_path, "wb" ) as f:
+            f.write( os.linesep.join( lines ).encode( ) )
+
+        lines.clear( )
+
+        if not self._log_changes:
+            return True
+        
+        file_name, file_type = self.name( True )
+        
+        file_name = f"{ file_name }_changes.txt"
+        file_path = f"{ self._normal_path }\\{ file_name }"
+
+        changes: dict
+        with open( file_path, "r" ) as f:
+            changes = json.load( f )
+
+        cur_time = time.strftime( "%y-%m-%d %H:%M:%S", time.localtime( ) )
+
+        change_log[ "line" ]    = line
+        change_log[ "removed" ] = removed_line
+
+        changes[ cur_time ] = change_log
+
+        with open( file_path, "w" ) as f:
+            json.dump( changes, f )
+
+        return True
+
+    # endregion
+
+    # region : File lines
+
+    def is_line_locked( self, line: int) -> bool:
+        """
+            Check if a specific line is locked.
+
+            Receive :
+            - line - Line number
+
+            Returns :   Result
+        """
+
+        # I dont want to use .index and catch Exception...
+
+        for item in self._locked_lines:
+            if item == line:
+                return True
+            
+        return False
+    
+
+    def lock_line( self, line: int ):
+        """
+            Lock specific line.
+
+            Receive :
+            - line - Line number
+
+            Returns :   None
+        """
+
+        self._locked_lines.append( line )
+
+
+    def unlock_line( self, line: int ):
+        """
+            Unlock specific line.
+
+            Receive :
+            - line - Line number
+
+            Returns :   None
+        """
+
+        #if not self.is_line_locked( line ):
+        #    return
+        
+        self._locked_lines.remove( line )
+
+
+    def locked_lines( self ) -> list:
+        """
+            Get the locked lines of the file.
+
+            Receive :   None
+
+            Returns :   List
+        """ 
+
+        return self._locked_lines
+    
+    # endregion
     
 
 class c_files_manager_protocol:
@@ -464,7 +662,7 @@ class c_files_manager_protocol:
 
     # region : Utilities
 
-    def search_file( self, name: str ) -> any:
+    def search_file( self, name: str ) -> c_virtual_file:
         """
             Search a virtual file based on name.
 

@@ -678,13 +678,12 @@ class c_application:
         event.invoke( )
 
 
-    def __event_path_drop( self, window, count, paths ) -> None:
+    def __event_path_drop( self, window, paths ) -> None:
         """
             Window maximized or not callback
 
             Receives:   
             - window ptr  - GLFW Window
-            - count       - count of dropped files
             - paths       - list paths of files that were droped
 
             Returns:    None
@@ -693,7 +692,6 @@ class c_application:
         event: c_event = self._events[ "path_drop" ]
 
         event.attach( "window",     window )
-        event.attach( "count",      count )
         event.attach( "paths",      paths )
 
         event.invoke( )
@@ -721,7 +719,6 @@ class c_application:
         
         # Loop while application is running
         while not glfw.window_should_close( self._app ):
-
 
             # Process window events
             self.__process_input( )

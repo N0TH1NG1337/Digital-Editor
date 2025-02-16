@@ -10,6 +10,7 @@
 from host.business_logic        import *
 from user_interface.application import *
 from utilities.paths            import *
+from utilities.debug            import *
 
 LOADING_MIN_TIME = 2
 
@@ -61,14 +62,18 @@ class c_host_gui:
 
     # region : Initialization
 
-    def __init__( self ):
+    def __init__( self, should_debug: bool = False ):
         """
             Default constructor for the host GUI class.
 
-            Receive : None
+            Receive : 
+            - should_debug [optional] - Should enable debug logging
 
             Returns : Host GUI object
         """
+
+        if should_debug:
+            c_debug.load_basic_debugging( "host_debug.log" )
 
         self._temp          = { }
         self._opened_what   = 0
@@ -127,9 +132,12 @@ class c_host_gui:
             Returns :   None
         """
 
-        self._logic.set_event( "on_files_refresh",  self.__event_update_files_list, "Update files list" )
-        self._logic.set_event( "on_file_set",       self.__event_clear_editor,      "Clear editor",     False )
-        self._logic.set_event( "on_file_update",    self.__event_add_editor_line,   "Add editor line" )
+        self._logic.set_event( "on_files_refresh",  self.__event_update_files_list, "gui_update_files_list",    True )
+        self._logic.set_event( "on_file_set",       self.__event_clear_editor,      "gui_clear_editor",         True )
+        self._logic.set_event( "on_file_update",    self.__event_add_editor_line,   "gui_update_editor",        True )
+        self._logic.set_event( "on_accept_line",    self.__event_accept_line,       "gui_editor_accept_line",   True )
+        self._logic.set_event( "on_line_lock",      self.__event_lock_line,         "gui_editor_line_lock",     True )
+        self._logic.set_event( "on_line_unlock",    self.__event_unlock_line,       "gui_editor_line_unlock",   True )
 
     
     def __initialize_resources( self ):
@@ -152,7 +160,7 @@ class c_host_gui:
         self._application.create_font( "Editor",    FONT_THIN, 20 )
 
         self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,    vector( 3840, 2160 ) )
-        self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
+        #self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
 
         self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
         self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
@@ -451,9 +459,8 @@ class c_host_gui:
         self.__scene_setup_update( )
 
     
-    @safe_call( print )
+    @safe_call( c_debug.log_error )
     def __scene_setup_update( self ):
-        
         
         process_index = self._temp[ "setup_proccess" ]
 
@@ -572,7 +579,7 @@ class c_host_gui:
 
         self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ), close_icon, self.__callback_on_press_close )
 
-        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 600 ), button_font, solution_config )
+        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 400 ), button_font, solution_config )
 
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", self.__callback_on_press_admin )
         # self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
@@ -583,7 +590,8 @@ class c_host_gui:
 
         # Utilites
         self._editor.add_line( "Welcome to the Digital Editor" )
-        self._editor.set_event( "request_line", self.__event_editor_request_line, "gui_editor_request_line" )
+        self._editor.set_event( "request_line", self.__event_editor_request_line,   "gui_editor_request_line" )
+        self._editor.set_event( "discard_line", self.__event_discard_line,          "gui_editor_discard_line" ) 
         
         self.__update_sidebar_elements( )
 
@@ -736,24 +744,26 @@ class c_host_gui:
             Returns : None
         """
 
-        winodw_config = window_config_t( )
-        winodw_config.show_bar      = True
+        window_config = window_config_t( )
+        window_config.show_bar      = True
+        window_config.bar_title     = "Share connection"
+        window_config.title_font    = self._application.font( "Button" )
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 400, 150 ), winodw_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 400, 150 ), window_config )
         
         c_button( new_window, vector( 10, 10 ), 40, self._application.font( "Button" ), self._application.image( "Copy" ), "Copy Code", lambda: glfw.set_clipboard_string( None, self._logic.generate_code( ) ) )
 
-        def draw_code( event ):
+        render: c_renderer  = self._application.render( )
+        font:   c_font      = self._application.font( "TextInput" )
 
-            render: c_renderer  = self._application.render( )
+        def draw_code( ):
+
             fade:   float       = new_window.animations( ).value( "Fade" )
-            font:   c_font      = self._application.font( "TextInput" )
+            code:   str         = self._logic.generate_code( )
 
-            code = self._logic.generate_code( )
+            render.text( font, vector( 10, 70 ), color( 255, 255, 255, 255 ) * fade, code )
 
-            render.text( font, vector( 10, 70 ), color( 255, 255, 255, 255 ) * fade, str( code ) )
-
-        new_window.set_event( "draw", draw_code, "Draw Code" )
+        new_window.set_event( "draw", draw_code, "Draw Code", False )
 
 
     def __callback_on_press_users( self ):
@@ -765,10 +775,40 @@ class c_host_gui:
             Returns : None
         """
 
-        winodw_config = window_config_t( )
-        winodw_config.show_bar      = True
+        window_config = window_config_t( )
+        window_config.show_bar      = True
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), winodw_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), window_config )
+
+        render: c_renderer  = self._application.render( )
+        font:   c_font      = self._application.font( "TextInput" )
+
+        def draw_clients( ):
+
+            fade:       float   = new_window.animations( ).value( "Fade" )
+            clients:    list    = self._logic.clients( )
+
+            drop:       float   = 20 # Add this host user data also...
+
+            for client in clients:
+                client: c_client_handle = client
+
+                address:        tuple   = client.network( ).get_address( True )
+                name:           str     = client( "username" )
+                file_name:      str     = client.selected_file( )
+                line:           int     = client.selected_line( )
+                trust_factor:   int     = client.get_trust_factor( )
+
+                text: str = f" - { address } - { name } [ { trust_factor } ] -> { file_name } : { line }"
+                text: str = render.wrap_text( font, text, 700 - 40 )
+                
+                text_size: vector = render.measure_text( font, text )
+
+                render.text( font, vector( 20, drop ), color( ) * fade, text )
+
+                drop += text_size.y + 10
+
+        new_window.set_event( "draw", draw_clients, "Draw Clients", False )
 
 
     def __callback_on_press_logs( self ):
@@ -780,10 +820,10 @@ class c_host_gui:
             Returns : None
         """
 
-        winodw_config = window_config_t( )
-        winodw_config.show_bar      = True
+        window_config = window_config_t( )
+        window_config.show_bar      = True
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), winodw_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), window_config )
 
     # endregion
 
@@ -827,16 +867,20 @@ class c_host_gui:
             # self._solution_explorer.add_item( file, lambda: print( f"Left clicked on { file }" ) )
     
 
-    def __event_clear_editor( self ):
+    def __event_clear_editor( self, event ):
         """
             Event callback for clearing the editor.
 
-            Receive :   None
+            Receive :
+            - event - Event information
 
             Returns :   None
         """
 
+        file:       str     = event( "file" )
+
         self._editor.clear( )
+        self._editor.set_file( file )
 
 
     def __event_add_editor_line( self, event ):
@@ -849,10 +893,7 @@ class c_host_gui:
             Returns :   None
         """
 
-        file:       str     = event( "file" )
         line_text:  str     = event( "line_text" )
-
-        self._editor.set_file( file )
         self._editor.add_line( line_text )
 
     
@@ -869,7 +910,71 @@ class c_host_gui:
         file:   str     = event( "file" )
         line:   int     = event( "line" )
 
-        print( f"Line request { file } -> { line }" )
+        self._logic.request_line( file, line )
+
+
+    def __event_accept_line( self, event ):
+        """
+            If line is locked by host user.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        self._editor.accept_line( file, line, True )
+
+    
+    def __event_lock_line( self, event ): 
+        """
+            Response from host to client in order to lock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+
+        self._editor.lock_line( line )
+
+    
+    def __event_unlock_line( self, event ):
+        """
+            Response from host to client in order to unlock a line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file")
+        line:       int     = event( "line" )
+
+        self._editor.unlock_line( line )
+
+    
+    def __event_discard_line( self, event ):
+        """
+            Message to the host in order to discard line changes.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str = event( "file" )
+        line:       int = event( "line" )
+
+        self._logic.discard_line( file_name, line )
 
     # region : Utilities
 

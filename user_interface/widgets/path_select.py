@@ -398,7 +398,7 @@ class c_path_select:
 
         self._animations.prepare( "Back",   0.5 )
         self._animations.prepare( "Scroll", 0 )
-        self._animations.prepare( "Fade",   1 )
+        self._animations.prepare( "Fade",   0 )
 
     
     def __initialize_values( self ):

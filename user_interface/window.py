@@ -34,6 +34,8 @@ class window_config_t:
     roundness:          int     = 10
 
     show_bar:           bool    = False
+    bar_title:          str     = ""
+    title_font:         c_font  = None
 
     back_color:         color   = color( 0, 0, 0, 150 )
     outline_color:      color   = color( 100, 100, 100, 150 )
@@ -225,6 +227,12 @@ class c_window:
         )
 
         if self._config.show_bar:
+            
+            bar_text:   str     = self._config.bar_title
+            font:       c_font  = self._config.title_font
+
+            if bar_text != "":
+                self._render.text( font, vector( 10, -20 ), color( ) * fade, bar_text )
 
             self._render.line( vector( 10, 0 ), vector( self._size.x - 10, 0 ), self._config.outline_color * fade, 1 )
 
@@ -383,14 +391,15 @@ class c_window:
         event.invoke( )
 
 
-    def set_event( self, event_index: str, function: any, function_name: str ) -> None:
+    def set_event( self, event_index: str, function: any, function_name: str, allow_arguments: bool = True  ) -> None:
         """
             Registers functions to a event
 
             Receives:   
-            - event_index       - event type index
-            - function          - function pointer
-            - function_name     - function name
+            - event_index                   - event type index
+            - function                      - function pointer
+            - function_name                 - function name
+            - allow_arguments [optional]    - Allow function to get arguments
 
             Returns:    None
         """
@@ -400,7 +409,7 @@ class c_window:
         
 
         event: c_event = self._events[ event_index ]
-        event.set( function, function_name, True )
+        event.set( function, function_name, allow_arguments )
 
     # endregion
 

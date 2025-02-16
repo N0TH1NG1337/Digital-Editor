@@ -235,6 +235,7 @@ class c_solution_explorer:
 
         self._parent.set_event( "mouse_position",   self.__event_mouse_position,    this_id )
         self._parent.set_event( "mouse_input",      self.__event_mouse_input,       this_id )
+        self._parent.set_event( "mouse_scroll",     self.__event_mouse_scroll,      this_id )
 
 
     def __initialize_animations( self ):
@@ -248,7 +249,7 @@ class c_solution_explorer:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Fade",   1 )
+        self._animations.prepare( "Fade",   0 )
         self._animations.prepare( "Scroll", 0 )
 
     
@@ -326,6 +327,7 @@ class c_solution_explorer:
         self._animations.update( )
 
         self._animations.preform( "Fade", self._is_visible and 1 or 0, speed )
+        self._animations.preform( "Scroll", self._offset, speed, 1 )
 
     
     def __draw_back( self, fade: float ):
@@ -375,6 +377,7 @@ class c_solution_explorer:
         self._render.push_clip_rect( self._position, self._position + self._size )
 
         self.__draw_folder( fade, self._folder, pad )
+        self.__draw_scrollbar( fade )
 
         self._render.pop_clip_rect( )
 
@@ -405,7 +408,9 @@ class c_solution_explorer:
         folder_icon:    c_image = self._config.folder_icon
         item_icon:      c_image = self._config.item_icon
 
-        position = self._position + vector( add_to_x, 0 )
+        scroll_offset:  float   = self._animations.value( "Scroll" )
+
+        position = self._position + vector( add_to_x, scroll_offset )
         start_drop = self._drop
 
         font_size: int = self._font.size( )
@@ -419,7 +424,7 @@ class c_solution_explorer:
             current_folder_size:      vector  = self._render.measure_text( self._font, sub_folder.name )
 
             sub_folder.fade                 = self._animations.fast_preform( sub_folder.fade,   sub_folder.is_hovered and 1 or 0.5, speed )
-            sub_folder.opened               = self._animations.fast_preform( sub_folder.opened, sub_folder.is_opened and 1 or 0, speed ) * fade
+            sub_folder.opened               = self._animations.fast_preform( sub_folder.opened, sub_folder.is_opened and 1 or 0, speed )
 
             current_color:          color   = folder_color * fade * sub_folder.fade
 
@@ -427,7 +432,7 @@ class c_solution_explorer:
             self._render.image( folder_icon, current_folder_position + vector( 0, -font_size / 2 ), folder_color * fade, vector( font_size, font_size ) )
             self._render.text( self._font, current_folder_position + vector( pad + font_size, -current_folder_size.y / 2 ), current_color, sub_folder.name )
             
-            sub_folder.position = vector( 0, self._drop )
+            sub_folder.position = vector( 0, self._drop + scroll_offset )
 
             self._drop += slot_height * folder.opened
             
@@ -448,9 +453,9 @@ class c_solution_explorer:
             self._render.image( item_icon, current_item_position + vector( 0, -font_size / 2 ), item_color * fade, vector( font_size, font_size ) )
             self._render.text( self._font, current_item_position + vector( pad + font_size, -current_item_size.y / 2 ), current_color, item.name )
 
-            item.position = vector( 0, self._drop )
+            item.position = vector( 0, self._drop + scroll_offset )
 
-            self._drop += slot_height * folder.opened
+            self._drop += slot_height * fade
         
 
         if folder.show_slide:
@@ -458,8 +463,8 @@ class c_solution_explorer:
 
             delta_drop = self._drop - start_drop
 
-            start_slide = position + vector( 0, start_drop )
-            end_slide   = position + vector( seperate, start_drop + delta_drop * fade )
+            start_slide = position + vector( -pad, start_drop )
+            end_slide   = position + vector( seperate - pad, start_drop + delta_drop * fade )
 
             self._render.rect(
                 start_slide,
@@ -476,6 +481,45 @@ class c_solution_explorer:
                 25,
                 seperate / 2
             )
+
+    
+    def __draw_scrollbar( self, fade: float ):
+        """
+            Draw scroll bar.
+
+            Receive : 
+            - fade - Fade factor of the parent
+
+            Returns :   None
+        """
+
+        seperate:       int     = self._config.seperate
+        seperate_color: color   = self._config.seperate_color
+        
+        start_position: vector  = vector( self._position.x + self._size.x - seperate, self._position.y )
+        
+        window_delta    = self._size.y
+
+        
+
+        if self._drop == 0:
+            return
+
+        if self._drop <= window_delta:
+            return
+
+        scroll = self._animations.value( "Scroll" )
+
+        scroll_delta = window_delta / self._drop
+
+        fixed = window_delta * scroll_delta
+        value = abs( scroll ) * scroll_delta
+
+        position        = vector( start_position.x, start_position.y + value )
+        end_position    = vector( start_position.x + seperate, position.y + fixed )
+
+        self._render.shadow( position, end_position, seperate_color, fade, 15, seperate / 2)
+        self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
 
     # endregion
 
@@ -536,6 +580,34 @@ class c_solution_explorer:
             return
         
         self.__handle_items( self._folder, button )
+
+
+    def __event_mouse_scroll( self, event ) -> None:
+        """
+            Mouse scroll input callback.
+
+            Receive :   
+            - event - Event information
+
+            Returns :   None
+        """
+
+        if not self._is_visible:
+            return
+
+        if not self._is_hovered:
+            return
+
+        #x_offset = event( "x_offset" )
+        y_offset = event( "y_offset" )
+
+        
+        if self._drop > self._size.y:
+            drop_min    = self._size.y - self._drop
+        else:
+            drop_min = 0
+
+        self._offset = math.clamp( self._offset + y_offset * 20, drop_min, 0 )
 
 
     def __hover_items( self, folder: c_holder ):
