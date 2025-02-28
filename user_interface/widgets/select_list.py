@@ -247,9 +247,9 @@ class c_list:
 
         speed:      int     = self._config.speed
         pad:        int     = self._config.pad
-        size:       vector  = self._config.check_mark.size( )
+        size:       vector  = self._config.check_mark is None and vector( ) or self._config.check_mark.size( )
 
-        self._animations.preform( "AddOnEnable", self._someone_enabled and size.x + pad or 0, speed )
+        self._animations.preform( "AddOnEnable", self._someone_enabled and size.x + pad * 2 or 0, speed )
         self._animations.preform( "Scroll", self._offset, speed, 1 )
 
     
@@ -302,9 +302,9 @@ class c_list:
         height:     int     = self._config.slot_height
         amount:     int     = self._config.slots_count
 
-        check_mark: c_image = self._config.check_mark
-        check_size: vector  = check_mark.size( )
-        add_to_check: vector = vector( pad, ( height - check_size.y ) / 2 )
+        check_mark:     c_image = self._config.check_mark
+        check_size:     vector  = check_mark is None and vector( ) or check_mark.size( )
+        add_to_check:   vector  = vector( pad, ( height - check_size.y ) / 2 )
 
         enable_pad: float   = self._animations.value( "AddOnEnable" )
         scroll:     float   = self._animations.value( "Scroll" )
@@ -333,7 +333,8 @@ class c_list:
             icon_position:  vector      = vector( position.x + enable_pad, position.y + ( height - icon_size.y ) / 2 )
             text_position:  vector      = vector( position.x + icon_size.x + pad * 2 + seperate + enable_pad, position.y + ( height - text_size.y ) / 2 )
 
-            self._render.image( check_mark, position + add_to_check, color( ) * enable )
+            if check_mark is not None:
+                self._render.image( check_mark, position + add_to_check, color( ) * enable )
 
             self._render.image( item.icon, icon_position, color( ) * hover )
             self._render.text( self._font, text_position, color( ) * hover, item.text )

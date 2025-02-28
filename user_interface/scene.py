@@ -455,7 +455,7 @@ class c_scene:
             Returns:    Bool if true or false
         """
 
-        return len( self._windows ) != 0
+        return len( self._windows ) != 0 and self._windows[ 0 ].show( )
     
 
     def last_window( self ) -> c_window:
@@ -670,7 +670,7 @@ class c_scene:
         speed: int = self._config.speed
 
         if self._show:
-            fade    = self._animations.preform( "Fade",     1, speed )
+            fade    = self._animations.preform( "Fade",     self.is_any_window_active( ) and 0.3 or 1, speed )
         else:
             fade    = self._animations.preform( "Fade",     0, speed )
 

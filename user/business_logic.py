@@ -103,6 +103,8 @@ class c_user_business_logic:
 
             "on_line_update":       c_event( ), # Called when the host updates line / lines. 
             "on_line_delete":       c_event( ), # Called when the host deletes a specific line. ( Line removal is other process than update )
+
+            "on_level_update":      c_event( )  # Called when the host updates a access level to a specific file
         }
 
     
@@ -117,7 +119,13 @@ class c_user_business_logic:
 
         self._information = {
             "is_connected":     False,  # Is the user connected
-            "last_error":       ""      # Last error message
+            "last_error":       "",     # Last error message
+
+            "access_levels":    {
+                FILE_ACCESS_LEVEL_HIDDEN:   "Hidden",
+                FILE_ACCESS_LEVEL_EDIT:     "Edit",
+                FILE_ACCESS_LEVEL_LIMIT:    "Limit"
+            }
         }
 
         self._commands = {
@@ -130,7 +138,9 @@ class c_user_business_logic:
             FILES_COMMAND_DISCARD_UPDATE:   self.__command_line_unlock,
 
             FILES_COMMAND_UPDATE_LINE:      self.__command_line_update,
-            FILES_COMMAND_DELETE_LINE:      self.__command_line_delete
+            FILES_COMMAND_DELETE_LINE:      self.__command_line_delete,
+
+            FILES_COMMAND_CHANGE_LEVEL:     self.__command_update_level
         }
 
     # endregion
@@ -632,6 +642,48 @@ class c_user_business_logic:
         
         self.__event_line_delete( file.name( ), line )
 
+    
+    @safe_call( c_debug.log_error )
+    def __command_update_level( self, arguments: list ):
+        """
+            Command method for updating access level to a file.
+
+            Receive :
+            - arguments - List containing file details
+
+            Returns :   None
+        """
+
+        file_name:      str = arguments[ 0 ]
+        access_level:   int = math.cast_to_number( arguments[ 1 ] )
+
+        if access_level is None:
+            return
+        
+        if not access_level in self._information[ "access_levels" ]:
+            return
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file and access_level != FILE_ACCESS_LEVEL_HIDDEN:
+            # Create new one
+            file = self._files.create_new_file( file_name, access_level, False )
+            
+            return self.__event_level_update( file.name( ), file.access_level( ) )
+
+        if not file:
+            raise Exception( f"Failed to find file { file_name }" )
+
+        if access_level == FILE_ACCESS_LEVEL_HIDDEN:
+            # Remove
+            self._files.remove_file( file_name )
+
+        else:
+            # Change to new access level
+            file.access_level( access_level )
+
+        self.__event_level_update( file_name, access_level )
+
+
     # endregion
 
     # region : Communication
@@ -1018,6 +1070,25 @@ class c_user_business_logic:
         event.invoke( )
 
 
+    def __event_level_update( self, file: str, access_level: int ):
+        """
+            Event callback for updating file's access level.
+
+            Receive :
+            - file          - File's name
+            - access_level  - New access level value
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_level_update" ]
+
+        event.attach( "file", file )
+        event.attach( "access_level", access_level )
+
+        event.invoke( )
+
+
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
             Add function to be called on specific event.
@@ -1052,5 +1123,18 @@ class c_user_business_logic:
             return self._information[ index ]
         
         return None
+    
+
+    def check_username( self, username: str ) -> tuple:
+        """
+            Check if the username is valid.
+
+            Receive :
+            - username - Username string
+            
+            Returns :   Result ( True/False, Reason )
+        """ 
+
+        return self._registration.validate_username( username )
 
     # endregion

@@ -65,6 +65,7 @@ class c_single_input_logic:
     _input_index:           int
     _input_offset:          float
     _set_end:               bool
+    _is_just_moving:        bool
 
     _config:                text_input_config_t
 
@@ -134,6 +135,7 @@ class c_single_input_logic:
         self._is_typing         = False
         self._is_ctrl           = False
         self._set_end           = False
+        self._is_just_moving    = False
 
         self._mouse_position    = vector( )
         self._text_size         = vector( )
@@ -289,7 +291,10 @@ class c_single_input_logic:
         correct_size:           vector  = self._render.measure_text( self._font, correct_input )
         correct_by_index_size:  vector  = self._render.measure_text( self._font, correct_input_by_index )
 
-        self.__preform_set_index( correct_input )
+        if self._is_typing and self._click_delta is not None:
+            self._input_index = self.__preform_width_calculations( correct_input, self._click_delta )
+            self._click_delta = None
+
         self.__preform_correct_offset( start_clip, vector( end_clip.x, start_clip.x ), correct_by_index_size )
 
         self._render.push_clip_rect( start_clip, end_clip, True )
@@ -368,6 +373,10 @@ class c_single_input_logic:
         if not self._is_typing and not self._set_end:
             return
         
+        if self._is_just_moving:
+            end_clip.x -= 20
+            end_clip.y += 20
+        
         set_offset = start_position.x + self._input_offset + text_size.x + 1
 
         if set_offset > end_clip.x:
@@ -379,22 +388,11 @@ class c_single_input_logic:
         self._set_end = False
 
 
-    def __preform_set_index( self, text: str ):
-        """
-            Determine where the user pressed with the mouse.
-
-            Receive : 
-            - text - Corrected text to check
-
-            Returns :   None
+    def __preform_width_calculations( self, text: str, relative_width: float ):
         """
 
-        if not self._is_typing:
-            return
+        """
 
-        if self._click_delta == None:
-            return
-        
         selected_index: int     = 0
 
         # Credit - My friend
@@ -408,12 +406,12 @@ class c_single_input_logic:
             substring:  str     = text[ :i ]
             width:      float   = self._render.measure_text( self._font, substring ).x
 
-            if width > self._click_delta:
+            if width > relative_width:
 
                 fixed_index:    int     = max( 0, i - 1 )
                 prev_width:     float   = self._render.measure_text( self._font, text[ :fixed_index ] ).x
 
-                if abs( width - self._click_delta ) < abs( prev_width - self._click_delta ):
+                if abs( width - relative_width ) < abs( prev_width - relative_width ):
                     selected_index = i
                 else:
                     selected_index = fixed_index
@@ -423,8 +421,8 @@ class c_single_input_logic:
             else:
                 selected_index = i
             
-        self._click_delta = None
-        self._input_index = selected_index
+
+        return selected_index
 
     # endregion
 
@@ -501,12 +499,14 @@ class c_single_input_logic:
         button = event( "button" )
         action = event( "action" )
 
-        if button != glfw.MOUSE_BUTTON_LEFT or action != glfw.PRESS:
+        if button != glfw.MOUSE_BUTTON_LEFT:
             return
-
-        #self._click_position = self._mouse_position.copy( )
-        self._click_delta = self._mouse_position.x - ( self._relative_position.x + self._config.pad + self._input_offset )
-
+        
+        value = self._mouse_position.x - ( self._relative_position.x + self._config.pad + self._input_offset )
+        
+        if action == glfw.PRESS:
+            self._click_delta           = value
+        
 
     def event_char_input( self, event ) -> None:
         """
@@ -555,6 +555,10 @@ class c_single_input_logic:
         if action == glfw.REPEAT:
             self.__repeat_handle( key )
 
+        if action == glfw.RELEASE:
+            if self._is_just_moving and key == glfw.KEY_LEFT and key == glfw.KEY_RIGHT:
+                self._is_just_moving = False
+
     
     def __ctrl_handle( self, key, action ):
         """
@@ -594,10 +598,12 @@ class c_single_input_logic:
         # Move index left
         if key == glfw.KEY_LEFT and self._input_index > 0:
             self._input_index -= 1
+            self._is_just_moving = True
 
         # Move index right
         if key == glfw.KEY_RIGHT and self._input_index < len( self._input ):
             self._input_index += 1
+            self._is_just_moving = True
 
 
     def __paste_handle( self, key ):

@@ -138,6 +138,8 @@ class c_host_gui:
         self._logic.set_event( "on_accept_line",    self.__event_accept_line,       "gui_editor_accept_line",   True )
         self._logic.set_event( "on_line_lock",      self.__event_lock_line,         "gui_editor_line_lock",     True )
         self._logic.set_event( "on_line_unlock",    self.__event_unlock_line,       "gui_editor_line_unlock",   True )
+        self._logic.set_event( "on_line_update",    self.__event_change_lines,      "gui_editor_line_update",   True )
+        self._logic.set_event( "on_line_delete",    self.__event_remove_line,       "gui_editor_line_remove",   True )
 
     
     def __initialize_resources( self ):
@@ -150,35 +152,44 @@ class c_host_gui:
         """
 
         execution_directory = os.getcwd( )
-        self._application.create_font( "Title",     FONT, 100 )
-        self._application.create_font( "SubTitle",  FONT, 50 )
+        self._application.create_font( "Title",     FONT_BOLD, 100 )
+        self._application.create_font( "SubTitle",  FONT_BOLD, 50 )
         self._application.create_font( "Steps",     FONT, 20 )
         self._application.create_font( "Button",    FONT, 20 )
         self._application.create_font( "TextInput", FONT, 20 )
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
-        self._application.create_font( "Editor",    FONT_THIN, 20 )
+        self._application.create_font( "Editor",    FONT, 20 )
 
-        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,    vector( 3840, 2160 ) )
-        #self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
+        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,      vector( 3840, 2160 ), [ IMAGE_FILTER_BLUR ] )
 
-        self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
-        self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
-        self._application.create_image( "Connection",   execution_directory + ICON_CONNECTION,    vector( 200, 200 ) )
-        self._application.create_image( "User",         execution_directory + ICON_USER,          vector( 40, 40 ) )
-        self._application.create_image( "Next",         execution_directory + ICON_NEXT,          vector( 40, 40 ) )
-        self._application.create_image( "Check",        execution_directory + ICON_CHECK,         vector( 40, 40 ) )
-        self._application.create_image( "Edit",         execution_directory + ICON_EDIT,          vector( 40, 40 ) )
-        self._application.create_image( "Visible",      execution_directory + ICON_VISIBLE,       vector( 40, 40 ) )
-        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,         vector( 40, 40 ) )
-        self._application.create_image( "Listen",       execution_directory + ICON_LISTEN,        vector( 40, 40 ) )
-        self._application.create_image( "NetMan",       execution_directory + ICON_NET_MAN,       vector( 40, 40 ) )
-        self._application.create_image( "Copy",         execution_directory + ICON_COPY,          vector( 40, 40 ) )
-        self._application.create_image( "Back",         execution_directory + ICON_BACK,          vector( 40, 40 ) )
-        self._application.create_image( "Folder",       execution_directory + ICON_FOLDER,        vector( 40, 40 ) )
-        self._application.create_image( "File",         execution_directory + ICON_FILE,          vector( 40, 40 ) )
-        self._application.create_image( "Menu",         execution_directory + ICON_MENU,          vector( 40, 40 ) )
+        self._application.create_image( "Username",     execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
+        self._application.create_image( "Next",         execution_directory + ICON_NEXT,            vector( 30, 30 ) )
+        self._application.create_image( "Prev",         execution_directory + ICON_PREV,            vector( 30, 30 ) )
 
+        self._application.create_image( "Folder",       execution_directory + ICON_FOLDER,          vector( 30, 30 ) )
+        self._application.create_image( "File",         execution_directory + ICON_FILE,            vector( 30, 30 ) )
+
+        self._application.create_image( "Listen",       execution_directory + ICON_LISTEN,          vector( 30, 30 ) )
+        self._application.create_image( "Port",         execution_directory + ICON_PORT,            vector( 30, 30 ) )
+
+        self._application.create_image( "Share",        execution_directory + ICON_SHARE,           vector( 30, 30 ) )
+        self._application.create_image( "User",         execution_directory + ICON_USER,            vector( 30, 30 ) )
+        self._application.create_image( "Info",         execution_directory + ICON_INFO,            vector( 30, 30 ) )
+
+        self._application.create_image( "Copy",         execution_directory + ICON_COPY,            vector( 30, 30 ) )
+
+        self._application.create_image( "Lock",         execution_directory + ICON_LOCKED,          vector( 30, 30 ) )
+        self._application.create_image( "Visible",      execution_directory + ICON_VISIBLE,         vector( 30, 30 ) )
+        self._application.create_image( "Tune",         execution_directory + ICON_TUNE,            vector( 30, 30 ) )
+
+        self._application.create_image( "Check",        execution_directory + ICON_CHECK,           vector( 30, 30 ) )
+
+        self._application.create_image( "Menu",         execution_directory + ICON_MENU,            vector( 40, 40 ) )
+        self._application.create_image( "Files",        execution_directory + ICON_FILES,           vector( 40, 40 ) )
+        self._application.create_image( "Admin",        execution_directory + ICON_ADMIN,           vector( 40, 40 ) )
+        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,           vector( 40, 40 ) )
+        
         self._temp[ "setup_proccess" ]  = 0
         
         self._application_config.wallpaper = self._application.image( "Wallpaper" )
@@ -203,6 +214,7 @@ class c_host_gui:
 
         self._scene_loadup.set_event( "draw",           self.__scene_loadup_draw,   "Scene Loadup Draw Main" )
         self._scene_loadup.set_event( "mouse_input",    self.__scene_loadup_update, "Scene Loadup Update" )
+        self._scene_loadup.set_event( "keyboard_input", self.__scene_loadup_update, "Scene Loadup Update" )
 
     
     def __scene_loadup_draw( self, event ):
@@ -265,7 +277,7 @@ class c_host_gui:
             Returns : None
         """
 
-        if event( "action" ) == glfw.PRESS and event( "button" ) == glfw.MOUSE_BUTTON_LEFT:
+        if event( "action" ) == glfw.PRESS:
             self._application.active_scene( self._scene_setup.index( ) )
 
     # endregion
@@ -285,9 +297,6 @@ class c_host_gui:
 
         self._scene_setup_config.animate_movement   = True
         self._scene_setup_config.enable_stars       = True
-        #self._scene_setup_config.background_image   = self._application.image( "City" )
-        #self._scene_setup_config.background_descale = 1.3
-        #self._scene_setup_config.background_color   = self._application.config( ).back_color_4.copy( )
 
         self._scene_setup = self._application.new_scene( self._scene_setup_config )
 
@@ -319,23 +328,27 @@ class c_host_gui:
         list_font:      c_font  = self._application.font( "List" )
 
         path_icons:     dict = {
-            "back_icon":    self._application.image( "Back" ), 
+            "back_icon":    self._application.image( "Prev" ), 
             "folder_icon":  self._application.image( "Folder" ), 
             "file_icon":    self._application.image( "File" )
         }
         
-        user_icon:      c_image = self._application.image( "User" )
+        username_icon:  c_image = self._application.image( "Username" )
         next_icon:      c_image = self._application.image( "Next" )
-        close_icon:     c_image = self._application.image( "Close" )
-        ip_icon:        c_image = self._application.image( "Listen" )
-        port_icon:      c_image = self._application.image( "NetMan" )
+        prev_icon:      c_image = self._application.image( "Prev" )
 
-        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), user_icon, text_font, "username" )
-        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), ip_icon,   text_font, "ip", False, "0.0.0.0" )
-        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 150 ), 40, vector( 200, 30 ), port_icon, text_font, "port", False, "9978" )
+
+        ip_icon:        c_image = self._application.image( "Listen" )
+        port_icon:      c_image = self._application.image( "Port" )
+
+        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), username_icon, text_font, "username" )
+        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), ip_icon,       text_font, "ip", False, "0.0.0.0" )
+        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 150 ), 40, vector( 200, 30 ), port_icon,     text_font, "port", False, "9978" )
+
         self._path_select       = c_path_select( self._scene_setup, path_font, vector( 50, 100 ), vector( 500, 580 ), path_icons )
         self._list_access_level = c_side_list( self._scene_setup, vector( 50, 700 ), 500, list_font )
-        self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ), 40, button_font, close_icon,  "Previous", self.__scene_setup_previous_step )
+
+        self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ), 40, button_font, prev_icon,   "Previous", self.__scene_setup_previous_step )
         self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ), 40, button_font, next_icon,  "Next",     self.__scene_setup_next_step )
 
         self._path_select.visible( False )
@@ -561,10 +574,14 @@ class c_host_gui:
         button_font:    c_font  = self._application.font( "Button" )
 
         menu_icon:      c_image = self._application.image( "Menu" )
-        file_icon:      c_image = self._application.image( "File" )
-        admin_icon:     c_image = self._application.image( "User" )
+        file_icon:      c_image = self._application.image( "Files" )
+        admin_icon:     c_image = self._application.image( "Admin" )
         close_icon:     c_image = self._application.image( "Close" )
-        copy_icon:      c_image = self._application.image( "Copy" )
+
+        #copy_icon:      c_image = self._application.image( "Copy" )
+        share_icon:     c_image = self._application.image( "Share" )
+        user_icon:      c_image = self._application.image( "User" )
+        info_icon:      c_image = self._application.image( "Info" )
 
         solution_config = solution_explorer_config_t( )
         
@@ -573,25 +590,29 @@ class c_host_gui:
 
         self._editor        = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
-        self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ), menu_icon, self.__callback_on_press_menu )
-        self._button_files  = c_icon_button( self._scene_project, vector( 100, 50 ), file_icon, self.__callback_on_press_files )
-        self._button_admin  = c_icon_button( self._scene_project, vector( 500, 50 ), admin_icon, self.__callback_on_press_admin )
-
-        self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ), close_icon, self.__callback_on_press_close )
+        self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ),     menu_icon,  self.__callback_on_press_menu )
+        self._button_files  = c_icon_button( self._scene_project, vector( 100, 50 ),    file_icon,  self.__callback_on_press_files )
+        self._button_admin  = c_icon_button( self._scene_project, vector( 500, 50 ),    admin_icon, self.__callback_on_press_admin )
+        self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ),   close_icon, self.__callback_on_press_close )
 
         self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 400 ), button_font, solution_config )
 
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", self.__callback_on_press_admin )
         # self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
 
-        self._button_share  = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, copy_icon, "Share", self.__callback_on_press_share )
-        self._button_users  = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, copy_icon, "Users", self.__callback_on_press_users )
-        self._button_logs   = c_button( self._scene_project, vector( 50, 280 ), 40, button_font, menu_icon, "Logs", self.__callback_on_press_logs )
+        self._button_share  = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, share_icon, "Share", self.__callback_on_press_share )
+        self._button_users  = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, user_icon, "Users", self.__callback_on_press_users )
+        self._button_logs   = c_button( self._scene_project, vector( 50, 280 ), 40, button_font, info_icon, "Logs", self.__callback_on_press_logs )
 
         # Utilites
-        self._editor.add_line( "Welcome to the Digital Editor" )
+        welcome_messages = [ "Welcome to the Digital Editor.", "", "Current version : 1.0 preview.", "Please select a file to start editing." ]
+        for msg in welcome_messages:
+            self._editor.add_line( msg )
+        
         self._editor.set_event( "request_line", self.__event_editor_request_line,   "gui_editor_request_line" )
         self._editor.set_event( "discard_line", self.__event_discard_line,          "gui_editor_discard_line" ) 
+        self._editor.set_event( "update_line",  self.__event_update_line,           "gui_editor_update_line" ) 
+        self._editor.set_event( "delete_line",  self.__event_delete_line,           "gui_editor_delete_line" )
         
         self.__update_sidebar_elements( )
 
@@ -777,38 +798,129 @@ class c_host_gui:
 
         window_config = window_config_t( )
         window_config.show_bar      = True
+        window_config.back_wallpaper = self._application.image( "Wallpaper" )
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), window_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 320, 340 ), window_config )
 
+        button_font:    c_font  = self._application.font( "Button" )
+
+        list_config = list_config_t( )
+        list_config.slots_count = 8
+        list_config.back_color = list_config.back_color * 0
+
+        clients_list: c_list = c_list( new_window, vector( 10, 10 ), 300, button_font, list_config )
+
+        clients: list = self._logic.clients( )
+
+        for client in clients:
+            client: c_client_handle = client
+
+            clients_list.add_item( client( "username" ), self._application.image( "User" ), self.__callback_on_client_click( ) )
+
+
+    def __callback_on_client_click( self ):
+        """
+            Callback for pressing on a client.
+
+            Receive :   None
+
+            Returns :   Click function
+        """
+
+        font:   c_font      = self._application.font( "List" )
         render: c_renderer  = self._application.render( )
-        font:   c_font      = self._application.font( "TextInput" )
+        
+        
+        def click_fn( username: str ):
+            client: c_client_handle = self._logic.find_client( username )
+            if client is None:
+                return
+            
+            # Client window configuration
+            client_window_config = window_config_t( )
+            client_window_config.show_bar       = True
+            client_window_config.bar_title      = username
+            client_window_config.title_font     = font
+            client_window_config.back_wallpaper = self._application.image( "Wallpaper" )
+            
+            client_info_window: c_window        = self._scene_project.create_window( vector( 400, 200 ), vector( 400, 330 ), client_window_config )
+            animations:         c_animations    = client_info_window.animations( )
 
-        def draw_clients( ):
+            files_list_config = list_config_t( )
+            files_list_config.slots_count   = 3
+            files_list_config.back_color    = files_list_config.back_color * 0
 
-            fade:       float   = new_window.animations( ).value( "Fade" )
-            clients:    list    = self._logic.clients( )
+            files_list: c_list = c_list( client_info_window, vector( 10, 140 ), 380, font, files_list_config)
 
-            drop:       float   = 20 # Add this host user data also...
+            files: list = client.files_list( )
 
-            for client in clients:
-                client: c_client_handle = client
+            for file_name in files:
+                files_list.add_item( file_name, self._application.image( "File" ), self.__callback_on_file_click( client ) )
 
-                address:        tuple   = client.network( ).get_address( True )
-                name:           str     = client( "username" )
-                file_name:      str     = client.selected_file( )
-                line:           int     = client.selected_line( )
-                trust_factor:   int     = client.get_trust_factor( )
+            def draw_client( ):
+                fade = animations.value( "Fade" )
+                render.text( font, vector( 10, 10 ), color( ) * fade,   f"user  | \t{ username }" )
+                render.text( font, vector( 10, 40 ), color( ) * fade,   f"trust | \t{ client.get_trust_factor( ) }" )
 
-                text: str = f" - { address } - { name } [ { trust_factor } ] -> { file_name } : { line }"
-                text: str = render.wrap_text( font, text, 700 - 40 )
-                
-                text_size: vector = render.measure_text( font, text )
+                render.text( font, vector( 10, 80 ), color( ) * fade,   f"file  | \t{ client.selected_file( ) }" )
+                render.text( font, vector( 10, 110 ), color( ) * fade,  f"line  | \t{ client.selected_line( ) }" )
 
-                render.text( font, vector( 20, drop ), color( ) * fade, text )
+            client_info_window.set_event( "draw", draw_client, "render", False )
 
-                drop += text_size.y + 10
+        return click_fn
 
-        new_window.set_event( "draw", draw_clients, "Draw Clients", False )
+
+    def __callback_on_file_click( self, client: c_client_handle ):
+        """
+            Callback for pressing on a file.
+
+            Receive :   None
+
+            Returns :   Click function
+        """
+
+        font:   c_font      = self._application.font( "List" )
+        render: c_renderer  = self._application.render( )
+
+        def click_fn( file_name: str ):
+
+            file_data:      list    = client.get_file( file_name )
+            access_level:   int     = file_data[ 1 ]
+
+            # File window configuration
+            file_window_config = window_config_t( )
+            file_window_config.show_bar       = True
+            file_window_config.bar_title      = file_name
+            file_window_config.title_font     = font
+            file_window_config.back_wallpaper = self._application.image( "Wallpaper" )
+            
+            file_window: c_window       = self._scene_project.create_window( vector( 400, 300 ), vector( 400, 200 ), file_window_config )
+            animations:  c_animations   = file_window.animations( )
+
+            list_config = list_config_t( )
+            list_config.slots_count = 3
+            list_config.back_color = list_config.back_color * 0
+            list_config.check_mark  = self._application.image( "Check" )
+
+            access_level_list: c_list = c_list( file_window, vector( 10, 10 ), 380, font, list_config )
+
+            # FILE_ACCESS_LEVEL_HIDDEN    = 0     # This file should be hidden ( used only for host )
+            # FILE_ACCESS_LEVEL_EDIT      = 1     # This file can be edited
+            # FILE_ACCESS_LEVEL_LIMIT     = 2     # This file cannot be edited
+
+            access_level_string = {
+                0: "Hidden",
+                1: "Edit",
+                2: "Limit"
+            }
+
+            access_level_list.add_item( "Hidden",   self._application.image( "Lock" ),      lambda x: client.change_access_level( file_data[ 0 ], FILE_ACCESS_LEVEL_HIDDEN ) )
+            access_level_list.add_item( "Edit",     self._application.image( "Tune" ),      lambda x: client.change_access_level( file_data[ 0 ], FILE_ACCESS_LEVEL_EDIT ) )
+            access_level_list.add_item( "Limit",    self._application.image( "Visible" ),   lambda x: client.change_access_level( file_data[ 0 ], FILE_ACCESS_LEVEL_LIMIT ) )
+
+            access_level_list.set_value( access_level_string[ access_level ] )
+
+        return click_fn
 
 
     def __callback_on_press_logs( self ):
@@ -931,7 +1043,7 @@ class c_host_gui:
     
     def __event_lock_line( self, event ): 
         """
-            Response from host to client in order to lock a line.
+            Response to lock a line.
 
             Receive : 
             - event - Event information
@@ -976,6 +1088,73 @@ class c_host_gui:
 
         self._logic.discard_line( file_name, line )
 
+
+    def __event_change_lines( self, event ):
+        """
+            Response from host to client in order to change lines.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+        new_lines:  list    = event( "new_lines" )
+
+        self._editor.change_lines( file_name, line, new_lines )
+
+    
+    def __event_remove_line( self, event ):
+        """
+            Response from host to client in order to delete line.
+
+            Receive : 
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:  str     = event( "file" )
+        line:       int     = event( "line" )
+
+        self._editor.delete_line( file_name, line )
+
+    
+    def __event_update_line( self, event ):
+        """
+            Message to the host in order to commit changes.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        lines:  list    = event( "lines" )
+
+        self._logic.update_line( file, line, lines )
+
+    
+    def __event_delete_line( self, event ):
+        """
+            Message to server in order to delete a line.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file:   str     = event( "file" )
+        line:   int     = event( "line" )
+
+        self._logic.delete_line( file, line )
+    
     # region : Utilities
 
     # endregion

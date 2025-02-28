@@ -34,6 +34,8 @@ FILE_ACCESS_LEVEL_HIDDEN    = 0     # This file should be hidden ( used only for
 FILE_ACCESS_LEVEL_EDIT      = 1     # This file can be edited
 FILE_ACCESS_LEVEL_LIMIT     = 2     # This file cannot be edited
 
+FILES_COMMAND_CHANGE_LEVEL      = "UpdateAccessLevel"   # Use this command to update access level for user
+
 
 class c_virtual_file:
 
@@ -206,15 +208,20 @@ class c_virtual_file:
         return information[ 0 ], information[ 1 ]
     
 
-    def access_level( self ) -> int:
+    def access_level( self, new_value: int = None ) -> int:
         """
-            Get virtual file's access level.
+            Get/Set virtual file's access level.
 
-            Receive :   None
+            Receive :   
+            - new_value [optional] - New access level for virtual_file
 
             Returns :   int - Access level
         """
 
+        if new_value is None:
+            return self._access_level
+
+        self._access_level = new_value
         return self._access_level
 
 
@@ -418,10 +425,6 @@ class c_virtual_file:
             return False
         
         file_path   = f"{ self._normal_path }\\{ self._name }"
-
-        # never use .readlines( ). 
-        # This trash actually breaks everything
-        # It has incorrect encoding and more
 
         data = b''
         with open( file_path, "rb" ) as f:
@@ -691,6 +694,18 @@ class c_files_manager_protocol:
             file: c_virtual_file = self._files[ file_name ]
             file.clear_content( )
 
+
+    def remove_file( self, name: str ):
+        """
+            Unregister a specific file from the files protocol.
+
+            Receive :
+            - name - File's name
+
+            Returns :   None
+        """
+
+        del self._files[ name ]
 
     def get_header( self ) -> str:
         return FILES_MANAGER_HEADER

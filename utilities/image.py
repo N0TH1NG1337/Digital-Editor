@@ -8,14 +8,17 @@
 """
 
 import  OpenGL.GL   as      gl
-from    PIL         import  Image
+from    PIL         import  Image, ImageFilter
 import  numpy
 
 from utilities.vector       import vector
 from utilities.wrappers     import safe_call
+from utilities.debug        import c_debug
 
 
 INVALID = -1    # Invalid image id
+
+IMAGE_FILTER_BLUR = 1
 
 
 # Image class
@@ -39,14 +42,15 @@ class c_image:
         self._size  = vector( )
 
 
-    @safe_call( None )
-    def load( self, path: str, size: vector ) -> any:
+    @safe_call( c_debug.log_error )
+    def load( self, path: str, size: vector, flags: list = [ ] ) -> any:
         """
             Load Image object from specific path
 
             Receives:   
-            - path - image location path
-            - size - font height
+            - path              - image location path
+            - size              - font height
+            - flags [optional]  - Image flags
 
             Returns:    Image object
         """
@@ -57,6 +61,10 @@ class c_image:
 
         # Open and get image data
         image           = Image.open( path )
+
+        if IMAGE_FILTER_BLUR in flags:
+            image       = image.filter( ImageFilter.GaussianBlur( 10 ) )
+
         image_data      = numpy.array( image.convert( "RGBA" ), dtype=numpy.uint8 )
 
         # Generate OpenGL Texture Id

@@ -43,6 +43,8 @@ class window_config_t:
 
     bar_color:          color   = color( )
 
+    back_wallpaper:     c_image = None
+
 
 # Window class
 class c_window:
@@ -174,11 +176,17 @@ class c_window:
 
         self._animations.update( )
 
-        fade: float = self._animations.preform( "Fade", self._show and 1 or 0, self._config.speed )
+        if self._show:
+            is_this_last_window = self._parent.last_window( ) is self
+            fade: float = self._animations.preform( "Fade", is_this_last_window and 1 or 0.3, self._config.speed )
+        else:
+            fade: float = self._animations.preform( "Fade", 0, self._config.speed )
 
         self._render.push_position( self._position )
 
         self.__draw_background( fade )
+
+        self._render.push_clip_rect( vector( ), self._size, True )
 
         self.__event_draw( )
 
@@ -189,6 +197,8 @@ class c_window:
         self._render.pop_position( )
 
         self.__unload_window( )
+
+        self._render.pop_clip_rect( )
 
 
     def __draw_background( self, fade: float ) -> None:
@@ -209,6 +219,9 @@ class c_window:
 
         # TODO ! REWORK THE BACKGROUND DRAWING
         # can add layer of blue or something and on top add transparent black.
+
+        back_wallpaper: c_image = self._config.back_wallpaper
+        pad:            int     = self._config.roundness
 
         self._render.rect(
             vector( 0, remove_height ), 

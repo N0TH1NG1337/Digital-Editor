@@ -2,3 +2,5 @@ __pycache__*/
 test.py
 *_test.py
 *.log
+todo.txt
+*.docx

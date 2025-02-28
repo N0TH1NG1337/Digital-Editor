@@ -919,26 +919,7 @@ class c_editor:
         # These things are just to release control. 
         # TODO ! Rework pls :P
 
-        changed_lines: list[ c_line ] = self.__get_selected_lines( )
-        first_line: c_line = changed_lines[ 0 ]
-
-        changed_lines.remove( first_line )
-
-        first_line.text       = first_line.prev
-
-        for line in changed_lines:
-            self._lines.remove( line )
-
-        del changed_lines
-
-        self._selected_line         = 0
-        self._amount_of_lines       = 0
-
-        self._is_hovered_discard    = False
-        self._is_typing             = False
-
-        if self._parent.is_this_active( self._index ):
-            self._parent.release_handle( self._index )
+        self.discard_action( )
 
 
     def __event_update_lines( self ):
@@ -1416,6 +1397,32 @@ class c_editor:
             self._cursor.y -= 1
 
             self.__event_correct_offset( -1 )
+
+
+    def discard_action( self ):
+        if self._selected_line <= 0:
+            return
+
+        changed_lines: list[ c_line ] = self.__get_selected_lines( )
+        first_line: c_line = changed_lines[ 0 ]
+
+        changed_lines.remove( first_line )
+
+        first_line.text       = first_line.prev
+
+        for line in changed_lines:
+            self._lines.remove( line )
+
+        del changed_lines
+
+        self._selected_line         = 0
+        self._amount_of_lines       = 0
+
+        self._is_hovered_discard    = False
+        self._is_typing             = False
+
+        if self._parent.is_this_active( self._index ):
+            self._parent.release_handle( self._index )
 
 
     def __char_vector_to_relative( self, char_position: vector ) -> vector:

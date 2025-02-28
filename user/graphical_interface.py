@@ -134,7 +134,8 @@ class c_user_gui:
         self._logic.set_event( "on_line_lock",          self.__event_lock_line,         "gui_editor_line_lock",     True )
         self._logic.set_event( "on_line_unlock",        self.__event_unlock_line,       "gui_editor_line_unlock",   True )
         self._logic.set_event( "on_line_update",        self.__event_change_lines,      "gui_editor_line_update",   True )
-        self._logic.set_event( "on_line_delete",        self.__event_remove_line,       "gui_editor_line_remove",   True  )
+        self._logic.set_event( "on_line_delete",        self.__event_remove_line,       "gui_editor_line_remove",   True )
+        self._logic.set_event( "on_level_update",       self.__event_update_level,      "gui_level_update",         True )
 
     
     def __initialize_resources( self ):
@@ -147,34 +148,32 @@ class c_user_gui:
         """
 
         execution_directory = os.getcwd( )
-        self._application.create_font( "Title",     FONT, 100 )
-        self._application.create_font( "SubTitle",  FONT, 50 )
+        self._application.create_font( "Title",     FONT_BOLD, 100 )
+        self._application.create_font( "SubTitle",  FONT_BOLD, 50 )
         self._application.create_font( "Steps",     FONT, 20 )
         self._application.create_font( "Button",    FONT, 20 )
         self._application.create_font( "TextInput", FONT, 20 )
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
-        self._application.create_font( "Editor",    FONT_THIN, 20 )
+        self._application.create_font( "Editor",    FONT, 20 )
 
         self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,    vector( 3840, 2160 ) )
-        self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
+        #self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
 
-        self._application.create_image( "Cloud",        execution_directory + ICON_CLOUD,         vector( 200, 200 ) )
-        self._application.create_image( "Folders",      execution_directory + ICON_FOLDERS,       vector( 200, 200 ) )
-        self._application.create_image( "Connection",   execution_directory + ICON_CONNECTION,    vector( 200, 200 ) )
-        self._application.create_image( "User",         execution_directory + ICON_USER,          vector( 40, 40 ) )
-        self._application.create_image( "Next",         execution_directory + ICON_NEXT,          vector( 40, 40 ) )
-        self._application.create_image( "Check",        execution_directory + ICON_CHECK,         vector( 40, 40 ) )
-        self._application.create_image( "Edit",         execution_directory + ICON_EDIT,          vector( 40, 40 ) )
-        self._application.create_image( "Visible",      execution_directory + ICON_VISIBLE,       vector( 40, 40 ) )
-        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,         vector( 40, 40 ) )
-        self._application.create_image( "Listen",       execution_directory + ICON_LISTEN,        vector( 40, 40 ) )
-        self._application.create_image( "NetMan",       execution_directory + ICON_NET_MAN,       vector( 40, 40 ) )
-        self._application.create_image( "Copy",         execution_directory + ICON_COPY,          vector( 40, 40 ) )
-        self._application.create_image( "Back",         execution_directory + ICON_BACK,          vector( 40, 40 ) )
-        self._application.create_image( "Folder",       execution_directory + ICON_FOLDER,        vector( 40, 40 ) )
-        self._application.create_image( "File",         execution_directory + ICON_FILE,          vector( 40, 40 ) )
-        self._application.create_image( "Menu",         execution_directory + ICON_MENU,          vector( 40, 40 ) )
+        self._application.create_image( "Username",     execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
+        self._application.create_image( "Password",     execution_directory + ICON_PASSWORD,        vector( 30, 30 ) )
+        self._application.create_image( "Next",         execution_directory + ICON_NEXT,            vector( 30, 30 ) )
+        self._application.create_image( "Prev",         execution_directory + ICON_PREV,            vector( 30, 30 ) )
+
+        self._application.create_image( "Folder",       execution_directory + ICON_FOLDER,          vector( 30, 30 ) )
+        self._application.create_image( "File",         execution_directory + ICON_FILE,            vector( 30, 30 ) )
+
+        self._application.create_image( "Code",         execution_directory + ICON_PORT,            vector( 30, 30 ) )
+        self._application.create_image( "Copy",         execution_directory + ICON_COPY,            vector( 30, 30 ) )
+
+        self._application.create_image( "Menu",         execution_directory + ICON_MENU,            vector( 40, 40 ) )
+        self._application.create_image( "Files",        execution_directory + ICON_FILES,           vector( 40, 40 ) )
+        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,           vector( 40, 40 ) )
 
         self._temp[ "setup_proccess" ]  = 0
         
@@ -194,11 +193,13 @@ class c_user_gui:
         """
 
         self._scene_loadup_config = scene_config_t( )
+        self._scene_loadup_config.animate_movement = True
 
         self._scene_loadup = self._application.new_scene( self._scene_loadup_config )
 
         self._scene_loadup.set_event( "draw",           self.__scene_loadup_draw,   "Scene Loadup Draw Main" )
         self._scene_loadup.set_event( "mouse_input",    self.__scene_loadup_update, "Scene Loadup Update" )
+        self._scene_loadup.set_event( "keyboard_input", self.__scene_loadup_update, "Scene Loadup Update" )
 
     
     def __scene_loadup_draw( self, event ):
@@ -261,7 +262,7 @@ class c_user_gui:
             Returns : None
         """
 
-        if event( "action" ) == glfw.PRESS and event( "button" ) == glfw.MOUSE_BUTTON_LEFT:
+        if event( "action" ) == glfw.PRESS:
             self._application.active_scene( self._scene_setup.index( ) )
 
     # endregion
@@ -309,18 +310,21 @@ class c_user_gui:
         button_font:    c_font  = self._application.font( "Button" )
         list_font:      c_font  = self._application.font( "List" )
 
-        user_icon:      c_image = self._application.image( "User" )
-        next_icon:      c_image = self._application.image( "Next" )
-        close_icon:     c_image = self._application.image( "Close" )
+        username_icon:      c_image = self._application.image( "Username" )
+        password_icon:      c_image = self._application.image( "Password" )
+        code_icon:          c_image = self._application.image( "Code" )
 
-        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), user_icon, text_font, "project code" )
+        next_icon:      c_image = self._application.image( "Next" )
+        prev:           c_image = self._application.image( "Prev" )
+
+        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), code_icon, text_font, "project code" )
 
         self._registration_type  = c_side_list( self._scene_setup, vector( 50, 100 ), 400, list_font )
-        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), user_icon, text_font, "username" )
-        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 220 ), 40, vector( 200, 30 ), user_icon, text_font, "password", True )
+        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), username_icon, text_font, "username" )
+        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 220 ), 40, vector( 200, 30 ), password_icon, text_font, "password", True )
 
-        self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ),   40, button_font, close_icon, "Previous", self.__scene_setup_previous_step )
-        self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ),  40, button_font, next_icon,  "Next",     self.__scene_setup_next_step )
+        self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ),   40, button_font, prev,      "Previous", self.__scene_setup_previous_step )
+        self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ),  40, button_font, next_icon, "Next",     self.__scene_setup_next_step )
 
         self._entry_username.visible( False )
         self._entry_password.visible( False )
@@ -497,14 +501,12 @@ class c_user_gui:
 
         self._application.active_scene( self._scene_wait.index( ) )
 
-        # TODO ! Start the user program
         result: bool = self._logic.connect( 
             self._entry_project_code.get( ),
             self._entry_username.get( ),
             self._entry_password.get( ),
             self._registration_type.get( )
         )
-
     
         if result:
             time.sleep( LOADING_MIN_TIME )
@@ -552,10 +554,8 @@ class c_user_gui:
         button_font:    c_font  = self._application.font( "Button" )
 
         menu_icon:      c_image = self._application.image( "Menu" )
-        file_icon:      c_image = self._application.image( "File" )
-        admin_icon:     c_image = self._application.image( "User" )
+        files_icon:     c_image = self._application.image( "Files" )
         close_icon:     c_image = self._application.image( "Close" )
-        copy_icon:      c_image = self._application.image( "Copy" )
 
         solution_config = solution_explorer_config_t( )
 
@@ -564,10 +564,9 @@ class c_user_gui:
 
         self._editor        = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
 
-        self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ), menu_icon, self.__callback_on_press_menu )
-        self._button_files  = c_icon_button( self._scene_project, vector( 100, 50 ), file_icon, self.__callback_on_press_files )
-
-        self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ), close_icon, self.__callback_on_press_close )
+        self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ),     menu_icon,  self.__callback_on_press_menu )
+        self._button_files  = c_icon_button( self._scene_project, vector( 100, 50 ),    files_icon, self.__callback_on_press_files )
+        self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ),   close_icon, self.__callback_on_press_close )
 
         self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", None )
         #self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", None )
@@ -713,6 +712,7 @@ class c_user_gui:
         self._application.active_scene( self._scene_setup.index( ) )
 
         self._temp[ "setup_proccess" ] = 0
+        self._solution_explorer.clear( )
         self.__scene_setup_update( )
 
     
@@ -744,6 +744,7 @@ class c_user_gui:
         file:           str     = event( "file" )
         read_only:      bool     = event( "read_only" )
 
+        self._editor.discard_action( )
         self._editor.clear( )
         self._editor.set_file( file )
 
@@ -932,6 +933,51 @@ class c_user_gui:
 
         self._logic.accept_offset( file, offset )
     
+
+    def __event_update_level( self, event ):
+        """
+            Update the access level of a file.
+
+            Receive :
+            - event - Event information
+
+            Returns :   None
+        """
+
+        file_name:      str = event( "file" )
+        access_level:   int = event( "access_level" )
+
+        if access_level == FILE_ACCESS_LEVEL_HIDDEN:
+
+            # We need to check a few things, first the editor...
+            if self._editor.get_file( ) == file_name:
+                # Stop any actions from the user
+                self._editor.discard_action( )
+
+                # Clear editor
+                self._editor.clear( )
+
+            # Now delete the file from the solution explorer
+            return self._solution_explorer.remove_item( file_name )
+
+        # If the file is not in the solution explorer, add it
+        if not self._solution_explorer.has_item( file_name ):
+            self._solution_explorer.add_item( file_name, lambda: self._logic.request_file( file_name ) )
+
+        if access_level == FILE_ACCESS_LEVEL_LIMIT:
+
+            if self._editor.get_file( ) == file_name:
+                # Stop any actions from the user
+                self._editor.discard_action( )
+                self._editor.enable_read_only( )
+            
+            return
+            
+        if access_level == FILE_ACCESS_LEVEL_EDIT:
+
+            if self._editor.get_file( ) == file_name:
+                self._editor.disable_read_only( )
+
     # endregion
 
     # region : Utilities
@@ -959,6 +1005,7 @@ class c_user_gui:
 
         big_font:   c_font      = self._application.font( "SubTitle" )
         font:       c_font      = self._application.font( "TextInput" )
+
         icon_copy:  c_image     = self._application.image( "Copy" )
 
         c_icon_button( new_window, vector( 430, 10 ), icon_copy, lambda: glfw.set_clipboard_string( None, message ) )

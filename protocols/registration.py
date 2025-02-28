@@ -128,6 +128,7 @@ class c_registration_protocol:
         result, error_str = self.validate_username( username )
         if not result:
             self._last_error = f"Failed to register user. reason : { error_str }"
+            return False
 
         full_path: str = os.path.join( self._project_path, DATABASE_NAME )
 
@@ -179,6 +180,7 @@ class c_registration_protocol:
         result, error_str = self.validate_username( username )
         if not result:
             self._last_error = f"Failed to login user. Invalid username, reason : { error_str }"
+            return False
 
         full_path: str = os.path.join( self._project_path, DATABASE_NAME )
 

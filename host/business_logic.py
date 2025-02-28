@@ -724,6 +724,9 @@ class c_client_handle:
         if file is None:
             return 
         
+        if file.access_level( ) == FILE_ACCESS_LEVEL_HIDDEN:
+            return
+        
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested file { file.name( ) }" )
 
         self._selected_file = file
@@ -1026,6 +1029,33 @@ class c_client_handle:
         # In the end process the command in commands pool
         self.__event_client_command( command )
     
+
+    @standalone_execute
+    def change_access_level( self, file_name: str, new_level: int ):
+        """
+            Change the access level of the file.
+
+            Receive :   
+            - file_name - File name
+            - new_level - New access level
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        #file.change_access_level( new_level )
+        c_debug.log_information( f"Client ( { self( 'username' ) } ) - changed access level of file { file_name } to { new_level }" )
+
+        file.access_level( new_level )
+
+        # Prepare messafe for client
+        message: str = self._files.format_message( FILES_COMMAND_CHANGE_LEVEL, [ file.name( ), str( new_level ) ] )
+        self.send_quick_message( message )
+        
+    
     # endregion
 
     # region : Offsets
@@ -1090,7 +1120,7 @@ class c_client_handle:
 
     # endregion
 
-    # region : File and line
+    # region : Files and lines
 
     def selected_file( self, new_value: any = None ) -> str:
         """
@@ -1139,6 +1169,43 @@ class c_client_handle:
         
         self._selected_line = new_value
         return new_value
+
+
+    def files_list( self ) -> list:
+        """
+            Returns a list of names of files for the client.
+
+            Receive :   None
+
+            Returns :   List
+        """
+
+        result = [ ]
+
+        for file_index in self._files.get_files( ):
+            file: c_virtual_file = self._files.search_file( file_index )
+
+            if file:
+                result.append( file.name( ) )
+
+        return result
+
+
+    def get_file( self, file_name: str ) -> list:
+        """
+            Get the file object by name.
+
+            Receive :   
+            - file_name - File name
+
+            Returns :   List [ file_name, access_level ]
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return [ "Unknown", 0 ]
+
+        return [ file.name( ), file.access_level( ) ]
 
     # endregion
 
@@ -1209,6 +1276,46 @@ class c_client_handle:
 
         return self._files
     
+
+    def attach_files( self, value: c_files_manager_protocol ):
+        """
+            Attach file manager protocol instance.
+
+            Receive :
+            - value - New instance of files manager protocol
+
+            Returns :   None
+        """
+
+        self._files = value
+
+    
+    def attach_network( self, value: c_network_protocol ):
+        """
+            Attach network protocol instance.
+
+            Receive :
+            - value - New instance of network protocol
+
+            Returns :   None
+        """
+
+        self._network = value
+
+    
+    def attach_information( self, index: str, value: any ):
+        """
+            Attach new information or update for client handle.
+
+            Receive :
+            - index - Key for value
+            - value - Actual value to attach
+
+            Returns :   None
+        """
+
+        self._information[ index ] = value
+
 
     def __call__( self, index: str ):
         """
@@ -1329,6 +1436,9 @@ class c_host_business_logic:
 
             "on_line_lock":             c_event( ),
             "on_line_unlock":           c_event( ),
+
+            "on_line_update":           c_event( ),
+            "on_line_delete":           c_event( )
         }
 
 
@@ -1352,6 +1462,8 @@ class c_host_business_logic:
         self._command_pool = queue.Queue( )
 
         self._host_client = c_client_handle( )
+        self._host_client.attach_network(   self._network )
+        self._host_client.attach_files(     self._files )
 
     # endregion
 
@@ -1376,6 +1488,8 @@ class c_host_business_logic:
             self._information[ "ip" ]       = ip
             self._information[ "port" ]     = port
             self._information[ "username" ] = username
+
+            self._host_client.attach_information( "username", username )
 
             # Start connection using network protocol
             self._network.start_connection( CONNECTION_TYPE_SERVER, ip, port )
@@ -1640,6 +1754,10 @@ class c_host_business_logic:
         file.change_line( line_number, new_lines, { "user": client( "username" ) } )
 
         self.__broadcast_for_shareable_clients( file, client, self.__broadcast_update_line, line_number, new_lines )
+
+        if not client == self._host_client:
+            self.__correct_host_offset( file, line_number, len( new_lines ) )
+            self.__event_line_update( file.name( ), line_number, new_lines )
     
 
     def __command_execute_commit_delete( self, client: c_client_handle, arguments: list ):
@@ -1664,6 +1782,10 @@ class c_host_business_logic:
         file.remove_line( line_number, { "user": client( "username" ) } )
 
         self.__broadcast_for_shareable_clients( file, client, self.__broadcast_delete_line, line_number )
+
+        if not client == self._host_client:
+            self.__correct_host_offset( file, line_number, 0 )
+            self.__event_line_delete( file.name( ), line_number )
 
 
     def __command_execute_accept_offset( self, client: c_client_handle, arguments: list ):
@@ -1927,7 +2049,7 @@ class c_host_business_logic:
 
                     # TODO ! Check if the file already copied
 
-                    fixed_name = f"{ path.replace( original_path, "" ) }\\{ entry.name }"
+                    fixed_name = f"{ path.replace( original_path, '' ) }\\{ entry.name }"
                     fixed_name = fixed_name.lstrip( "\\" )
                     
                     file = self._files.create_new_file( fixed_name, access_level, True )
@@ -2021,6 +2143,54 @@ class c_host_business_logic:
         self._host_client.selected_line( 0 )
 
         self.__broadcast_for_shareable_clients( file, None, self.__broadcast_unlock_line, line )
+
+
+    def update_line( self, file_name: str, line: int, lines: list ):
+        """
+            Update lines for all clients.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+            - lines     - List of changed lines
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        new_command: c_command = c_command( self._host_client, ENUM_PROTOCOL_FILES, FILES_COMMAND_UPDATE_LINE, [ ] )
+
+        new_command.add_arguments( file.name( ) )
+        new_command.add_arguments( line )
+        new_command.add_arguments( lines )
+
+        self._command_pool.put( new_command )
+
+    
+    def delete_line( self, file_name: str, line: int ):
+        """
+            Delete the line for all clients.
+
+            Receive :
+            - file_name - File name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return
+        
+        new_command: c_command = c_command( self._host_client, ENUM_PROTOCOL_FILES, FILES_COMMAND_DELETE_LINE, [ ] )
+
+        new_command.add_arguments( file.name( ) )
+        new_command.add_arguments( line )
+
+        self._command_pool.put( new_command )
 
     # endregion
 
@@ -2248,7 +2418,47 @@ class c_host_business_logic:
 
         event.invoke( )
 
+
+    def __event_line_update( self, file: str, line: int, lines: list ):
+        """
+            Event callback for updating line/lines.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+            - new_lines - New lines
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_update" ]
+
+        event.attach( "file",       file )
+        event.attach( "line",       line )
+        event.attach( "new_lines",  lines )
+
+        event.invoke( )
+
     
+    def __event_line_delete( self, file: str, line: int ):
+        """
+            Event callback for deleting line.
+
+            Receive :
+            - file      - File's name
+            - line      - Line number
+
+            Returns :   None
+        """
+
+        event: c_event = self._events[ "on_line_delete" ]
+
+        event.attach( "file",       file )
+        event.attach( "line",       line )
+
+        event.invoke( )
+
+
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
             Add function to be called on specific event.
@@ -2268,6 +2478,52 @@ class c_host_business_logic:
         event: c_event = self._events[ event_type ]
         event.set( callback, index, allow_arguments )
 
+    # endregion
+
+    # Utilities
+
+    def __correct_host_offset( self, file: c_virtual_file, line: int, new_lines: int ):
+        """
+            Correct the host file locked line on change.
+
+            Receive :
+            - file      - File's reference
+            - line      - Changed line number
+            - new_lines - New lines that changed
+
+            Returns :   None
+        """
+
+        client_line: int = self._host_client.selected_line( )
+        count_new_lines = new_lines - 1
+
+        if client_line > 0 and client_line > line:
+
+            if file.is_line_locked( client_line ):
+                file.unlock_line( client_line )
+                file.lock_line( client_line + count_new_lines )
+
+            self._host_client.selected_line( client_line + count_new_lines )
+
+
+    def find_client( self, username: str ) -> c_client_handle:
+        """
+            Search client by username.
+
+            Receive :
+            - username - Client's username
+
+            Returns :   Client object on find or None on fail
+        """
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            if client( "username" ) == username:
+                return client
+            
+        return None
+    
     # endregion
 
     def clients( self ) -> list:

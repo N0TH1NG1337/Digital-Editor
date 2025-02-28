@@ -19,9 +19,10 @@ from utilities.color    import color
 from utilities.vector   import vector
 from utilities.math     import math
 from utilities.wrappers import safe_call
-from utilities.image    import c_image
+from utilities.image    import c_image, IMAGE_FILTER_BLUR
 from utilities.font     import c_font
 from utilities.event    import c_event
+from utilities.debug    import c_debug
 
 # Import user interface related things
 from user_interface.render      import c_renderer
@@ -142,7 +143,7 @@ class c_application:
         return True
 
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def __init_glfw( self ) -> bool:
         """
             Initialize GLFW context
@@ -160,7 +161,7 @@ class c_application:
         return True
     
 
-    @safe_call( None )
+    @safe_call( c_debug.log_error )
     def __init_window( self ) -> bool:
         """
             Initialize window's application
@@ -211,7 +212,7 @@ class c_application:
         return True
     
 
-    @safe_call( print )
+    @safe_call( c_debug.log_error )
     def __init_backend( self ) -> bool:
         """
             Initialize imgui context and OpenGL renderer backend.
@@ -234,7 +235,7 @@ class c_application:
 
     # region : Assets
 
-    @safe_call( print )
+    @safe_call( c_debug.log_error )
     def create_font( self, index: str, path: str, size: int ) -> c_font:
         """
             Create new font object, save and return it
@@ -264,15 +265,16 @@ class c_application:
         return new_font
     
 
-    @safe_call( print )
-    def create_image( self, index: str, path: str, size: vector ) -> c_image:
+    @safe_call( c_debug.log_error )
+    def create_image( self, index: str, path: str, size: vector, flags: list = [ ] ) -> c_image:
         """
             Create new image object, save and return it
 
             Receives:   
-            - index     - Image index
-            - path      - Image path
-            - size      - Image size
+            - index             - Image index
+            - path              - Image path
+            - size              - Image size
+            - flags [optional]  - Image flags
 
             Returns:    Image object
 
@@ -284,7 +286,7 @@ class c_application:
         new_image = c_image( )
 
         # Load it
-        new_image.load( path, size )
+        new_image.load( path, size, flags )
 
         # Save
         images: dict = self._data[ "images" ]

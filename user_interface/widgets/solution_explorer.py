@@ -72,7 +72,7 @@ class c_item:
         self.position   = vector( )
 
         self.is_hovered = False
-        self.fade       = 0.3
+        self.fade       = 0
 
 
 class c_holder:
@@ -112,7 +112,7 @@ class c_holder:
         self.is_opened      = True
         self.show_slide     = True
 
-        self.fade           = 1
+        self.fade           = 0
         self.opened         = 1
 
     
@@ -455,7 +455,7 @@ class c_solution_explorer:
 
             item.position = vector( 0, self._drop + scroll_offset )
 
-            self._drop += slot_height * fade
+            self._drop += slot_height * fade 
         
 
         if folder.show_slide:
@@ -601,7 +601,6 @@ class c_solution_explorer:
         #x_offset = event( "x_offset" )
         y_offset = event( "y_offset" )
 
-        
         if self._drop > self._size.y:
             drop_min    = self._size.y - self._drop
         else:
@@ -728,6 +727,97 @@ class c_solution_explorer:
         new_item.right_click_callback   = right_click_callback
 
         last_folder.add_item( new_item )
+
+    
+    def remove_item( self, item_name: str ):
+        """
+            Remove item from solution explorer.
+
+            Receive :   
+            - item_name - Name of the item to remove
+
+            Returns :   None
+        """
+
+        parse_item = item_name.split( os.sep )
+        
+        index = 0
+        last_folder = self._folder
+        while index < len( parse_item ) - 1:
+
+            folder = parse_item[ index ]
+
+            folders: list = last_folder.get_holders( )
+
+            for sub_folder in folders:
+                if sub_folder.name == folder:
+                    last_folder = sub_folder
+                    break
+            else:
+                return
+
+            index += 1
+
+        items: list = last_folder.get_items( )
+
+        for item in items:
+            if item.name == parse_item[ -1 ]:
+                items.remove( item )
+                break
+        
+
+    def has_item( self, file_name: str ):
+        """
+            Check if item exists in solution explorer.
+
+            Receive :   
+            - file_name - Name of the file
+
+            Returns :   Bool
+        """
+
+        parse_item = file_name.split( os.sep )
+        
+        index = 0
+        last_folder = self._folder
+        while index < len( parse_item ) - 1:
+
+            folder = parse_item[ index ]
+
+            folders: list = last_folder.get_holders( )
+
+            for sub_folder in folders:
+                if sub_folder.name == folder:
+                    last_folder = sub_folder
+                    break
+            else:
+                return False
+
+            index += 1
+
+        items: list = last_folder.get_items( )
+
+        for item in items:
+            if item.name == parse_item[ -1 ]:
+                return True
+
+        return False
+
+
+    def clear( self ):
+        """
+            Clear solution explorer.
+
+            Receive :   None
+
+            Returns :   None
+        """
+
+        del self._folder
+        
+        self._folder = c_holder( "Solution Explorer" )
+        self._offset = 0
+
 
 
     def visible( self, new_value: bool = None ) -> bool:

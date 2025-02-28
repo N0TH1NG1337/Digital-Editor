@@ -318,8 +318,9 @@ class c_network_protocol:
     @safe_call( c_debug.log_error, [ 
         # Ignore these messages in the debug log
         "timed out",                                    # Its fine...
-        "invalid literal for int() with base 10",       # Like I closed the socket and we .recv( ) returned invalid number,
-        "[WinError 10038]"                              # Pops up when close socket while the timeout is active
+        "invalid literal for int() with base 10",       # Like I closed the socket and we .recv( ) returned invalid number
+        "[WinError 10038]",                             # Pops up when close socket while the timeout is active
+        "[WinError 10054]"                              # Have no idea but ig its fine
     ] )
     def receive( self, timeout: int = -1, receive_as_list: bool = False ) -> any:
         """

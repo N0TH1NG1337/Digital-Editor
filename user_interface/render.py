@@ -8,6 +8,10 @@
 """
 
 import imgui
+import os
+
+import OpenGL.GL    as gl
+import numpy        as np
 
 from utilities.color    import  color
 from utilities.vector   import  vector
@@ -562,7 +566,7 @@ class c_renderer:
                 1,
                 roundness + radius
             )
-
+            
     # endregion
 
     # region : Private functions
