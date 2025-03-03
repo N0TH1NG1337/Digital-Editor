@@ -1046,8 +1046,17 @@ class c_client_handle:
         if not file:
             return
         
-        #file.change_access_level( new_level )
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - changed access level of file { file_name } to { new_level }" )
+
+        old_access_level: int = file.access_level( )
+
+        if old_access_level == FILE_ACCESS_LEVEL_EDIT and new_level != FILE_ACCESS_LEVEL_EDIT and self._selected_file.name( ) == file.name( ) and self._selected_line != 0:
+            # Disable line lock
+            command = c_command( self, ENUM_PROTOCOL_FILES, FILES_COMMAND_DISCARD_UPDATE, [ ] )
+            command.add_arguments( file_name )
+            command.add_arguments( self._selected_line )
+
+            self.__event_client_command( command )
 
         file.access_level( new_level )
 

@@ -374,7 +374,7 @@ class c_path_select:
         seperate:       int     = self._config.seperate
         back_button:    int     = pad * 3 + self._back_icon.size( ).x + seperate
         position:       vector  = vector( self._position.x + back_button, self._position.y )
-        size:           vector  = vector( self._size.x - back_button - pad * 2, self._back_icon.size( ).y )
+        size:           vector  = vector( self._size.x - back_button - pad * 2, self._back_icon.size( ).y + pad * 2 )
 
         config = text_input_config_t( )
 
@@ -382,7 +382,7 @@ class c_path_select:
         config.speed        = self._config.speed
         config.input_color  = self._config.path_text_color.copy( )
 
-        self._input_path = c_single_input_logic( self._parent, position, self._font, size, False, "", config )
+        self._input_path = c_single_input_logic( self._parent, position, size, self._font, "", False, config )
 
 
     def __initialize_animations( self ):
@@ -464,7 +464,7 @@ class c_path_select:
 
         pad:                        int     = self._config.pad
 
-        self._window_size.y                 = self._size.y - self._input_path.correct_size( ).y
+        self._window_size.y                 = self._size.y - self._input_path.fixed_size( ).y
 
         parent_position:            vector  = self._parent.relative_position( )
         self._relative_position:    vector  = vector( parent_position.x + self._position.x, parent_position.y + self._position.y )
@@ -519,7 +519,7 @@ class c_path_select:
             self._position + self._size, 
             back_color,
             fade,
-            25,
+            20,
             roundness
         )
 
@@ -539,15 +539,14 @@ class c_path_select:
         seperate:           int     = self._config.seperate
         seperate_color:     color   = self._config.seperate_color
         back_icon_size:     vector  = self._back_icon.size( )
-        path_size:          vector  = self._input_path.correct_size( )
+        path_size:          vector  = self._input_path.fixed_size( )
         seperate_position:  vector  = vector( self._position.x + pad * 2 + back_icon_size.x, self._position.y + pad )
 
         hover_back:         float   = self._animations.value( "Back" ) * fade
 
         self._render.image( self._back_icon, self._position + vector( pad, pad ), color( ) * hover_back )
 
-        self._render.shadow( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color, fade, 25, seperate / 2)
-        self._render.rect( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color * fade, seperate / 2 )
+        self._render.neon( seperate_position, seperate_position + vector( seperate, path_size.y - pad * 2 ), seperate_color * fade, 18, seperate / 2 )
 
         self._input_path.draw( fade )
 
@@ -607,7 +606,7 @@ class c_path_select:
 
             self._render.image( self._folder_icon, icon_position, color( ) * show )
 
-            self._render.rect( seperate_position, seperate_position + vector( seperate, icon_size.y * show_seperate ), seperate_color * show_seperate, seperate / 2 )
+            self._render.neon( seperate_position, seperate_position + vector( seperate, icon_size.y * show_seperate ), seperate_color * show_seperate, 18, seperate / 2 )
 
             self._render.text( self._font, text_position, color( ) * show, name )
 
@@ -673,8 +672,7 @@ class c_path_select:
         position        = vector( start_position.x + self._window_size.x - seperate, start_position.y + value )
         end_position    = vector( start_position.x + self._window_size.x, start_position.y + value + fixed )
 
-        self._render.shadow( position, end_position, seperate_color, fade, 25, seperate / 2)
-        self._render.rect( position, end_position, seperate_color * fade, seperate / 2 )
+        self._render.neon( position, end_position, seperate_color * fade, 18, seperate / 2 )
 
     # endregion
 
@@ -760,7 +758,7 @@ class c_path_select:
 
     def __event_char_input( self, event ) -> None:
         
-        pass
+        pass    # Like actually todo
 
 
     def __event_keyboard_input( self, event ) -> None:
@@ -900,7 +898,7 @@ class c_path_select:
         
         self.__prepare_animations( )
 
-        self._input_path.set( self._active_folder.absolute_path( ) )
+        self._input_path.value( self._active_folder.absolute_path( ) )
 
         return self._active_folder
     
@@ -915,7 +913,7 @@ class c_path_select:
             Returns :   None
         """
 
-        self._input_path.set( new_folder.absolute_path( ) )
+        self._input_path.value( new_folder.absolute_path( ) )
         self._active_folder = new_folder
 
         self._offset = 0

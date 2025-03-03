@@ -337,13 +337,12 @@ class c_host_gui:
         next_icon:      c_image = self._application.image( "Next" )
         prev_icon:      c_image = self._application.image( "Prev" )
 
-
         ip_icon:        c_image = self._application.image( "Listen" )
         port_icon:      c_image = self._application.image( "Port" )
 
-        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), username_icon, text_font, "username" )
-        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), ip_icon,       text_font, "ip", False, "0.0.0.0" )
-        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 150 ), 40, vector( 200, 30 ), port_icon,     text_font, "port", False, "9978" )
+        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), text_font, username_icon, "username" )
+        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), text_font, ip_icon, "ip", "0.0.0.0" )
+        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), text_font, port_icon, "port", "9978" )
 
         self._path_select       = c_path_select( self._scene_setup, path_font, vector( 50, 100 ), vector( 500, 580 ), path_icons )
         self._list_access_level = c_side_list( self._scene_setup, vector( 50, 700 ), 500, list_font )
@@ -410,7 +409,7 @@ class c_host_gui:
             values:         vector  = animations.preform( step, wanted_value, speed )
 
             values.x *= fade
-            current_color = color( ).lieaner( color( 216, 208, 215, 255 ), values.y ) * values.x
+            current_color = color( ).linear( color( 216, 208, 215, 255 ), values.y ) * values.x
 
             render.text( steps_font, vector( 50 + offset, 50 ), current_color, step )
 
@@ -899,7 +898,7 @@ class c_host_gui:
 
             list_config = list_config_t( )
             list_config.slots_count = 3
-            list_config.back_color = list_config.back_color * 0
+            list_config.back_color  = list_config.back_color * 0
             list_config.check_mark  = self._application.image( "Check" )
 
             access_level_list: c_list = c_list( file_window, vector( 10, 10 ), 380, font, list_config )
@@ -936,6 +935,8 @@ class c_host_gui:
         window_config.show_bar      = True
 
         new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), window_config )
+
+        # TODO ֱֱֱֱֱֱֱֱ! Add logs.
 
     # endregion
 

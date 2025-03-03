@@ -567,6 +567,24 @@ class c_renderer:
                 roundness + radius
             )
             
+    
+    def neon( self, position: vector, end_position: vector, clr: color, glow: float = 18, roundness: int = 0 ):
+        """
+            Render a neon rect.
+
+            Receives:   
+            - position              - Start position
+            - end_position          - End position
+            - clr                   - Color
+            - glow [optional]       - Shadow thickness
+            - roundness [optional]  - Roundness factor
+
+            Returns:    None
+        """
+        
+        self.shadow( position, end_position, clr, clr.a / 255, glow, roundness )
+        self.rect( position, end_position, clr, roundness )
+
     # endregion
 
     # region : Private functions

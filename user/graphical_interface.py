@@ -157,7 +157,7 @@ class c_user_gui:
         self._application.create_font( "List",      FONT, 20 )
         self._application.create_font( "Editor",    FONT, 20 )
 
-        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,    vector( 3840, 2160 ) )
+        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,      vector( 3840, 2160 ), [ IMAGE_FILTER_BLUR ] )
         #self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
 
         self._application.create_image( "Username",     execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
@@ -317,11 +317,11 @@ class c_user_gui:
         next_icon:      c_image = self._application.image( "Next" )
         prev:           c_image = self._application.image( "Prev" )
 
-        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), code_icon, text_font, "project code" )
+        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), text_font, code_icon, "project code" )
 
         self._registration_type  = c_side_list( self._scene_setup, vector( 50, 100 ), 400, list_font )
-        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), username_icon, text_font, "username" )
-        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 220 ), 40, vector( 200, 30 ), password_icon, text_font, "password", True )
+        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), text_font, username_icon, "username" )
+        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 220 ), 40, vector( 200, 30 ), text_font, password_icon, "password" )
 
         self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ),   40, button_font, prev,      "Previous", self.__scene_setup_previous_step )
         self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ),  40, button_font, next_icon, "Next",     self.__scene_setup_next_step )
@@ -381,7 +381,7 @@ class c_user_gui:
             values:         vector  = animations.preform( step, wanted_value, speed )
 
             values.x *= fade
-            current_color = color( ).lieaner( color( 216, 208, 215, 255 ), values.y ) * values.x
+            current_color = color( ).linear( color( 216, 208, 215, 255 ), values.y ) * values.x
 
             render.text( steps_font, vector( 50 + offset, 50 ), current_color, step )
 

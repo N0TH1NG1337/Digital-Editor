@@ -2,7 +2,7 @@
 
 try {
     # Activate the virtual environment
-    .\virutal_env\Scripts\Activate.ps1
+    .\virtual_env\Scripts\Activate.ps1
 }
 catch {
     try {
@@ -69,3 +69,4 @@ if (Test-Path $selectedScript) {
 deactivate
 
 Write-Host "Script execution complete."
+Read-Host "Press any key to close"

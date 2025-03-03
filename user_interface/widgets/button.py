@@ -252,7 +252,7 @@ class c_button:
         self._render.shadow(
             self._position,
             self._position + vector( self._width, self._height ),
-            back_color.lieaner( seperate_color, hover ),
+            back_color.linear( seperate_color, hover ),
             fade,
             20,
             roundness
@@ -298,19 +298,11 @@ class c_button:
 
         self._render.pop_clip_rect( )
 
-        self._render.shadow(
-            start_seperate,
-            end_seperate,
-            seperate_color,
-            hover,
-            15,
-            seperate / 2
-        )
-
-        self._render.rect( 
+        self._render.neon( 
             start_seperate,
             end_seperate,
             seperate_color * hover,
+            18,
             seperate / 2
         )
 
@@ -631,7 +623,7 @@ class c_icon_button:
         self._render.shadow(
             self._position,
             self._position + size,
-            back_color.lieaner( seperate_color, hover ),
+            back_color.linear( seperate_color, hover ),
             fade,
             20,
             roundness

@@ -9,7 +9,7 @@ Clear-Host
 
 try {
     # 1. Create the virtual environment
-    python -m venv virutal_env 
+    python -m venv virtual_env 
 }
 catch {
 
@@ -19,7 +19,7 @@ catch {
 
 try {
     # 2. Activate the virtual environment
-    .\virutal_env\Scripts\Activate.ps1
+    .\virtual_env\Scripts\Activate.ps1
 }
 catch {
 

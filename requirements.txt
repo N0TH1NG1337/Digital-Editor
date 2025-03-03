@@ -1,3 +1,4 @@
-imgui[full]
+imgui[glfw]
 numpy
 pillow
+cryptography

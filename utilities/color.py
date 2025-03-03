@@ -168,7 +168,7 @@ class color:
         return color( self.r, self.g, self.b, new_alpha )
     
 
-    def lieaner( self, other: any, weight: float, hold: float = 0.01 ) -> any:
+    def linear( self, other: any, weight: float, hold: float = 0.01 ) -> any:
         """
             Linear interpolation between 2 colors
         

@@ -918,19 +918,11 @@ class c_side_list:
             text_position:      vector      = vector( position.x + icon_size.x, position.y + ( height - text_size.y ) / 2 )
 
             if enable > 0:
-                self._render.shadow(
+                self._render.neon(
                     select_position,
                     select_position + select_size,
-                    seperate_color,
-                    enable,
-                    25,
-                    seperate / 2
-                )
-
-                self._render.rect(
-                    select_position,
-                    select_position + select_size,
-                    color( ).lieaner( seperate_color, enable ) * enable,
+                    color( ).linear( seperate_color, enable ) * enable,
+                    18,
                     seperate / 2
                 )
 
