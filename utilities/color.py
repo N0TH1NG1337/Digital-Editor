@@ -216,6 +216,18 @@ class color:
         return color( self.r, self.g, self.b, self.a * over_alpha )
     
 
+    def __eq__( self, other: any ) -> bool:
+        """
+            Override equality operator for color object
+
+            Receives:   None
+
+            Returns:    bool
+        """
+
+        return self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a
+
+
     def __call__( self ):
         """
             Function to return an u32 color type for ImGui Render

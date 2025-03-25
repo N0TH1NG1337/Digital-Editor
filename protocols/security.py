@@ -222,6 +222,27 @@ class c_security:
         encryptor   = cipher.encryptor( )
 
         return iv + ( encryptor.update( data ) + encryptor.finalize( ) ) + encryptor.tag
+    
+
+    def fast_encrypt(self, data: bytes, key: bytes) -> bytes:
+        """
+            Encrypt data with key.
+
+            Receive :
+            - data - Information to encrypt
+            - key  - Key to encrypt with (will be converted to valid AES key)
+
+            Returns : Encrypted bytes (format: iv + ciphertext + tag)
+        """
+        # Convert the key to a valid AES key
+        aes_key = self.__convert_to_aes_key( key )
+        
+        iv = os.urandom( 16 )
+        cipher = Cipher( algorithms.AES( aes_key ), modes.GCM( iv ), backend=default_backend( ) )
+        encryptor = cipher.encryptor( )
+
+        return iv + ( encryptor.update( data ) + encryptor.finalize( ) ) + encryptor.tag
+    
 
     # endregion
 
@@ -263,10 +284,33 @@ class c_security:
         data    = data[ 16:-16 ]
 
         cipher      = Cipher( algorithms.AES( self._key.quick_key ), modes.GCM( iv, tag ), backend=default_backend( ) )
-        decryptor   = cipher.decryptor()
+        decryptor   = cipher.decryptor( )
 
         return decryptor.update( data ) + decryptor.finalize( )
+    
 
+    def fast_decrypt(self, data: bytes, key: bytes) -> bytes:
+        """
+            Decrypt data with key.
+
+            Receive :
+            - data - Encrypted information
+            - key  - Key to decrypt with (will be converted to valid AES key)
+
+            Returns : Decrypted bytes
+        """
+        # Convert the key to a valid AES key
+        aes_key = self.__convert_to_aes_key( key )
+
+        iv = data[ :16 ]
+        tag = data[ -16: ]
+        data = data[ 16:-16 ]
+
+        cipher = Cipher( algorithms.AES( aes_key ), modes.GCM( iv, tag ), backend=default_backend( ) )
+        decryptor = cipher.decryptor( )
+
+        return decryptor.update( data ) + decryptor.finalize( )
+    
     # endregion
 
     # region : Shuffle
@@ -412,6 +456,21 @@ class c_security:
         random.shuffle( indices )
 
         return bytes( indices )
+    
+
+    def __convert_to_aes_key( self, password: bytes ) -> bytes:
+        """
+            Convert any password into a valid 32-byte AES key using SHA-256.
+
+            Receive :
+            - password - The password bytes to convert
+
+            Returns : 32-byte key suitable for AES
+        """
+        
+        sha_hash = hashes.Hash( hashes.SHA256( ) )
+        sha_hash.update( password )
+        return sha_hash.finalize( )
     
     # endregion
     

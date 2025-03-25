@@ -446,8 +446,8 @@ class c_solution_explorer:
             current_item_position:  vector  = position + vector( 0, self._drop + ( slot_height / 2 ) )
             current_item_size:      vector  = self._render.measure_text( self._font, item.name )
 
-            item.fade = self._animations.fast_preform( item.fade, item.is_hovered and 1 or 0.3, speed )
-            current_color:          color   = item_color * fade * item.fade
+            item.fade = self._animations.fast_preform( item.fade, item.is_hovered and 1 or 0.3, speed ) * fade
+            current_color:          color   = item_color * item.fade
 
             # Here draw the item
             self._render.image( item_icon, current_item_position + vector( 0, -font_size / 2 ), item_color * fade, vector( font_size, font_size ) )
@@ -664,7 +664,7 @@ class c_solution_explorer:
                 current_folder.is_opened = not current_folder.is_opened
                 return True
                 
-            if self.__handle_items( current_folder, button ):
+            if current_folder.is_opened and self.__handle_items( current_folder, button ):
                 return True
 
         
@@ -672,7 +672,7 @@ class c_solution_explorer:
         for item in items:
             item: c_item = item
 
-            if item.is_hovered:
+            if item.is_hovered and item.fade > 0:
 
                 if button == glfw.MOUSE_BUTTON_LEFT and item.left_click_callback is not None:
                     item.left_click_callback( )
@@ -683,8 +683,6 @@ class c_solution_explorer:
                     return True
                 
         return False
-                
-            
 
     # endregion
 

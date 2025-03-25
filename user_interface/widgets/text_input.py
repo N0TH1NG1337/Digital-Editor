@@ -818,7 +818,6 @@ class c_text_input:
         seperate:   int = self._config.seperate
         roundness:  int = self._config.roundness
 
-
         color_background:   color = self._config.color_background
         color_shadow:       color = self._config.color_shadow
         color_theme:        color = self._config.color_theme

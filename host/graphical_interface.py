@@ -35,6 +35,7 @@ class c_host_gui:
     _temp:                  dict
 
     _entry_username:        c_text_input
+    _entry_password:        c_text_input
     _entry_ip:              c_text_input
     _entry_port:            c_text_input
     _path_select:           c_path_select
@@ -156,14 +157,16 @@ class c_host_gui:
         self._application.create_font( "SubTitle",  FONT_BOLD, 50 )
         self._application.create_font( "Steps",     FONT, 20 )
         self._application.create_font( "Button",    FONT, 20 )
+        self._application.create_font( "ButtonBold",FONT_BOLD, 20 )
         self._application.create_font( "TextInput", FONT, 20 )
         self._application.create_font( "Path",      FONT, 20 )
         self._application.create_font( "List",      FONT, 20 )
         self._application.create_font( "Editor",    FONT, 20 )
 
-        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,      vector( 3840, 2160 ), [ IMAGE_FILTER_BLUR ] )
+        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ) )
 
         self._application.create_image( "Username",     execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
+        self._application.create_image( "Password",     execution_directory + ICON_PASSWORD,        vector( 30, 30 ) )
         self._application.create_image( "Next",         execution_directory + ICON_NEXT,            vector( 30, 30 ) )
         self._application.create_image( "Prev",         execution_directory + ICON_PREV,            vector( 30, 30 ) )
 
@@ -185,10 +188,10 @@ class c_host_gui:
 
         self._application.create_image( "Check",        execution_directory + ICON_CHECK,           vector( 30, 30 ) )
 
-        self._application.create_image( "Menu",         execution_directory + ICON_MENU,            vector( 40, 40 ) )
-        self._application.create_image( "Files",        execution_directory + ICON_FILES,           vector( 40, 40 ) )
-        self._application.create_image( "Admin",        execution_directory + ICON_ADMIN,           vector( 40, 40 ) )
-        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,           vector( 40, 40 ) )
+        # self._application.create_image( "Menu",         execution_directory + ICON_MENU,            vector( 40, 40 ) )
+        # self._application.create_image( "Files",        execution_directory + ICON_FILES,           vector( 40, 40 ) )
+        # self._application.create_image( "Admin",        execution_directory + ICON_ADMIN,           vector( 40, 40 ) )
+        # self._application.create_image( "Close",        execution_directory + ICON_CLOSE,           vector( 40, 40 ) )
         
         self._temp[ "setup_proccess" ]  = 0
         
@@ -334,26 +337,26 @@ class c_host_gui:
         }
         
         username_icon:  c_image = self._application.image( "Username" )
+        password_icon:  c_image = self._application.image( "Password" )
         next_icon:      c_image = self._application.image( "Next" )
         prev_icon:      c_image = self._application.image( "Prev" )
 
         ip_icon:        c_image = self._application.image( "Listen" )
         port_icon:      c_image = self._application.image( "Port" )
 
-        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), text_font, username_icon, "username" )
-        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 100 ), 40, vector( 200, 30 ), text_font, ip_icon, "ip", "0.0.0.0" )
-        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 160 ), 40, vector( 200, 30 ), text_font, port_icon, "port", "9978" )
+        self._entry_username    = c_text_input( self._scene_setup, vector( 50, 120 ), 40, vector( 200, 30 ), text_font, username_icon, "username" )
+        self._entry_password    = c_text_input( self._scene_setup, vector( 50, 180 ), 40, vector( 200, 30 ), text_font, password_icon, "password" )
 
-        self._path_select       = c_path_select( self._scene_setup, path_font, vector( 50, 100 ), vector( 500, 580 ), path_icons )
+        self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 120 ), 40, vector( 200, 30 ), text_font, ip_icon, "ip", "0.0.0.0" )
+        self._entry_port        = c_text_input( self._scene_setup, vector( 50, 180 ), 40, vector( 200, 30 ), text_font, port_icon, "port", "9978" )
+
+        self._path_select       = c_path_select( self._scene_setup, path_font, vector( 50, 120 ), vector( 500, 560 ), path_icons )
         self._list_access_level = c_side_list( self._scene_setup, vector( 50, 700 ), 500, list_font )
 
         self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ), 40, button_font, prev_icon,   "Previous", self.__scene_setup_previous_step )
         self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ), 40, button_font, next_icon,  "Next",     self.__scene_setup_next_step )
 
-        self._path_select.visible( False )
-        self._list_access_level.visible( False )
-        self._entry_ip.visible( False )
-        self._entry_port.visible( False )
+        self.__scene_setup_update( )
 
         self._path_select.parse_path( os.getcwd( ) )
         self._list_access_level.add_item( "Hidden", None, None )
@@ -380,7 +383,7 @@ class c_host_gui:
 
         fade:       float           = animations.value( "Fade" )
         speed:      int             = self._scene_setup_config.speed
-        pad:        int             = 50
+        pad:        int             = 30
 
         steps = {
             0: "Username",
@@ -388,8 +391,16 @@ class c_host_gui:
             2: "Connection"
         }
 
-        offset      = 0
-        progress    = 0
+        width:      float = pad
+        for index in steps:
+            size: vector = render.measure_text( steps_font, steps[ index ] )
+            width += size.x + pad
+
+        render.shadow( vector( 50, 50 ), vector( 50 + width, 100 ), color( 0, 0, 0, 100 ), fade, 20, 10 )
+        render.rect( vector( 50, 50 ), vector( 50 + width, 100 ), color( 0, 0, 0, 100 * fade ), 10 )
+
+        offset:     float = pad
+        progress:   float = 0
 
         selected    = self._temp[ "setup_proccess" ]
         
@@ -411,12 +422,12 @@ class c_host_gui:
             values.x *= fade
             current_color = color( ).linear( color( 216, 208, 215, 255 ), values.y ) * values.x
 
-            render.text( steps_font, vector( 50 + offset, 50 ), current_color, step )
+            render.text( steps_font, vector( 50 + offset, 60 ), current_color, step )
 
             offset += step_size.x + pad
 
-        render.shadow( vector( 50, 80 ), vector( 50 + progress, 80 ), color( 216, 208, 215, 255 ), fade, 25 )
-        render.line( vector( 50, 80 ), vector( 50 + progress, 80 ), color( 216, 208, 215, 255 ) * fade )
+        render.shadow( vector( 80, 90 ), vector( 50 + progress, 90 ), color( 216, 208, 215, 255 ), fade, 25 )
+        render.line( vector( 80, 90 ), vector( 50 + progress, 90 ), color( 216, 208, 215, 255 ) * fade )
 
 
     def __scene_setup_adjust_elements( self, event ):
@@ -489,6 +500,7 @@ class c_host_gui:
         current_changes = changes[ process_index ]
 
         self._entry_username.visible( current_changes[ 0 ] )
+        self._entry_password.visible( current_changes[ 0 ] )
         self._path_select.visible( current_changes[ 1 ] )
         self._list_access_level.visible( current_changes[ 1 ] )
         self._entry_ip.visible( current_changes[ 2 ] )
@@ -528,9 +540,10 @@ class c_host_gui:
 
         time.sleep( 1 )
 
+        self._logic.setup( self._entry_ip.get( ), int( self._entry_port.get( ) ), self._entry_username.get( ), self._entry_password.get( ) )
+
         self._logic.initialize_path( self._path_select.get_path( ), self._list_access_level.get( ) )
 
-        self._logic.setup( self._entry_ip.get( ), int( self._entry_port.get( ) ), self._entry_username.get( ) )
         self._logic.start( )
 
         time.sleep( LOADING_MIN_TIME )
@@ -548,6 +561,7 @@ class c_host_gui:
         """
 
         self._scene_project_config = scene_config_t( )
+        self._scene_project_config.enable_stars = False
 
         self._scene_project = self._application.new_scene( self._scene_project_config )
 
@@ -571,42 +585,43 @@ class c_host_gui:
 
         editor_font:    c_font  = self._application.font( "Editor" )
         button_font:    c_font  = self._application.font( "Button" )
+        list_font:      c_font  = self._application.font( "List" )
 
-        menu_icon:      c_image = self._application.image( "Menu" )
-        file_icon:      c_image = self._application.image( "Files" )
-        admin_icon:     c_image = self._application.image( "Admin" )
-        close_icon:     c_image = self._application.image( "Close" )
+        file_icon:      c_image = self._application.image( "Folder" )
+        admin_icon:     c_image = self._application.image( "User" )
+        close_icon:     c_image = self._application.image( "Prev" )
 
-        #copy_icon:      c_image = self._application.image( "Copy" )
+
         share_icon:     c_image = self._application.image( "Share" )
         user_icon:      c_image = self._application.image( "User" )
         info_icon:      c_image = self._application.image( "Info" )
 
         solution_config = solution_explorer_config_t( )
-        
         solution_config.folder_icon = self._application.image( "Folder" )
         solution_config.item_icon   = self._application.image( "File" )
 
-        self._editor        = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
+        top_bar_config = list_config_t( )
+        top_bar_config.disable_pressed = True
 
-        self._button_menu   = c_icon_button( self._scene_project, vector( 50, 50 ),     menu_icon,  self.__callback_on_press_menu )
-        self._button_files  = c_icon_button( self._scene_project, vector( 100, 50 ),    file_icon,  self.__callback_on_press_files )
-        self._button_admin  = c_icon_button( self._scene_project, vector( 500, 50 ),    admin_icon, self.__callback_on_press_admin )
-        self._button_close  = c_icon_button( self._scene_project, vector( 50, 1000 ),   close_icon, self.__callback_on_press_close )
-
+        self._editor            = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
+        self._buttons_bar       = c_side_list( self._scene_project, vector( 50, 50 ), 400, list_font, top_bar_config )
         self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 400 ), button_font, solution_config )
-
-        self._button_placehoder1 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 1", self.__callback_on_press_admin )
-        # self._button_placehoder2 = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, menu_icon, "Placeholder 2", self.__callback_on_press_admin )
 
         self._button_share  = c_button( self._scene_project, vector( 50, 160 ), 40, button_font, share_icon, "Share", self.__callback_on_press_share )
         self._button_users  = c_button( self._scene_project, vector( 50, 220 ), 40, button_font, user_icon, "Users", self.__callback_on_press_users )
         self._button_logs   = c_button( self._scene_project, vector( 50, 280 ), 40, button_font, info_icon, "Logs", self.__callback_on_press_logs )
 
         # Utilites
-        welcome_messages = [ "Welcome to the Digital Editor.", "", "Current version : 1.0 preview.", "Please select a file to start editing." ]
+        self._editor.open_file( "Welcome" )
+        welcome_messages = [ "Welcome to the Digital Editor.", "", "Current version : 1.0 preview.", "Please select a file to start editing."]
         for msg in welcome_messages:
             self._editor.add_line( msg )
+
+        self._editor.read_only( True )
+
+        self._buttons_bar.add_item( "Files", file_icon,  self.__callback_on_press_files )
+        self._buttons_bar.add_item( "Admin", admin_icon, self.__callback_on_press_admin )
+        self._buttons_bar.add_item( "Exit",  close_icon, self.__callback_on_press_close )
         
         self._editor.set_event( "request_line", self.__event_editor_request_line,   "gui_editor_request_line" )
         self._editor.set_event( "discard_line", self.__event_discard_line,          "gui_editor_discard_line" ) 
@@ -614,8 +629,8 @@ class c_host_gui:
         self._editor.set_event( "delete_line",  self.__event_delete_line,           "gui_editor_delete_line" )
         
         self.__update_sidebar_elements( )
+    
 
-        
     def __scene_project_animate_tabs( self, event ):
         """
             Main draw function for Project Scene.
@@ -641,26 +656,19 @@ class c_host_gui:
         """
 
         screen:             vector      = self._application.window_size( )
-        button_menu_size:   vector      = self._button_menu.size( )
-        button_files_size:  vector      = self._button_files.size( )
 
         animations:         c_animations    = self._scene_project.animations( )
 
-        self._button_files.position( vector( 100 + button_menu_size.x, 50 ) )
-        self._button_admin.position( vector( 150 + button_menu_size.x + button_files_size.x, 50 ) )
-
         opened_tab = animations.value( "OpenMenu" ) * 300
 
-        self._editor.position( vector( 50 + opened_tab, 100 + button_menu_size.y ) )
-        self._editor.size( vector( screen.x - 100 - opened_tab, screen.y - 150 - button_menu_size.y ) )
-
-        self._button_close.position( vector( 50, screen.y - 50 - self._button_close.size( ).y ) )
+        self._editor.position( vector( 50 + opened_tab, 150 ) )
+        self._editor.size( vector( screen.x - 100 - opened_tab, screen.y - 200 ) )
 
     # region : Callbacks
-
-    def __callback_on_press_menu( self ):
+    
+    def __callback_on_press_files( self, _ ):
         """
-            Callback for the menu button.
+            Callback for the files button.
 
             Receive : None
 
@@ -675,9 +683,9 @@ class c_host_gui:
         self.__update_sidebar_elements( )
 
     
-    def __callback_on_press_files( self ):
+    def __callback_on_press_admin( self, _ ):
         """
-            Callback for the files button.
+            Callback for the admin button.
 
             Receive : None
 
@@ -692,23 +700,6 @@ class c_host_gui:
         self.__update_sidebar_elements( )
 
     
-    def __callback_on_press_admin( self ):
-        """
-            Callback for the admin button.
-
-            Receive : None
-
-            Returns : None
-        """
-
-        if self._opened_what == 3:
-            self._opened_what = 0
-        else:
-            self._opened_what = 3
-
-        self.__update_sidebar_elements( )
-
-    
     def __update_sidebar_elements( self ):
         """
             Update the sidebar elements.
@@ -719,26 +710,23 @@ class c_host_gui:
         """
 
         elements_visible = {
-            0: [ False, False, False ],
-            1: [ True, False, False ],
-            2: [ False, True, False ],
-            3: [ False, False, True ]
+            0: [ False, False ],
+            #1: [ True, False, False ],
+            1: [ True, False ],
+            2: [ False, True ]
         }
 
         current = elements_visible[ self._opened_what ]
 
-        self._button_close.visible(         current[ 0 ] )
-        self._button_placehoder1.visible(   current[ 0 ] )
-
         #self._button_placehoder2.visible(   current[ 1 ] )
-        self._solution_explorer.visible(    current[ 1 ] )
+        self._solution_explorer.visible(    current[ 0 ] )
         
-        self._button_share.visible(         current[ 2 ] )
-        self._button_users.visible(         current[ 2 ] )
-        self._button_logs.visible(          current[ 2 ] )
+        self._button_share.visible(         current[ 1 ] )
+        self._button_users.visible(         current[ 1 ] )
+        self._button_logs.visible(          current[ 1 ] )
     
 
-    def __callback_on_press_close( self ):
+    def __callback_on_press_close( self, _ ):
         """
             Callback for the close button.
 
@@ -750,9 +738,12 @@ class c_host_gui:
         self._logic.terminate( )
         self._application.active_scene( self._scene_setup.index( ) )
 
-
         self._temp[ "setup_proccess" ] = 0
-        self._entry_username.visible( True )
+        self.__scene_setup_update( )
+
+        self._editor.clear( )
+        self._editor.discard_action( )
+        self._solution_explorer.clear( )
 
 
     def __callback_on_press_share( self ):
@@ -827,6 +818,7 @@ class c_host_gui:
         """
 
         font:   c_font      = self._application.font( "List" )
+        icon:   c_image     = self._application.image( "Prev" )
         render: c_renderer  = self._application.render( )
         
         
@@ -842,14 +834,21 @@ class c_host_gui:
             client_window_config.title_font     = font
             client_window_config.back_wallpaper = self._application.image( "Wallpaper" )
             
-            client_info_window: c_window        = self._scene_project.create_window( vector( 400, 200 ), vector( 400, 330 ), client_window_config )
+            client_info_window: c_window        = self._scene_project.create_window( vector( 400, 200 ), vector( 400, 390 ), client_window_config )
             animations:         c_animations    = client_info_window.animations( )
+
+            def kick_user( ):
+                
+                client.disconnect( )
+                client_info_window.show( False )
+
+            c_button( client_info_window, vector( 10, 145 ), 40, font, icon, "Kick", kick_user )
 
             files_list_config = list_config_t( )
             files_list_config.slots_count   = 3
             files_list_config.back_color    = files_list_config.back_color * 0
 
-            files_list: c_list = c_list( client_info_window, vector( 10, 140 ), 380, font, files_list_config)
+            files_list: c_list = c_list( client_info_window, vector( 10, 200 ), 380, font, files_list_config)
 
             files: list = client.files_list( )
 
@@ -993,7 +992,8 @@ class c_host_gui:
         file:       str     = event( "file" )
 
         self._editor.clear( )
-        self._editor.set_file( file )
+        self._editor.read_only( False )
+        self._editor.open_file( file )
 
 
     def __event_add_editor_line( self, event ):
@@ -1054,8 +1054,9 @@ class c_host_gui:
 
         file_name:  str     = event( "file")
         line:       int     = event( "line" )
+        user:       str     = event( "user" )
 
-        self._editor.lock_line( line )
+        self._editor.lock_line( line, user )
 
     
     def __event_unlock_line( self, event ):

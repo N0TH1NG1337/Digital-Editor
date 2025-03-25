@@ -29,7 +29,7 @@ class c_user_business_logic:
 
     _network:       c_network_protocol
     _files:         c_files_manager_protocol
-    _registration:  c_registration_protocol
+    _registration:  c_registration
     _security:      c_security
 
     _information:   dict
@@ -69,7 +69,7 @@ class c_user_business_logic:
 
         self._files         = c_files_manager_protocol( )
 
-        self._registration  = c_registration_protocol( )
+        self._registration  = c_registration( )
         
         self._security      = c_security( )
     
@@ -441,6 +441,9 @@ class c_user_business_logic:
 
         length = len( arguments )
 
+        if length == 1 and arguments[ 0 ] == "":
+            return
+
         if length % 2 != 0:
             raise Exception( f"Invalid arguments list. Number of arguments must be even.\nReceived : { arguments }" )
             
@@ -519,7 +522,6 @@ class c_user_business_logic:
         accept:     bool = arguments[ 2 ] == "0"
 
         if line is None:
-            print( arguments[ 1 ] )
             return
         
         self.__event_accept_line( file_name, line, accept )
@@ -538,6 +540,7 @@ class c_user_business_logic:
 
         file_name:  str = arguments[ 0 ]
         line:       int = math.cast_to_number( arguments[ 1 ] )
+        user:       str = len( arguments ) == 3 and arguments[ 2 ] or "Unk"
 
         if line is None:
             return
@@ -548,7 +551,7 @@ class c_user_business_logic:
         
         # Maybe lock the line here ? for later checks ?
         
-        self.__event_line_lock( file.name( ), line )
+        self.__event_line_lock( file.name( ), line, user )
 
     
     @safe_call( c_debug.log_error )
@@ -992,7 +995,7 @@ class c_user_business_logic:
         event.invoke( )
 
 
-    def __event_line_lock( self, file: str, line: int ):
+    def __event_line_lock( self, file: str, line: int, locked_by: str ):
         """
             Event callback for locking a line.
 
@@ -1007,6 +1010,7 @@ class c_user_business_logic:
 
         event.attach( "file", file )
         event.attach( "line", line )
+        event.attach( "user", locked_by )
 
         event.invoke( )
 

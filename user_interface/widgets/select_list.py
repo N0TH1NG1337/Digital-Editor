@@ -23,20 +23,21 @@ from user_interface.animations  import c_animations
 
 
 class list_config_t:
-    speed:          int         = 7
-    pad:            int         = 10
-    seperate:       int         = 4
-    roundness:      int         = 10
+    speed:              int         = 7
+    pad:                int         = 10
+    seperate:           int         = 4
+    roundness:          int         = 10
 
-    seperate_color: color       = color( 216, 208, 215 )
-    back_color:     color       = color( 0, 0, 0, 100 )
+    seperate_color:     color       = color( 216, 208, 215 )
+    back_color:         color       = color( 0, 0, 0, 100 )
 
-    slots_count:    int         = 6
-    slot_height:    int         = 40
+    slots_count:        int         = 6
+    slot_height:        int         = 40
 
-    is_mutliselect: bool        = False
+    is_mutliselect:     bool        = False
+    disable_pressed:    bool        = False
 
-    check_mark:     c_image     = None
+    check_mark:         c_image     = None
 
 
 
@@ -1027,7 +1028,8 @@ class c_side_list:
             Returns :   None
         """
 
-        is_multi: bool = self._config.is_mutliselect
+        is_multi:           bool = self._config.is_mutliselect
+        disable_pressed:    bool = self._config.disable_pressed
 
         for item in self._items:
             item: c_list_item = item
@@ -1043,6 +1045,10 @@ class c_side_list:
                         item.is_enable = True
 
                         self.__new_values( False, item )
+                    else:
+                        
+                        if disable_pressed:
+                            item.is_enable = False
 
                 if item.callback is not None:
                     item.callback( item.text )

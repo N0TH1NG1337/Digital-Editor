@@ -89,7 +89,7 @@ class vector:
             Returns:    Bool value
         """
 
-        assert( type( start_vector ) == vector, "start_vector must be a vector" )
+        # assert( type( start_vector ) == vector, "start_vector must be a vector" )
 
         if self.x < start_vector.x or self.x > (start_vector.x + width):
             return False
@@ -255,5 +255,6 @@ class vector:
             return self.x == other[ 0 ] and self.y == other[ 1 ] and self.z == other[ 2 ]
 
         raise Exception( "Invalid other data type. Must be vector / tuple" )
+    
 
     # endregion

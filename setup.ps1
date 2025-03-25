@@ -5,6 +5,8 @@
 $requirementsFile = "requirements.txt"
 $runScriptPath = "execute.ps1"
 
+# TO EXECUTE : Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 Clear-Host
 
 try {

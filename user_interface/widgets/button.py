@@ -195,7 +195,7 @@ class c_button:
         seperate:           int     = self._config.seperate
 
         self._text_size:    vector  = self._render.measure_text( self._font, self._text )
-        self._width:        float   = self._text_size.x + self._icon_width + pad * 2 + self._animations.value( "Add" ) 
+        self._width:        float   = self._text_size.x + self._icon_width + pad + self._animations.value( "Add" ) 
 
         # Do position staff.
         # I could use self._render.push_position, but I dont want.
@@ -233,6 +233,7 @@ class c_button:
 
             Returns :   None
         """
+        
         if not self._config.show_back:
             return
 
@@ -276,15 +277,13 @@ class c_button:
 
         seperate_color: color   = self._config.seperate_color
 
-        part_height:    int     = ( self._height - 10 ) / 2
+        part_height:    int     = ( self._icon.size( ).y ) / 2
 
         hover:          float   = self._animations.value( "Hover" ) * fade
         add:            float   = self._animations.value( "Add" )
         hover_text:     float   = max( hover, 0.3 ) * fade
 
-        hovered_pad:    float   = pad * hover
-
-        text_position:      vector  = vector( self._position.x + pad + self._icon_width + add, self._position.y + ( self._height - self._text_size.y ) / 2 )
+        text_position:      vector  = vector( self._position.x + self._icon_width + add, self._position.y + ( self._height - self._text_size.y ) / 2 )
         icon_position:      vector  = vector( self._position.x + pad, self._position.y + ( self._height - self._icon.size( ).y ) / 2 )
         seperate_position:  vector  = self._position + vector( self._icon_width, self._height / 2 )
         

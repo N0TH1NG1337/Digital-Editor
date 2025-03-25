@@ -22,6 +22,7 @@ import time
 import os
 
 DEFAULT_FOLDER_NAME:    str     = "Digital Files"
+DEFAULT_TRUST_FACTOR:   int     = 50
 
 TIMEOUT_CONNECTION:     float   = 0.5
 TIMEOUT_MSG:            float   = 0.5
@@ -138,7 +139,7 @@ class c_client_handle:
 
     _network:           c_network_protocol          # Clients handle network connection
     _files:             c_files_manager_protocol    # Clients handle files
-    _registration:      c_registration_protocol     # Clients register process
+    _registration:      c_registration              # Clients register process
     _security:          c_security                  # Clients security protocol
 
     _information:       dict                        # Clients information
@@ -209,7 +210,7 @@ class c_client_handle:
 
         self._network       = None
         self._files         = c_files_manager_protocol( )
-        self._registration  = c_registration_protocol( )
+        self._registration  = c_registration( )
         self._security      = c_security( )
 
         self._information = {
@@ -219,8 +220,9 @@ class c_client_handle:
 
         self._selected_file     = None
         self._selected_line     = 0
-        self._trust_factor      = 50
+        self._trust_factor      = DEFAULT_TRUST_FACTOR
         self._offsets           = [ ]
+        self._issues            = [ ]
 
         self._files_commands = {
             FILES_COMMAND_REQ_FILES:        self.__share_files,
@@ -260,11 +262,11 @@ class c_client_handle:
 
         # Protect connection
         if not self.__secure_connection( ):
-            return self.disconnect( False )
+            return self.disconnect( False, True, False )
 
         # Register the connection
         if not self.__register_connection( ):
-            return self.disconnect( False )
+            return self.disconnect( False, True, False )
 
         self.__event_client_connected( address )
 
@@ -334,12 +336,12 @@ class c_client_handle:
         
         if not raw_msg.startswith( self._registration.header( ) ):
             self._information[ "last_error" ] = "Cannot receive normalized registration information about client"
-            return self.disconnect( False )
+            return self.disconnect( False, True, False )
 
         command, arguments = self._registration.parse_message( raw_msg )
         if not command or not arguments:
             self._information[ "last_error" ] = "Failed to parse message"
-            return 
+            return self.disconnect( False, True, False )
         
         success = False
 
@@ -349,7 +351,7 @@ class c_client_handle:
         if command == REGISTRATION_COMMAND_REG:
             # Register
             
-            success:    bool        = self._registration.register_user( arguments[ 0 ], arguments[ 1 ] )
+            success:    bool        = self._registration.register_user( arguments[ 0 ], arguments[ 1 ], { "files": { }, "trust_factor": DEFAULT_TRUST_FACTOR, "issues": [ ] } )
         
         elif command == REGISTRATION_COMMAND_LOG:
             # Logic
@@ -372,6 +374,22 @@ class c_client_handle:
             c_debug.log_information( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
 
             self._information[ "username" ] = arguments[ 0 ]
+
+            # Now since we have registered the user. Get the fields we need
+            self._trust_factor = self._registration.get_field( "trust_factor" )
+            self._issues       = self._registration.get_field( "issues" )
+
+            # Now get the files access levels
+            stored_access_levels = self._registration.get_field( "files" )
+
+            for file_name, access_level in stored_access_levels.items( ):
+                file: c_virtual_file = self._files.search_file( file_name )
+
+                if file is None:
+                    continue
+
+                file.access_level( access_level )
+
             return True
 
         # Here we have a problem
@@ -391,7 +409,7 @@ class c_client_handle:
         self.__receive_process( )
 
 
-    def disconnect( self, notify_the_client: bool = True ):
+    def disconnect( self, notify_the_client: bool = True, remove_client_handle: bool = True, update_fields: bool = True ):
         """
             Disconnect the client from the server.
 
@@ -408,8 +426,23 @@ class c_client_handle:
         # End the connection
         self._network.end_connection( )
 
+        # Update the fields
+
+        if update_fields:
+            self._registration.set_field( "trust_factor", self._trust_factor )
+            self._registration.set_field( "issues", self._issues )
+
+            files_field = { }
+            for file_name, file in self._files.get_files( ).items( ):
+                file: c_virtual_file = file
+                files_field[ file.name( ) ] = file.access_level( )
+            
+            self._registration.set_field( "files", files_field )
+
+            self._registration.update_fields( )
+
         # Call the event
-        self.__event_client_disconnected( notify_the_client )
+        self.__event_client_disconnected( notify_the_client, remove_client_handle )
 
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - disconnected" )
 
@@ -430,8 +463,8 @@ class c_client_handle:
         # Run the process while the network is valid
         while self._network.is_valid( ):
 
-            #if not self.check_trust_factor( ):
-            #    return self.disconnect( False )
+            if not self.check_trust_factor( ):
+                return self.disconnect( False )
             
             message: bytes = self.__receive( )
 
@@ -481,7 +514,7 @@ class c_client_handle:
 
         # Manual checks
         if message == DISCONNECT_MSG:
-            return self.disconnect( False )
+            return self.disconnect( False, True )
 
         if message == PING_MSG:
             return c_debug.log_information( f"Client ( { self( 'username' ) } ) - pinged" )
@@ -603,7 +636,7 @@ class c_client_handle:
         event.invoke( )
 
 
-    def __event_client_disconnected( self, notify_the_client: bool ):
+    def __event_client_disconnected( self, notify_the_client: bool, remove_client_handle: bool ):
         """
             Event when the client disconnected from the server.
 
@@ -616,6 +649,7 @@ class c_client_handle:
         event: c_event = self._events[ "on_client_disconnected" ]
         event.attach( "client", self )
         event.attach( "notify", notify_the_client and "1" or "0" )
+        event.attach( "remove", remove_client_handle and 1 or 0 )
 
         event.invoke( )
 
@@ -676,20 +710,19 @@ class c_client_handle:
             self._files.copy( file )
 
     
-    def load_database( self, path: str, username: str ):
+    def load_database( self, database: c_database ):
         """
             Load path for database of registration protocol.
 
             This must be called before .connect( )
 
             Receive :
-            - path      - Path to database
-            - username  - Username of creator
+            - database  - Database object
 
             Returns :   None
         """
 
-        self._registration.load_path_for_database( path, username )
+        self._registration.load_database( database )
 
 
     def __share_files( self, command: c_command ):
@@ -722,10 +755,10 @@ class c_client_handle:
 
         file: c_virtual_file = self._files.search_file( file_name )
         if file is None:
-            return 
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         if file.access_level( ) == FILE_ACCESS_LEVEL_HIDDEN:
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
         
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested file { file.name( ) }" )
 
@@ -772,23 +805,18 @@ class c_client_handle:
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
         if line_number is None:
-            # TODO ! Check maybe ?
-            return
+            return self.lower_trust_factor( 5, "Invalid line number" ) 
 
         if self._selected_line != 0:
-            # TODO ! Lower the trust factor
-            # Moreover ...
-            return
+            return self.lower_trust_factor( 10, "Cannot select new line while using other" ) 
 
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         access_level: int = file.access_level( )
         if access_level != FILE_ACCESS_LEVEL_EDIT:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
         
         # In general the locked lines should show up for the client
         # and it doesnt need to request it if locked
@@ -829,36 +857,24 @@ class c_client_handle:
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
         if line_number is None:
-            # TODO ! Check maybe ?
-            return
+            return self.lower_trust_factor( 5, "Invalid line number" ) 
 
         if self._selected_line == 0:
-            # TODO ! Lower the trust factor
-            # Moreover ...
-            return
+            return self.lower_trust_factor( 10, "Cannot discard line when not locked one" ) 
 
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         access_level: int = file.access_level( )
         if access_level != FILE_ACCESS_LEVEL_EDIT:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
 
-        # Fix the client offset...P
+        # Fix the client offset
         line_number += self.get_offset( )
 
         if line_number != self.selected_line( ):
-            # TODO ! Lower the trust factor
-            return
-
-        # This check will pass anyway if [ line_number == self.selected_line( ) ]
-        # is_locked: bool = file.is_line_locked( line_number )
-        # if not is_locked:
-        #     # TODO ! Lower the trust factor
-        #     return
+            return self.lower_trust_factor( 5, "Incorrect line index" )
 
         # Change the command arguments into real values
         command.clear_arguments( )
@@ -888,30 +904,24 @@ class c_client_handle:
         lines_number:   int     = math.cast_to_number( arguments[ 2 ] )
 
         if line_number is None or lines_number is None:
-            # TODO ! Check maybe ?
-            return
+            return self.lower_trust_factor( 5, "Invalid line number" ) 
 
         if self._selected_line == 0:
-            # TODO ! Lower the trust factor
-            # Moreover ...
-            return
-
+            return self.lower_trust_factor( 10, "Cannot update line when not locked one" ) 
+        
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         access_level: int = file.access_level( )
         if access_level != FILE_ACCESS_LEVEL_EDIT:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
         
-        # Fix the client offset...
+        # Fix the client offset
         line_number += self.get_offset( )
 
         if line_number != self.selected_line( ):
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Incorrect line index" )
 
         new_lines: list = [ ]
         for index in range( lines_number ):
@@ -954,30 +964,24 @@ class c_client_handle:
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
         if line_number is None:
-            # TODO ! Check maybe ?
-            return
+            return self.lower_trust_factor( 5, "Invalid line number" ) 
 
         if self._selected_line == 0:
-            # TODO ! Lower the trust factor
-            # Moreover ...
-            return
+            return self.lower_trust_factor( 10, "Cannot delete line when not locked one" ) 
 
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         access_level: int = file.access_level( )
         if access_level != FILE_ACCESS_LEVEL_EDIT:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
         
-        # Fix the client offset...
+        # Fix the client offset
         line_number += self.get_offset( )
 
         if line_number != self.selected_line( ):
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Incorrect line index" )
         
         # Change the command arguments into real values
         command.clear_arguments( )
@@ -998,7 +1002,7 @@ class c_client_handle:
             Returns :   None
         """
 
-        # Here we just preform all the checks...
+        # Here we just perform all the checks...
         arguments:      list    = command.arguments( )
 
         # Convert the arguments into real values
@@ -1006,22 +1010,18 @@ class c_client_handle:
         offset_number:  int     = math.cast_to_number( arguments[ 1 ] )
 
         if offset_number is None:
-            # TODO ! Check maybe ?
-            return
+            return self.lower_trust_factor( 5, "Invalid offset value" ) 
 
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
         
         access_level: int = file.access_level( )
         if access_level != FILE_ACCESS_LEVEL_EDIT:
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unauthorized request" )
         
         if not self.is_offset( offset_number ):
-            # TODO ! Lower the trust factor
-            return
+            return self.lower_trust_factor( 10, "Unknown offset" )
         
         command.clear_arguments( )
         command.add_arguments( offset_number )
@@ -1050,7 +1050,7 @@ class c_client_handle:
 
         old_access_level: int = file.access_level( )
 
-        if old_access_level == FILE_ACCESS_LEVEL_EDIT and new_level != FILE_ACCESS_LEVEL_EDIT and self._selected_file.name( ) == file.name( ) and self._selected_line != 0:
+        if old_access_level == FILE_ACCESS_LEVEL_EDIT and new_level != FILE_ACCESS_LEVEL_EDIT and ( self._selected_file is not None and self._selected_file.name( ) == file.name( ) ) and self._selected_line != 0:
             # Disable line lock
             command = c_command( self, ENUM_PROTOCOL_FILES, FILES_COMMAND_DISCARD_UPDATE, [ ] )
             command.add_arguments( file_name )
@@ -1374,6 +1374,7 @@ class c_host_business_logic:
 
     _network:       c_network_protocol
     _files:         c_files_manager_protocol
+    _database:      c_database
 
     _information:   dict
     _events:        dict
@@ -1414,8 +1415,9 @@ class c_host_business_logic:
             Returns:    None
         """
 
-        self._network = c_network_protocol()
-        self._files   = c_files_manager_protocol()
+        self._network   = c_network_protocol( )
+        self._files     = c_files_manager_protocol( )
+        self._database  = c_database( )
 
     
     def __initialize_events( self ):
@@ -1478,13 +1480,15 @@ class c_host_business_logic:
 
     # region : Connection
 
-    def setup( self, ip: str, port: int, username: str ):
+    def setup( self, ip: str, port: int, username: str, password: str ):
         """
             Setup the server for host business logic.
 
             Receive:    
             - ip    - IP address      
             - port  - Port number
+            - username  - Username of creator
+            - password  - Password of creator
 
             Returns:    None
         """
@@ -1497,6 +1501,7 @@ class c_host_business_logic:
             self._information[ "ip" ]       = ip
             self._information[ "port" ]     = port
             self._information[ "username" ] = username
+            self._information[ "password" ] = password
 
             self._host_client.attach_information( "username", username )
 
@@ -1559,11 +1564,14 @@ class c_host_business_logic:
         # Call event
         self.__event_host_stop( )
 
+        # Disconnect from the database
+        self._database.disconnect( )
+
         # Disconnect all the remaining clients
         for client in self._clients:
             client: c_client_handle = client
 
-            client.disconnect( True )
+            client.disconnect( True, False )
 
         self._clients.clear( )
 
@@ -1708,9 +1716,11 @@ class c_host_business_logic:
             client.selected_line( line_number )
             file.lock_line( line_number )
 
-            self.__broadcast_for_shareable_clients( file, client, self.__broadcast_lock_line, line_number )
+            client_username: str = client( "username" ) or "Failed"
 
-            self.__event_line_lock( file.name( ), line_number )
+            self.__broadcast_for_shareable_clients( file, client, self.__broadcast_lock_line, line_number, client_username )
+
+            self.__event_line_lock( file.name( ), line_number, client_username )
 
         message: str = self._files.format_message( FILES_COMMAND_PREPARE_RESPONSE, [ file.name( ), str( line_number ), response ] )
         client.send_quick_message( message )
@@ -1851,7 +1861,7 @@ class c_host_business_logic:
                     broadcast_function( client, file, *args )
 
 
-    def __broadcast_lock_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
+    def __broadcast_lock_line( self, client: c_client_handle, file: c_virtual_file, line: int, username: str ):
         """
             Notify the client that a specific line is locked.
 
@@ -1865,7 +1875,7 @@ class c_host_business_logic:
 
         # TODO ! Add check if the client can edit
 
-        message = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ) ] )
+        message = self._files.format_message( FILES_COMMAND_PREPARE_UPDATE, [ file.name( ), str( line ), username ] )
         client.send_quick_message( message )
     
 
@@ -1970,6 +1980,10 @@ class c_host_business_logic:
         self.__setup_default_access_level( )
 
         self.__setup_path( )
+
+        # Setup database
+        self._database.load_path( self._information[ "normal_path" ] )
+        self._database.connect( self._information[ "username" ], self._information[ "password" ] )
 
         self.__setup_files( )
 
@@ -2123,7 +2137,7 @@ class c_host_business_logic:
         file.lock_line( line )
         self._host_client.selected_line( line )
 
-        self.__broadcast_for_shareable_clients( file, None, self.__broadcast_lock_line, line )
+        self.__broadcast_for_shareable_clients( file, None, self.__broadcast_lock_line, line, self._information[ "username" ] )
 
         self.__event_accept_line( file.name( ), line )
 
@@ -2253,7 +2267,7 @@ class c_host_business_logic:
         new_client.set_event( "on_client_command",      self.__event_client_command,        "Host Client Command" )
 
         # Load path for database.
-        new_client.load_database( self._information[ "normal_path" ], self._information[ "username" ] )
+        new_client.load_database( self._database )
 
         # Attach files for client
         new_client.load_files( self._files )
@@ -2276,7 +2290,7 @@ class c_host_business_logic:
             Returns:    None
         """
 
-        if event( "notify" ) == "0":
+        if event( "remove" ) == 1:
             client: c_client_handle = event( "client" )
 
             # Remove the client from the list
@@ -2384,7 +2398,7 @@ class c_host_business_logic:
         event.invoke( )
 
     
-    def __event_line_lock( self, file: str, line: int ):
+    def __event_line_lock( self, file: str, line: int, locked_by: str = "?" ):
         """
             Event callback for locking a line.
 
@@ -2402,6 +2416,7 @@ class c_host_business_logic:
 
         event.attach( "file", file )
         event.attach( "line", line )
+        event.attach( "user", locked_by )
 
         event.invoke( )
 
@@ -2532,6 +2547,10 @@ class c_host_business_logic:
                 return client
             
         return None
+    
+
+    def get_host_client( self ) -> c_client_handle:
+        return self._host_client
     
     # endregion
 
