@@ -24,20 +24,36 @@ from user_interface.animations  import c_animations
 
 
 class text_input_config_t:
-    speed:      int = 10    # Animations speed
-    pad:        int = 10    # Default pad
-    seperate:   int = 4     # Seperate line
-    roundness:  int = 10    # Background roundness
+    speed:      int
+    pad:        int
+    separate:   int
+    roundness:  int
 
-    color_background:   color = color( 0, 0, 0, 100 )
-    color_shadow:       color = color( 0, 0, 0, 100 )
-    color_theme:        color = color( 216, 208, 215 )
-    color_selection:    color = color( 216, 208, 215 )
+    color_background:   color
+    color_shadow:       color
+    color_theme:        color
+    color_selection:    color
 
-    color_icon:         color = color(  )
-    color_label:        color = color(  )
+    color_icon:         color
+    color_label:        color 
+    color_input:        color
 
-    color_input:        color = color(  )
+    def __init__( self ):
+
+        self.speed:      int = 10    # Animations speed
+        self.pad:        int = 10    # Default pad
+        self.separate:   int = 4     # Separate line
+        self.roundness:  int = 10    # Background roundness
+
+        self.color_background:   color = color( 0, 0, 0, 150 )
+        self.color_shadow:       color = color( 0, 0, 0, 150 )
+        self.color_theme:        color = color( 207, 210, 215 )
+        self.color_selection:    color = color( 207, 210, 215 )
+
+        self.color_icon:         color = color(  )
+        self.color_label:        color = color(  )
+
+        self.color_input:        color = color(  )
 
 
 class c_single_input_logic:
@@ -122,6 +138,7 @@ class c_single_input_logic:
         self._animations.prepare( "width",      0 )
         self._animations.prepare( "text_width", 0 )
         self._animations.prepare( "index_fade", 0 )
+        self._animations.prepare( "index_pos",  0 )
         self._animations.prepare( "typing",     0 )
         self._animations.prepare( "offset",     0 )
 
@@ -184,9 +201,11 @@ class c_single_input_logic:
         show_cursor: bool = self._is_typing and ( self._selection_position.x is None and self._selection_position.y is None )
 
         # Animate the cursor index when typing and not
-        index_fade:     float = self._animations.preform( "index_fade", show_cursor and 1 or 0, speed) * fade
-        typing_fade:    float = self._animations.preform( "typing", self._is_typing and 1 or 0, speed ) * fade
-        offset:         float = self._animations.preform( "offset", self._offset, speed, 1 )
+        index_fade:     float = self._animations.perform( "index_fade", show_cursor and 1 or 0, speed) * fade
+        typing_fade:    float = self._animations.perform( "typing", self._is_typing and 1 or 0, speed ) * fade
+        offset:         float = self._animations.perform( "offset", self._offset, speed, 1 )
+
+        index_pos:      float = self._animations.perform( "index_pos", cur_sizes.x + offset, speed * 2 )
 
         # Create clipping rect vectors
         start_clip: vector = vector( self._position.x + pad, self._position.y )
@@ -199,7 +218,7 @@ class c_single_input_logic:
 
         # Render everything here
         self.__draw_text( fade, start_clip, visible_text, offset )
-        self.__draw_cursor( index_fade, start_clip, cur_sizes.x + offset )
+        self.__draw_cursor( index_fade, start_clip, index_pos )
         self.__draw_selection( typing_fade, start_clip, offset, visible_text )
 
         # Stop the clip
@@ -207,8 +226,8 @@ class c_single_input_logic:
 
         # Animate the width after everything is done rendering
         correct_pad = pad * 2
-        self._animations.preform( "width",      correct_pad + self._size.x, speed, 1 )
-        self._animations.preform( "text_width", correct_pad + self._text_size.x, speed, 1 )
+        self._animations.perform( "width",      correct_pad + self._size.x, speed, 1 )
+        self._animations.perform( "text_width", correct_pad + self._text_size.x, speed, 1 )
 
 
     def __update_relative_position( self ):
@@ -219,12 +238,11 @@ class c_single_input_logic:
 
     
     def __update_offset( self, position: vector, edges: vector, cursor_text_size: vector, visible_text_size: vector ):
-        if not self._is_typing:
-            return
         
         if (visible_text_size.x < self._size.x):
             self._offset = 0
             return
+
         
         pad: int = self._config.pad
 
@@ -253,8 +271,8 @@ class c_single_input_logic:
 
             if ( set_offset - 1 ) < edges.y:
                 self._offset += edges.y - ( set_offset - 1 )
-            
 
+        
         self._offset = math.clamp( self._offset, self._size.x - visible_text_size.x, 0 )
 
     
@@ -311,16 +329,16 @@ class c_single_input_logic:
             return
 
         color_selection:    color   = self._config.color_selection
-        seperate:           int     = self._config.seperate
+        separate:           int     = self._config.separate
 
         if self._selection_position.z == 1:
 
             self._render.neon(
-                vector( position.x + offset + start, position.y + self._size.y - seperate ),
+                vector( position.x + offset + start, position.y + self._size.y - separate ),
                 vector( position.x + offset + end, position.y + self._size.y ),
                 color_selection * fade,
                 18,
-                seperate / 2
+                separate / 2
             )
 
         else:
@@ -328,11 +346,11 @@ class c_single_input_logic:
             end_text    = self._render.measure_text( self._font, text[ :self._selection_index.y ] ).x
 
             self._render.neon(
-                vector( position.x + offset + start_text, position.y + self._size.y - seperate ),
+                vector( position.x + offset + start_text, position.y + self._size.y - separate ),
                 vector( position.x + offset + end_text, position.y + self._size.y ),
                 color_selection * fade,
                 18,
-                seperate / 2
+                separate / 2
             )
 
 
@@ -348,7 +366,7 @@ class c_single_input_logic:
         
         # Credit - My friend
         # The use of https://github.com/BalazsJako/ImGuiColorTextEdit/blob/master/TextEditor.cpp#L324
-        # logic is complete cancer since ImGui calculations for each char and whole text are diffrent...
+        # logic is complete cancer since ImGui calculations for each char and whole text are different...
 
         selected_index: int = 0
         length:         int = len( text )
@@ -378,10 +396,6 @@ class c_single_input_logic:
     # endregion
 
     # region : Input handle
-
-    # SOME IDEAS :
-    # FIRST OF ALL, THE INPUT KINDA REMAINS THE SAME, EXCEPT FOR ADDING SELECTION
-    # MOREOVER, THE OVERPADDING ON SIDES IS ONLY WHEN HOLDING/REPEAT ACTION IN GENERAL
 
     def event_mouse_position( self, event ):
 
@@ -461,6 +475,7 @@ class c_single_input_logic:
             return self._input
         
         self._input = new_value
+        self._cursor_index.x = len( self._input )
         return new_value
     
 
@@ -478,7 +493,8 @@ class c_single_input_logic:
         if new_value is None:
             return self._position
         
-        self._position = new_value.copy( )
+        self._position.x = new_value.x
+        self._position.y = new_value.y
         return new_value
     
 
@@ -487,7 +503,8 @@ class c_single_input_logic:
         if new_value is None:
             return self._size
         
-        self._size = new_value.copy( )
+        self._size.x = new_value.x
+        self._size.y = new_value.y
         return new_value
 
 
@@ -634,7 +651,7 @@ class c_text_input:
     _icon:                  c_image                 # Icon object
     _text:                  str                     # Label value
 
-    _is_visibe:             bool                    # Is this widget visible
+    _is_visible:             bool                   # Is this widget visible
     _is_disabled:           bool                    # Is this widget disabled
 
     _is_hovered:            bool                    # Is user hovered the text box widget
@@ -708,7 +725,7 @@ class c_text_input:
 
 
         self._animations.prepare( "label",      0 )
-        self._animations.prepare( "seperate",   0 )
+        self._animations.prepare( "separate",   0 )
 
 
     def __init_bones( self ):
@@ -717,7 +734,7 @@ class c_text_input:
         self._relative_position = self._position.copy( )
 
         # Set first values for specific behavior
-        self._is_visibe     = True
+        self._is_visible     = True
         self._is_disabled   = False
 
         # Set first values for input handle
@@ -753,7 +770,7 @@ class c_text_input:
     def __perform_calculations( self ):
         
         pad:        int = self._config.pad
-        seperate:   int = self._config.seperate
+        separate:   int = self._config.separate
 
         parent_position:            vector  = self._parent.relative_position( )
         self._relative_position:    vector  = vector( parent_position.x + self._position.x, parent_position.y + self._position.y )
@@ -762,7 +779,7 @@ class c_text_input:
 
         self._handle.position( 
             vector(
-                self._position.x + pad * 3 + self._icon.size( ).x + seperate + self._text_size.x,
+                self._position.x + pad * 3 + self._icon.size( ).x + separate + self._text_size.x,
                 self._position.y + ( self._height - self._handle.fixed_size( ).y ) / 2
             )
         )
@@ -774,29 +791,29 @@ class c_text_input:
         
         self._animations.update( )
 
-        seperate:   int     = self._config.seperate
+        separate:   int     = self._config.separate
         speed:      int     = self._config.speed
         pad:        int     = self._config.pad
 
-        if not self._is_visibe:
-            fade: float = self._animations.preform( "fade", 0, speed )
+        if not self._is_visible:
+            fade: float = self._animations.perform( "fade", 0, speed )
         else:
-            fade: float = self._animations.preform( "fade", self._is_disabled and 0.3 or 1, speed )
+            fade: float = self._animations.perform( "fade", self._is_disabled and 0.3 or 1, speed )
 
         if fade == 0:
             return
         
-        hover_fade:     float = self._animations.preform( "hover",  self._is_hovered and 1 or 0, speed )
-        typing_fade:    float = self._animations.preform( "typing", self._should_type and 1 or 0, speed )
+        hover_fade:     float = self._animations.perform( "hover",  self._is_hovered and 1 or 0, speed )
+        typing_fade:    float = self._animations.perform( "typing", self._should_type and 1 or 0, speed )
 
         if self._should_type:
-            self._animations.preform( "label", 0.7, speed )
-            self._animations.preform( "seperate", ( self._height - 10 ) / 2, speed )
+            self._animations.perform( "label", 0.7, speed )
+            self._animations.perform( "separate", ( self._height - 10 ) / 2, speed )
         else:
-            self._animations.preform( "label", self._is_hovered and 0.5 or 0.3, speed )
+            self._animations.perform( "label", self._is_hovered and 0.5 or 0.3, speed )
             
-            seperate_remove = self._is_hovered and 15 or 20
-            self._animations.preform( "seperate", ( self._height - seperate_remove ) / 2, speed )
+            separate_remove = self._is_hovered and 15 or 20
+            self._animations.perform( "separate", ( self._height - separate_remove ) / 2, speed )
 
 
         if self._handle.is_typing( ):
@@ -808,14 +825,14 @@ class c_text_input:
         if self._handle.value( ) != "":
             typing_fade = 1
 
-        fixed_width: int = pad * 4 + self._icon.size( ).x + seperate + self._text_size.x
-        self._animations.preform( "background_width", fixed_width + max( pad * hover_fade, input_width * typing_fade ), speed * 2 )
+        fixed_width: int = pad * 4 + self._icon.size( ).x + separate + self._text_size.x
+        self._animations.perform( "background_width", fixed_width + max( pad * hover_fade, input_width * typing_fade ), speed * 2 )
 
 
     def __draw_background( self, fade: float ):
         
         pad:        int = self._config.pad
-        seperate:   int = self._config.seperate
+        separate:   int = self._config.separate
         roundness:  int = self._config.roundness
 
         color_background:   color = self._config.color_background
@@ -828,11 +845,11 @@ class c_text_input:
         icon_size:  vector = self._icon.size( )
 
         icon_position:      vector = vector( self._position.x + pad, self._position.y + ( self._height - icon_size.y ) / 2 )
-        seperate_position:  vector = vector( icon_position.x + icon_size.x + pad, self._position.y + self._height / 2 )
-        label_position:     vector = vector( seperate_position.x + seperate + pad, self._position.y + ( self._height - self._text_size.y ) / 2 )
+        separate_position:  vector = vector( icon_position.x + icon_size.x + pad, self._position.y + self._height / 2 )
+        label_position:     vector = vector( separate_position.x + separate + pad, self._position.y + ( self._height - self._text_size.y ) / 2 )
 
         label_fade:     float = self._animations.value( "label" ) * fade
-        seperate_fade:  float = self._animations.value( "seperate" )
+        separate_fade:  float = self._animations.value( "separate" )
         hover_fade:     float = self._animations.value( "hover" )
         typing_fade:    float = self._animations.value( "typing" )
 
@@ -861,7 +878,7 @@ class c_text_input:
 
         self._render.image( self._icon, icon_position, color_icon.linear( color_theme, typing_fade ) * label_fade )
 
-        self._render.neon( vector( seperate_position.x, seperate_position.y - seperate_fade ), vector( seperate_position.x + seperate, seperate_position.y + seperate_fade ), color_theme * fade, 18, seperate / 2 )
+        self._render.neon( vector( separate_position.x, separate_position.y - separate_fade ), vector( separate_position.x + separate, separate_position.y + separate_fade ), color_theme * fade, 18, separate / 2 )
 
         self._render.text( self._font, label_position, color_label * label_fade, self._text )
 
@@ -882,7 +899,7 @@ class c_text_input:
 
     def __event_mouse_position( self, event ) -> None:
 
-        if not self._is_visibe or self._is_disabled:
+        if not self._is_visible or self._is_disabled:
             return
 
         self._handle.event_mouse_position( event )
@@ -904,7 +921,7 @@ class c_text_input:
 
     def __event_mouse_input( self, event ) -> None:
 
-        if not self._is_visibe or self._is_disabled:
+        if not self._is_visible or self._is_disabled:
             return
 
         self._handle.event_mouse_input( event )
@@ -918,7 +935,7 @@ class c_text_input:
 
     def __event_char_input( self, event ) -> None:
 
-        if not self._is_visibe or self._is_disabled:
+        if not self._is_visible or self._is_disabled:
             return
 
         self._handle.event_char_input( event )
@@ -926,7 +943,7 @@ class c_text_input:
 
     def __event_keyboard_input( self, event ) -> None:
         
-        if not self._is_visibe or self._is_disabled:
+        if not self._is_visible or self._is_disabled:
             return
         
         key         = event( "key" )
@@ -959,9 +976,9 @@ class c_text_input:
     def visible( self, new_value: bool = None ) -> bool:
 
         if new_value is None:
-            return self._is_visibe
+            return self._is_visible
 
-        self._is_visibe = new_value
+        self._is_visible = new_value
         return new_value
 
     

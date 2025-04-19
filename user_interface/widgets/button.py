@@ -25,17 +25,31 @@ from user_interface.animations  import c_animations
 # Buttons config classes
 
 class button_config_t:
-    speed:          int     = 7
-    pad:            int     = 10
-    seperate:       int     = 4
-    roundness:      int     = 10
+    speed:          int
+    pad:            int
+    separate:       int
+    roundness:      int
 
-    show_back:      bool    = True
+    show_back:      bool
 
-    back_color:     color   = color( 0, 0, 0, 100 )
-    seperate_color: color   = color( 216, 208, 215 )    # color( 150, 150, 255 )
-    text_color:     color   = color( 255, 255, 255 )
-    icon_color:     color   = color( 255, 255, 255 )
+    back_color:     color
+    separate_color: color
+    text_color:     color
+    icon_color:     color
+
+    def __init__( self ):
+
+        self.speed:          int     = 7
+        self.pad:            int     = 10
+        self.separate:       int     = 4
+        self.roundness:      int     = 10
+
+        self.show_back:      bool    = True
+
+        self.back_color:     color   = color( 0, 0, 0, 150 )
+        self.separate_color: color   = color( 207, 210, 215 )    # color( 150, 150, 255 )
+        self.text_color:     color   = color( 255, 255, 255 )
+        self.icon_color:     color   = color( 255, 255, 255 )
 
 
 class c_button:
@@ -192,7 +206,7 @@ class c_button:
         """
 
         pad:                int     = self._config.pad
-        seperate:           int     = self._config.seperate
+        seperate:           int     = self._config.separate
 
         self._text_size:    vector  = self._render.measure_text( self._font, self._text )
         self._width:        float   = self._text_size.x + self._icon_width + pad + self._animations.value( "Add" ) 
@@ -215,13 +229,13 @@ class c_button:
 
         self._animations.update( )
 
-        seperate:   int     = self._config.seperate
+        seperate:   int     = self._config.separate
         speed:      int     = self._config.speed
         pad:        int     = self._config.pad
         
-        self._animations.preform( "Fade",   self._is_visible and 1 or 0, speed )
-        self._animations.preform( "Hover",  self._is_hovered and 1 or 0, speed )
-        self._animations.preform( "Add",    self._is_hovered and seperate + pad or 0, speed, 0.5 )
+        self._animations.perform( "Fade",   self._is_visible and 1 or 0, speed )
+        self._animations.perform( "Hover",  self._is_hovered and 1 or 0, speed )
+        self._animations.perform( "Add",    self._is_hovered and seperate + pad or 0, speed, 0.5 )
 
 
     def __draw_background( self, fade: float ):
@@ -239,23 +253,23 @@ class c_button:
 
         roundness:      int     = self._config.roundness
         back_color:     color   = self._config.back_color
-        seperate_color: color   = self._config.seperate_color
+        seperate_color: color   = self._config.separate_color
 
         hover:          float   = self._animations.value( "Hover" ) * fade
 
-        self._render.rect(
-            self._position,
-            self._position + vector( self._width, self._height ),
-            back_color * fade,
-            roundness
-        )
-        
         self._render.shadow(
             self._position,
             self._position + vector( self._width, self._height ),
             back_color.linear( seperate_color, hover ),
             fade,
             20,
+            roundness
+        )
+
+        self._render.rect(
+            self._position,
+            self._position + vector( self._width, self._height ),
+            back_color * fade,
             roundness
         )
             
@@ -270,12 +284,12 @@ class c_button:
             Returns :   None
         """
 
-        seperate:       int     = self._config.seperate
+        seperate:       int     = self._config.separate
         pad:            int     = self._config.pad
         text_color:     color   = self._config.text_color
         icon_color:     color   = self._config.icon_color
 
-        seperate_color: color   = self._config.seperate_color
+        seperate_color: color   = self._config.separate_color
 
         part_height:    int     = ( self._icon.size( ).y ) / 2
 
@@ -322,6 +336,10 @@ class c_button:
         """
 
         if not self._is_visible:
+
+            if self._parent.is_this_active( self._index ):
+                self._parent.release_handle( self._index )
+
             return
 
         x = event( "x" )
@@ -587,8 +605,8 @@ class c_icon_button:
 
         speed:      int     = self._config.speed
         
-        self._animations.preform( "Fade",  self._is_visible and 1 or 0, speed )
-        self._animations.preform( "Hover", self._is_hovered and 1 or 0, speed )
+        self._animations.perform( "Fade",  self._is_visible and 1 or 0, speed )
+        self._animations.perform( "Hover", self._is_hovered and 1 or 0, speed )
 
 
     def __draw_background( self, fade: float ):
@@ -607,7 +625,7 @@ class c_icon_button:
         roundness:      int     = self._config.roundness
         pad:            int     = self._config.pad
         back_color:     color   = self._config.back_color
-        seperate_color: color   = self._config.seperate_color
+        seperate_color: color   = self._config.separate_color
 
         size:           vector  = self._icon.size( ) + ( pad * 2 )
         hover:          float   = self._animations.value( "Hover" ) * fade

@@ -43,8 +43,8 @@ class editor_config_t:
 
     separate:       int = 4
 
-    color_background:   color = color( 0, 0, 0, 100 )
-    color_shadow:       color = color( 0, 0, 0, 100 )
+    color_background:   color = color( 0, 0, 0, 150 )
+    color_shadow:       color = color( 0, 0, 0, 150 )
 
     color_text:         color = color( 255, 255, 255 )
 
@@ -53,9 +53,7 @@ class editor_config_t:
 
     color_other_lock:   color = color( 255, 150, 150 )
 
-    color_theme:        color = color( 216, 208, 215 )
-
-    # Syntax highlighting
+    color_theme:        color = color( 207, 210, 215 )
 
 
 class c_line:
@@ -283,6 +281,7 @@ class c_editor:
         self._animations = c_animations( )
 
         self._animations.prepare( "scroll", vector( ) )
+        self._animations.prepare( "cursor", vector( ) ) 
 
         self._animations.prepare( "bar_filename",   0 )
         self._animations.prepare( "bar_line",       0 )
@@ -466,8 +465,10 @@ class c_editor:
 
         if self._clicked_position.x != -1 and self._clicked_position.y != -1 and self._is_typing:
             index: vector = self.__relative_to_char_vector( self._clicked_position )
-            self._cursor.x = index.x 
             self._cursor.y = math.clamp( index.y, self._chosen_line - 1, self._chosen_line + self._chosen_amount - 2 )
+            self._cursor.x = index.x
+
+            self.__clamp_cursor( )
 
             self._clicked_position.x = -1
             self._clicked_position.y = -1
@@ -476,8 +477,8 @@ class c_editor:
     def __perform_animations( self ):
         
         # To avoid over indexing the animations object
-        animations: c_animations = self._animations
-        render:     c_renderer = self._render
+        animations: c_animations    = self._animations
+        render:     c_renderer      = self._render
 
         animations.update( )
 
@@ -486,16 +487,19 @@ class c_editor:
 
         double_pad: int = pad * 2
 
-        animations.preform( "scroll", self._offset, speed, 1 )
+        animations.perform( "scroll", self._offset, speed, 1 )
 
-        animations.preform( "bar_filename", render.measure_text( self._font, self._opened_file ).x + double_pad, speed, 1 )
-        animations.preform( "lines_show", render.measure_text( self._font, self._opened_lines ).x + double_pad, speed, 1 )
+        animations.perform( "bar_filename", render.measure_text( self._font, self._opened_file ).x + double_pad, speed, 1 )
+        animations.perform( "lines_show", render.measure_text( self._font, self._opened_lines ).x + double_pad, speed, 1 )
 
-        controls_enabled: float = animations.preform( "controls_enabled", self._is_typing and 1 or 0, speed )
-        animations.preform( "controls_show", controls_enabled == 1 and 1 or 0, speed )
+        controls_enabled: float = animations.perform( "controls_enabled", self._is_typing and 1 or 0, speed )
+        animations.perform( "controls_show", controls_enabled == 1 and 1 or 0, speed )
 
-        animations.preform( "discard_hover", self._is_hovered_discard and 1 or 0.3, speed )
-        animations.preform( "update_hover", self._is_hovered_update and 1 or 0.3, speed )
+        animations.perform( "discard_hover", self._is_hovered_discard and 1 or 0.3, speed )
+        animations.perform( "update_hover", self._is_hovered_update and 1 or 0.3, speed )
+        
+        if self._is_typing:
+            animations.perform( "cursor", self._position + self.__char_vector_to_relative( self._cursor ), speed * 2 )
     
 
     def __draw_top_bar( self, fade: float ):
@@ -725,10 +729,10 @@ class c_editor:
         is_line_outside:    bool = line.position.y < start_position.y or line.position.y + self._line_height - pad > self._position.y + size.y
 
         # From here we need to animate the line properties here
-        line.fade_pad       = animations.fast_preform( line.fade_pad, ( not is_line_outside ) and 1 or 0, speed ) * fade
-        line.fade           = animations.fast_preform( line.fade, ( is_line_selected or ( line.is_hovered and line.is_locked == 0 ) ) and fade or 0.5, speed ) * line.fade_pad
-        line.fade_locked    = animations.fast_preform( line.fade_locked, ( line.is_locked != 0 and not self._is_ctrl ) and 0.4 or 0, speed ) * line.fade_pad
-        line.fade_show_lock = animations.fast_preform( line.fade_show_lock, ( line.is_hovered and line.is_locked == 2 ) and 1 or 0, speed ) * fade
+        line.fade_pad       = animations.fast_perform( line.fade_pad, ( not is_line_outside ) and 1 or 0, speed ) * fade
+        line.fade           = animations.fast_perform( line.fade, ( is_line_selected or ( line.is_hovered and line.is_locked == 0 ) ) and fade or 0.5, speed ) * line.fade_pad
+        line.fade_locked    = animations.fast_perform( line.fade_locked, ( line.is_locked != 0 and not self._is_ctrl ) and 0.4 or 0, speed ) * line.fade_pad
+        line.fade_show_lock = animations.fast_perform( line.fade_show_lock, ( line.is_hovered and line.is_locked == 2 ) and 1 or 0, speed ) * fade
 
         if line.size.x > self._offset.z:
             self._offset.z = line.size.x
@@ -778,7 +782,7 @@ class c_editor:
         
         height:         int     = self._line_height
         
-        position:       vector  = self._position + self.__char_vector_to_relative( self._cursor )
+        position:       vector  = self._animations.value( "cursor" )
         start:          vector  = vector( position.x - 1, position.y )
         end:            vector  = vector( position.x + 1, position.y + height )
 
@@ -810,9 +814,6 @@ class c_editor:
         
         if self._selection_position.x is None or self._selection_position.y is None:
             return
-        
-        # start:  vector = self.__get_start_vector( self._selection_position.x, self._selection_position.y )
-        # end:    vector = self.__get_end_vector( self._selection_position.x, self._selection_position.y )
 
         if self._selection_index.x.x == -1 and self._selection_index.x.y == -1:
             start_index = self.__relative_to_char_vector( self._selection_position.x )
@@ -830,13 +831,14 @@ class c_editor:
             return self.__reset_selection( )
         
         color_theme:    color   = self._config.color_theme
+        pad:            int     = self._config.pad
         separate:       int     = self._config.separate
         line_height:    int     = self._line_height
 
         lines: list = self.get_selection( )
         for line_info in lines:
             start_position = self._position + self.__char_vector_to_relative( vector( line_info.x, line_info.z ) ) + vector( 0, line_height - separate )
-            end_position = self._position + self.__char_vector_to_relative( vector( line_info.y, line_info.z ) ) + vector( 0, line_height )
+            end_position = self._position + self.__char_vector_to_relative( vector( line_info.y, line_info.z ) ) + vector( pad, line_height )
 
             self._render.neon( start_position, end_position, color_theme * fade, 18, separate / 2 )
 
@@ -929,12 +931,18 @@ class c_editor:
 
         if not button == glfw.MOUSE_BUTTON_LEFT:
             return
+        
+        is_press:   bool = action == glfw.PRESS
+        is_release: bool = action == glfw.RELEASE
 
-        if self._is_ctrl:
+        if is_press:
+            self.__handle_press( )
+
+        if ( self._is_ctrl and not self._is_typing ) or self._is_typing:
             value: vector = self._mouse_position.copy( )
 
             not_hovered_buttons: bool = not self._is_hovered_discard and not self._is_hovered_update
-            if self._is_hovered and not_hovered_buttons and action == glfw.PRESS:
+            if self._is_hovered and not_hovered_buttons and is_press:
                 
                 if self._selection_position.y is not None:
                     self.__reset_selection( )
@@ -945,7 +953,7 @@ class c_editor:
 
                 return
             
-            if action == glfw.RELEASE and self._selection_position.x is not None:
+            if is_release and self._selection_position.x is not None:
                 self._selection_position.y = value
 
                 if ( time.time( ) - self._selection_index.z ) < 0.1:
@@ -957,10 +965,8 @@ class c_editor:
         else:
             self.__reset_selection( )
 
-        if not action == glfw.PRESS:
+        if not is_press:
             return
-        
-        self.__handle_press( )
         
         if self.__handle_buttons( ):
             return
@@ -992,14 +998,16 @@ class c_editor:
 
 
     def __event_keyboard_input( self, event ) -> None:
-
-        if not self._is_typing:
-            return
         
         key:    int = event( "key" )
         action: int = event( "action" )
 
         self.__handle_ctrl( key, action )
+
+        self.__handle_selection_actions( key, action )
+
+        if not self._is_typing:
+            return
 
         if action == glfw.PRESS:
 
@@ -1034,6 +1042,8 @@ class c_editor:
     def __hover_buttons( self ) -> bool:
 
         if self._chosen_line <= 0:
+            self._is_hovered_discard    = False
+            self._is_hovered_update     = False
             return
         
         pad:        int = self._config.pad
@@ -1061,6 +1071,9 @@ class c_editor:
             self._position + vector( 0, bar_height ), 
             self._size.x, self._size.y - bar_height 
         ) and not self._is_read_only
+
+        if self._is_ctrl and not self._is_typing:
+            is_inside_the_box = False
 
         width:              float = self._size.x
         start:              float = self._position.x
@@ -1096,6 +1109,9 @@ class c_editor:
         if not self._is_hovered:
             return
         
+        if self._is_ctrl and not self._is_typing:
+            return
+        
         if self._chosen_line > 0:
             return
         
@@ -1124,6 +1140,22 @@ class c_editor:
         if action == glfw.RELEASE:
             self._is_ctrl = False 
 
+
+    def __handle_selection_actions( self, key: int, action: int ):
+        
+        # We have only 3 actions. PRESS, RELEASE, REPEAT. we want to check for press or repeat
+        if action == glfw.RELEASE:
+            return
+        
+        if key == glfw.KEY_C:
+            # Copy selected text
+            lines: list = self.get_selection( )
+            result: list = [ ]
+            for line_details in lines:
+                result.append( self._lines[ line_details.z ].text[ line_details.x:line_details.y+1 ] )
+
+            return glfw.set_clipboard_string( None, "\n".join( result ) )
+    
 
     def __repeat_handle( self, key: int ) -> bool:
         
@@ -1516,8 +1548,8 @@ class c_editor:
             return self._opened_file
         
         self._opened_file = file_name
-
         self._syntax_highlighting.define_language( file_name )
+        
         return file_name
 
 
@@ -1578,8 +1610,14 @@ class c_editor:
         line:   c_line  = self.get_cursor_line( )
         char:   str     = line.text[ self._cursor.x - 1 ]
 
-        line.text       = line.text[ :self._cursor.x - 1 ] + line.text[ self._cursor.x: ]
-        self._cursor.x -= 1
+        if self._cursor.x % 4 == 0 and line.text[ self._cursor.x - 4:self._cursor.x ] == "    ":
+            line.text       = line.text[ :self._cursor.x - 4 ] + line.text[ self._cursor.x: ]
+            self._cursor.x -= 4
+
+        else:
+        
+            line.text       = line.text[ :self._cursor.x - 1 ] + line.text[ self._cursor.x: ]
+            self._cursor.x -= 1
 
         return char
     
@@ -1597,8 +1635,11 @@ class c_editor:
         new_line:       c_line = c_line( )
         current_line:   c_line = self.get_cursor_line( )
 
+        # Get the tabbing to add to the next line 
+        spaces: int = len( current_line.text ) - len( current_line.text.lstrip( ) )
+
         # Copy the right text
-        new_line.text       = current_line.text[ self._cursor.x: ]
+        new_line.text       = spaces * " " + current_line.text[ self._cursor.x: ]
         new_line.previous   = ""
 
         # Remove the right text
@@ -1613,7 +1654,7 @@ class c_editor:
 
         # Change the cursor placement
         self._cursor.y += 1
-        self._cursor.x  = 0
+        self._cursor.x  = spaces
 
         # Increase the amount
         self._chosen_amount += 1

@@ -12,7 +12,7 @@
 
 # On the start the encryption will be asymmetric to exchange and establish secure connection
 # On the process, the connection will be secured by symmetric encryption to be faster, since
-# we are going to tranfer large amount of data
+# we are going to transfer large amount of data
 
 import os
 import random
@@ -26,6 +26,10 @@ from cryptography.hazmat.primitives.ciphers     import Cipher, algorithms, modes
 from cryptography.hazmat.backends               import default_backend
 
 from cryptography.hazmat.primitives.kdf.scrypt  import Scrypt
+
+from argon2                                     import PasswordHasher   as argon2_password_hasher
+from argon2                                     import Type             as argon2_type
+from argon2                                     import low_level        as argon2_low_level
 
 from utilities.wrappers                         import safe_call
 from utilities.debug                            import *
@@ -93,7 +97,8 @@ class c_security:
     
     # region : Private attributes
 
-    _key:           c_digital_key
+    _key:               c_digital_key
+    _password_hasher:   argon2_password_hasher
 
     _last_error:    str
 
@@ -107,6 +112,7 @@ class c_security:
         """
 
         self._last_error = ""
+        self._password_hasher = argon2_password_hasher( time_cost=3, memory_cost=65536, parallelism=4 )
 
         self._key = c_digital_key( )
 
@@ -171,7 +177,7 @@ class c_security:
         self._key.quick_key = os.urandom( QUICK_KEY_SIZE )
 
     
-    def generate_shaffled_key( self ) -> bytes:
+    def generate_shuffled_key( self ) -> bytes:
         """
             Generate shuffle key.
 
@@ -224,7 +230,7 @@ class c_security:
         return iv + ( encryptor.update( data ) + encryptor.finalize( ) ) + encryptor.tag
     
 
-    def fast_encrypt(self, data: bytes, key: bytes) -> bytes:
+    def fast_encrypt( self, data: bytes, key: bytes, salt: bytes ) -> bytes:
         """
             Encrypt data with key.
 
@@ -235,7 +241,7 @@ class c_security:
             Returns : Encrypted bytes (format: iv + ciphertext + tag)
         """
         # Convert the key to a valid AES key
-        aes_key = self.__convert_to_aes_key( key )
+        aes_key = self.__convert_to_aes_key( key, salt )
         
         iv = os.urandom( 16 )
         cipher = Cipher( algorithms.AES( aes_key ), modes.GCM( iv ), backend=default_backend( ) )
@@ -289,7 +295,7 @@ class c_security:
         return decryptor.update( data ) + decryptor.finalize( )
     
 
-    def fast_decrypt(self, data: bytes, key: bytes) -> bytes:
+    def fast_decrypt(self, data: bytes, key: bytes, salt: bytes) -> bytes:
         """
             Decrypt data with key.
 
@@ -300,7 +306,7 @@ class c_security:
             Returns : Decrypted bytes
         """
         # Convert the key to a valid AES key
-        aes_key = self.__convert_to_aes_key( key )
+        aes_key = self.__convert_to_aes_key( key, salt )
 
         iv = data[ :16 ]
         tag = data[ -16: ]
@@ -355,47 +361,23 @@ class c_security:
     # region : Hashing
 
     def preform_hashing( self, value: any ) -> tuple:
-        """
-            Preform hashing with salt operation on value.
-
-            Receive : 
-            - value - String/Bytes value
-
-            Returns : Hashed value, Salt
-        """
 
         if type( value ) == str:
-            value = value.encode( )
+            value: bytes = value.encode( )
 
-        salt: bytes = os.urandom( SALT_SIZE ) 
+        salt: bytes = os.urandom( SALT_SIZE )
+        hash: str = self._password_hasher.hash( value, salt=salt )
 
-        kdf = self.__default_hashing_settings( salt )
+        return hash, salt.hex( )
 
-        hashed_value: bytes = kdf.derive( value )
 
-        return salt.hex( ), hashed_value.hex( )
-    
-
-    def verify( self, value: any, salt: str, hashed_value: str ) -> bool:
-        """
-            Verify if the value is matching the hashed value.
-
-            Receive :
-            - value         - Original value
-            - salt          - Salt value
-            - hashed_value  - Hashed value to check
-
-            Returns :   Result ( True/False )
-        """
+    def verify( self, value: any, hashed_value: str ) -> bool:
 
         if type( value ) == str:
-            value = value.encode( )
+            value: bytes = value.encode( )
 
         try:
-            kdf = self.__default_hashing_settings( bytes.fromhex( salt ) )
-            kdf.verify( value, bytes.fromhex( hashed_value ) )
-
-            return True
+            return self._password_hasher.verify( hashed_value, value )
         
         except Exception as e:
             return False
@@ -418,25 +400,6 @@ class c_security:
             algorithm   = hashes.SHA256( ),
             label       = None
         )  
-    
-
-    def __default_hashing_settings( self, salt: bytes ) -> Scrypt:
-        """
-            Initialize a default instance of Scrypt with specific salt value.
-
-            Receive :
-            - salt - Salt bytes value
-
-            Returns :   Scrypt object
-        """
-
-        return Scrypt(
-            salt    = salt,
-            length  = 32,       # Desired key length
-            n       = 2**14,    # CPU/memory cost parameter (adjust as needed)
-            r       = 8,        # Block size parameter
-            p       = 1         # Parallelization parameter
-        )
 
 
     def __convert_shaffle_key( self, key: bytes ):
@@ -458,19 +421,17 @@ class c_security:
         return bytes( indices )
     
 
-    def __convert_to_aes_key( self, password: bytes ) -> bytes:
-        """
-            Convert any password into a valid 32-byte AES key using SHA-256.
-
-            Receive :
-            - password - The password bytes to convert
-
-            Returns : 32-byte key suitable for AES
-        """
+    def __convert_to_aes_key( self, password: bytes, salt: bytes ) -> bytes:
         
-        sha_hash = hashes.Hash( hashes.SHA256( ) )
-        sha_hash.update( password )
-        return sha_hash.finalize( )
+        return argon2_low_level.hash_secret_raw(
+            secret=password,
+            salt=salt,
+            time_cost=3,
+            memory_cost=65536,
+            parallelism=4,
+            hash_len=32,
+            type=argon2_type.ID
+        )
     
     # endregion
     

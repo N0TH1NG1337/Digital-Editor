@@ -11,6 +11,7 @@ from utilities.wrappers import safe_call
 from utilities.debug    import *
 
 import shutil
+import base64
 import json
 import time
 import os
@@ -28,20 +29,26 @@ FILES_COMMAND_PREPARE_RESPONSE  = "ResPrepUpdate"
 FILES_COMMAND_UPDATE_LINE       = "UpdateLine"
 FILES_COMMAND_DELETE_LINE       = "DelLine"
 FILES_COMMAND_DISCARD_UPDATE    = "DisUpdateLine"
+FILES_COMMAND_UPDATE_FILE       = "UpdateFile"   # Use this command to update file access level and register new files
+FILES_COMMAND_UPDATE_FILE_NAME  = "ChangeFileName"
+
+# This command is extremely important.
+# FILES_COMMAND_APPLY_UPDATE - Update_ENUM - Update details
 FILES_COMMAND_APPLY_UPDATE      = "ApplyUpdateLine"
 
 FILE_ACCESS_LEVEL_HIDDEN    = 0     # This file should be hidden ( used only for host )
 FILE_ACCESS_LEVEL_EDIT      = 1     # This file can be edited
 FILE_ACCESS_LEVEL_LIMIT     = 2     # This file cannot be edited
 
-FILES_COMMAND_CHANGE_LEVEL      = "UpdateAccessLevel"   # Use this command to update access level for user
+FILE_UPDATE_CONTENT = 0
+FILE_UPDATE_NAME    = 1
 
 
 class c_virtual_file:
 
     # NOTE ! Virtual files can be or reference to a real file or just empty name without content
 
-    _name:                  str     # File's name. Indcluding the type.
+    _name:                  str     # File's name. Including the type.
     _log_changes:           bool    # Should log changes of the file
 
     _original_path:         str     # Original file. DO NOT TOUCH
@@ -89,19 +96,21 @@ class c_virtual_file:
         if not self._log_changes:
             return
         
-
         file_name, file_type = self.name( True )
         
         file_name = f"{ file_name }_changes.txt"
         file_path = f"{ self._normal_path }\\{ file_name }"
 
+        if os.path.exists( file_path ):
+            return
+
         with open( file_path, "w" ) as f:
-                json.dump( 
-                    { 
-                        "original_file":    self._name,
-                        "file_type":        file_type
-                    }, 
-                f )
+            json.dump( 
+                { 
+                    "original_file":    self._name,
+                    "file_type":        file_type
+                }, 
+            f )
 
     # endregion
 
@@ -123,7 +132,8 @@ class c_virtual_file:
             os.makedirs( os.path.dirname( file_path ), exist_ok=True )
 
             with open( file_path, 'w' ) as f:
-                pass
+                # On empty file add 2 empty lines to edit
+                f.write( '\n'.join( [ "", "" ] ) )
 
             self._normal_path = path
 
@@ -165,6 +175,23 @@ class c_virtual_file:
             return str( e )
         
         return None
+    
+
+    def attach( self, path: str ):
+        """
+            Unlike .copy( ) or .create( ), here we know that we have file
+            that previously was a c_virtual_file, and now we just need to attach
+            it for the object.
+
+            Receive : 
+            - path - File's path
+
+            Returns :   None 
+        """
+
+        self._normal_path = path
+
+        self.__create_logging_file( )
 
     
     def copy_instance( self, original: any ):
@@ -206,6 +233,27 @@ class c_virtual_file:
         information = self._name.rsplit( ".", 1 )
 
         return information[ 0 ], information[ 1 ]
+    
+
+    @safe_call( c_debug.log_error )
+    def update_name( self, new_name: str ) -> bool:
+        
+        file_path:  str = f"{ self._normal_path }\\{ self._name }"
+        name_path: str = f"{ self._normal_path }\\{ new_name }"
+
+        os.rename( file_path, name_path )
+
+        if self._log_changes:
+            file_name, file_type = self.name( True )
+
+            file_path = f"{ self._normal_path }\\{ file_name }_changes.txt"
+            name_path = f"{ self._normal_path }\\{ new_name.rsplit( ".", 1 )[ 0 ] }_changes.txt"
+
+            os.rename( file_path, name_path )
+        
+        self._name = new_name
+
+        return True
     
 
     def access_level( self, new_value: int = None ) -> int:
@@ -601,6 +649,11 @@ class c_files_manager_protocol:
             Returns :   String value
         """
 
+        message: str = base64.b64encode( message.encode( ) ).decode( )
+
+        for index in range( 0, len( arguments ) ):
+            arguments[ index ] = base64.b64encode( str( arguments[ index ] ).encode( ) ).decode( )
+
         return f"{ FILES_MANAGER_HEADER }::{ message }->{ '->'.join( arguments ) }"
 
 
@@ -617,6 +670,9 @@ class c_files_manager_protocol:
         first_parse = message.split( "::" )
         
         information = first_parse[ 1 ].split( "->" )
+        for index in range( 0, len( information ) ):
+            information[ index ] = base64.b64decode( information[ index ].encode( ) ).decode( )
+
         command     = information[ 0 ]
 
         # Remove command from arguments
@@ -706,6 +762,19 @@ class c_files_manager_protocol:
         """
 
         del self._files[ name ]
+
+    
+    def update_name( self, old_index: str, new_index: str ) -> c_virtual_file:
+
+        file: c_virtual_file = self.search_file( old_index )
+        if not file:
+            return None
+        
+        self._files[ new_index ] = file
+        del self._files[ old_index ]
+        
+        file.update_name( new_index )
+        return file
 
     def get_header( self ) -> str:
         return FILES_MANAGER_HEADER

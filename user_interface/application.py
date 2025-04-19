@@ -176,8 +176,9 @@ class c_application:
         glfw.window_hint( glfw.CONTEXT_VERSION_MINOR,   3 )                             # Context related staff
         glfw.window_hint( glfw.OPENGL_PROFILE,          glfw.OPENGL_CORE_PROFILE )      # OpenGl related staff
         glfw.window_hint( glfw.OPENGL_FORWARD_COMPAT,   gl.GL_TRUE )                    # OpenGl related staff
+        glfw.window_hint( glfw.DOUBLEBUFFER,            gl.GL_TRUE )                    # Enable doublebuffering
 
-        # Save localy 
+        # Save locally 
         local_size: vector  = self._data[ "size" ].copy( )
         local_title: str    = self._data[ "title" ]
 
@@ -279,7 +280,7 @@ class c_application:
             Returns:    Image object
 
             Warning ! setting other size here from original image size will kill it.
-            change image size in c_renderer.image( ..., size=vector( othersize ) )
+            change image size in c_renderer.image( ..., size=vector( other_size ) )
         """
 
         # Create new image object
@@ -552,7 +553,7 @@ class c_application:
         """
 
         # This solution is much better, 
-        # it avoids unwanted input if we didnt move the mouse
+        # it avoids unwanted input if we didn't move the mouse
 
         x = self._mouse_position.x
         y = self._mouse_position.y
@@ -766,13 +767,13 @@ class c_application:
             fade = 0.1
             self._render.image( wallpaper, vector( ), color( ), size )
 
-        self._render.gradiant(
-            vector( ), size, 
-            self._config.back_color_1 * fade,
-            self._config.back_color_2 * fade,
-            self._config.back_color_3 * fade,
-            self._config.back_color_4 * fade
-        )
+        #self._render.gradiant(
+        #    vector( ), size, 
+        #    self._config.back_color_1 * fade,
+        #    self._config.back_color_2 * fade,
+        #    self._config.back_color_3 * fade,
+        #    self._config.back_color_4 * fade
+        #)
 
 
     def __draw_scenes( self ) -> None:
@@ -850,7 +851,7 @@ class c_application:
             Returns :   None
         """
 
-        gl.glClearColor( 1, 1, 1, 1 )
+        gl.glClearColor( 0, 0, 0, 1 )
         gl.glClear( gl.GL_COLOR_BUFFER_BIT )
 
 

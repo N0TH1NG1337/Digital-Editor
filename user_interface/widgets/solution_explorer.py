@@ -31,8 +31,8 @@ class solution_explorer_config_t:
     seperate:       int         = 4
     roundness:      int         = 10
 
-    seperate_color: color       = color( 216, 208, 215 )
-    back_color:     color       = color( 0, 0, 0, 100 )
+    seperate_color: color       = color( 207, 210, 215 )
+    back_color:     color       = color( 0, 0, 0, 150 )
 
     folder_color:   color       = color( 255, 255, 255 )
     item_color:     color       = color( 255, 255, 255 )
@@ -249,8 +249,9 @@ class c_solution_explorer:
 
         self._animations = c_animations( )
 
-        self._animations.prepare( "Fade",   0 )
-        self._animations.prepare( "Scroll", 0 )
+        self._animations.prepare( "Fade",           0 )
+        self._animations.prepare( "FadeContent",    0 )
+        self._animations.prepare( "Scroll",         0 )
 
     
     def __initialize_values( self ):
@@ -287,14 +288,14 @@ class c_solution_explorer:
         """
 
         self.__preform( )
-        self.__animate( )
+        self.__animate( fade )
 
         fade = fade * self._animations.value( "Fade" )
         if fade == 0:
             return
         
         self.__draw_back( fade )
-        self.__draw_content( fade )
+        self.__draw_content( fade * self._animations.value( "FadeContent" ) )
 
 
     def __preform( self ):
@@ -313,7 +314,7 @@ class c_solution_explorer:
         self._relative_position = vector( parent_position.x + self._position.x, parent_position.y + self._position.y )
 
     
-    def __animate( self ):
+    def __animate( self, fade: float ):
         """
             Animate solution explorer.
 
@@ -326,8 +327,9 @@ class c_solution_explorer:
 
         self._animations.update( )
 
-        self._animations.preform( "Fade", self._is_visible and 1 or 0, speed )
-        self._animations.preform( "Scroll", self._offset, speed, 1 )
+        self._animations.perform( "Fade", self._is_visible and 1 or 0, speed )
+        self._animations.perform( "FadeContent", fade == 1 and 1 or 0, speed )
+        self._animations.perform( "Scroll", self._offset, speed, 1 )
 
     
     def __draw_back( self, fade: float ):
@@ -343,19 +345,19 @@ class c_solution_explorer:
         roundness:  int     = self._config.roundness
         back_color: color   = self._config.back_color
 
-        self._render.rect(
-            self._position,
-            self._position + self._size,
-            back_color * fade,
-            roundness
-        )
-
         self._render.shadow(
             self._position,
             self._position + self._size,
             back_color,
             fade,
             20,
+            roundness
+        )
+
+        self._render.rect(
+            self._position,
+            self._position + self._size,
+            back_color * fade,
             roundness
         )
     
@@ -415,7 +417,6 @@ class c_solution_explorer:
 
         font_size: int = self._font.size( )
 
-
         folders: list = folder.get_holders( )
         for sub_folder in folders:
             sub_folder: c_holder = sub_folder
@@ -423,8 +424,8 @@ class c_solution_explorer:
             current_folder_position:  vector  = position + vector( 0, self._drop + ( slot_height / 2 ) )
             current_folder_size:      vector  = self._render.measure_text( self._font, sub_folder.name )
 
-            sub_folder.fade                 = self._animations.fast_preform( sub_folder.fade,   sub_folder.is_hovered and 1 or 0.5, speed )
-            sub_folder.opened               = self._animations.fast_preform( sub_folder.opened, sub_folder.is_opened and 1 or 0, speed )
+            sub_folder.fade                 = self._animations.fast_perform( sub_folder.fade,   sub_folder.is_hovered and 1 or 0.5, speed )
+            sub_folder.opened               = self._animations.fast_perform( sub_folder.opened, sub_folder.is_opened and 1 or 0, speed )
 
             current_color:          color   = folder_color * fade * sub_folder.fade
 
@@ -446,7 +447,7 @@ class c_solution_explorer:
             current_item_position:  vector  = position + vector( 0, self._drop + ( slot_height / 2 ) )
             current_item_size:      vector  = self._render.measure_text( self._font, item.name )
 
-            item.fade = self._animations.fast_preform( item.fade, item.is_hovered and 1 or 0.3, speed ) * fade
+            item.fade = self._animations.fast_perform( item.fade, item.is_hovered and 1 or 0.3, speed ) * fade
             current_color:          color   = item_color * item.fade
 
             # Here draw the item
@@ -466,13 +467,6 @@ class c_solution_explorer:
             start_slide = position + vector( -pad, start_drop )
             end_slide   = position + vector( seperate - pad, start_drop + delta_drop * fade )
 
-            self._render.rect(
-                start_slide,
-                end_slide,
-                seperate_color * fade,  
-                seperate / 2
-            )
-
             self._render.shadow(
                 start_slide,
                 end_slide,
@@ -481,6 +475,15 @@ class c_solution_explorer:
                 25,
                 seperate / 2
             )
+
+            self._render.rect(
+                start_slide,
+                end_slide,
+                seperate_color * fade,  
+                seperate / 2
+            )
+
+            
 
     
     def __draw_scrollbar( self, fade: float ):
@@ -499,8 +502,6 @@ class c_solution_explorer:
         start_position: vector  = vector( self._position.x + self._size.x - seperate, self._position.y )
         
         window_delta    = self._size.y
-
-        
 
         if self._drop == 0:
             return
@@ -678,7 +679,7 @@ class c_solution_explorer:
                     item.left_click_callback( )
                     return True
 
-                elif button == glfw.MOUSE_BUTTON_RIGHT and item.right_click_callback is not None:
+                if button == glfw.MOUSE_BUTTON_RIGHT and item.right_click_callback is not None:
                     item.right_click_callback( )
                     return True
                 
@@ -833,5 +834,41 @@ class c_solution_explorer:
         
         self._is_visible = new_value
         return self._is_visible
+    
+
+    def position( self, new_value: vector = None ) -> vector:
+        """
+            Access / Update position.
+
+            Receive :
+            - new_value - New position in the parent
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._position
+        
+        self._position.x = new_value.x
+        self._position.y = new_value.y
+        return new_value
+    
+
+    def size( self, new_value: vector = None ) -> vector:
+        """
+            Access / Update size.
+
+            Receive :
+            - new_value - New size
+
+            Returns : Vector or None
+        """
+
+        if new_value is None:
+            return self._size
+        
+        self._size.x = new_value.x
+        self._size.y = new_value.y
+        return new_value
 
     # endregion

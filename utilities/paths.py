@@ -2,7 +2,6 @@ FONT                = "C:\\Windows\\Fonts\\Tahoma.ttf"
 FONT_BOLD           = "C:\\Windows\\Fonts\\Tahomabd.ttf"
 FONT_THIN           = "C:\\Windows\\Fonts\\Tahoma.ttf"
 
-
 PHOTO_WALLPAPER     = "\\resources\\wallpaper.jpg"
 PHOTO_CITY          = "\\resources\\city.png"
 
@@ -22,12 +21,16 @@ ICON_CLOSE          = "\\resources\\close.png"
 ICON_COPY           = "\\resources\\medium_icons_copy.png"
 ICON_SHARE          = "\\resources\\medium_icons_share.png"
 ICON_INFO           = "\\resources\\medium_icons_info.png"
-
 ICON_NEXT           = "\\resources\\medium_icons_next.png"
 ICON_PREV           = "\\resources\\medium_icons_prev.png"
-
 ICON_LOCKED         = "\\resources\\medium_icons_lock.png"
 ICON_VISIBLE        = "\\resources\\medium_icons_visible.png"
 ICON_TUNE           = "\\resources\\medium_icons_tune.png"
-
 ICON_CHECK          = "\\resources\\medium_icons_check.png"
+
+TITLE_ICON_START        = "\\resources\\title_start.png"
+TITLE_ICON_FILES        = "\\resources\\title_files.png"
+TITLE_ICON_CONNECTION   = "\\resources\\title_connection.png"
+TITLE_ICON_LOADING      = "\\resources\\title_loading.png"
+
+TITLE_ICON_WELCOME      = "\\resources\\title_welcome.png"

@@ -63,7 +63,7 @@ class c_image:
         image           = Image.open( path )
 
         if IMAGE_FILTER_BLUR in flags:
-            image       = image.filter( ImageFilter.GaussianBlur( 10 ) )
+            image       = image.filter( ImageFilter.GaussianBlur( 40 ) )
 
         image_data      = numpy.array( image.convert( "RGBA" ), dtype=numpy.uint8 )
 

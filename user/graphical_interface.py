@@ -23,7 +23,6 @@ class c_user_gui:
 
     _scene_loadup:          c_scene
     _scene_setup:           c_scene
-    _scene_wait:            c_scene
     _scene_project:         c_scene
 
     _application_config:    application_config_t
@@ -32,24 +31,22 @@ class c_user_gui:
     _scene_project_config:  scene_config_t
 
     _entry_project_code:    c_text_input
-    # _entry_ip:              c_text_input
-    # _entry_port:            c_text_input
 
     _registration_type:     c_side_list
     _entry_username:        c_text_input
     _entry_password:        c_text_input
     
-    _button_prev_setup:     c_button
     _button_next_setup:     c_button
 
     _editor:                c_editor
     _buttons_bar:           c_side_list
-    _button_placehoder1:    c_button
 
     _solution_explorer:     c_solution_explorer
 
     _opened_what:           int
     _temp:                  dict
+
+    _general_font:          c_font
 
     # endregion
 
@@ -88,7 +85,7 @@ class c_user_gui:
 
         self._application = c_application( self._application_config )
 
-        self._application.initialize_window( "User", vector( 50, 50 ), vector( 1300, 850 ), False )
+        self._application.initialize_window( "digital-editor user", vector( 50, 50 ), vector( 1300, 850 ), True )
 
         self.__initialize_resources( )
 
@@ -96,7 +93,6 @@ class c_user_gui:
 
         self.__scene_loadup_initialize( )
         self.__scene_setup_initialize( )
-        self.__scene_wait_initialize( )
         self.__scene_project_initialize( )
 
 
@@ -123,16 +119,19 @@ class c_user_gui:
             Returns :   None
         """
 
-        self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,   "gui_post_disconnect",      False )
-        self._logic.set_event( "on_register_file",      self.__event_register_file,     "gui_file_register",        True )
-        self._logic.set_event( "on_file_set",           self.__event_clear_editor,      "gui_clear_editor",         True )
-        self._logic.set_event( "on_file_update",        self.__event_add_editor_line,   "gui_update_editor",        True )
-        self._logic.set_event( "on_accept_line",        self.__event_accept_line,       "gui_editor_accept_line",   True )
-        self._logic.set_event( "on_line_lock",          self.__event_lock_line,         "gui_editor_line_lock",     True )
-        self._logic.set_event( "on_line_unlock",        self.__event_unlock_line,       "gui_editor_line_unlock",   True )
-        self._logic.set_event( "on_line_update",        self.__event_change_lines,      "gui_editor_line_update",   True )
-        self._logic.set_event( "on_line_delete",        self.__event_remove_line,       "gui_editor_line_remove",   True )
-        self._logic.set_event( "on_level_update",       self.__event_update_level,      "gui_level_update",         True )
+        self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,       "gui_post_disconnect",      False )
+        self._logic.set_event( "on_register_files",     self.__event_register_files,        "gui_files_register",       False )
+        self._logic.set_event( "on_file_set",           self.__event_clear_editor,          "gui_clear_editor",         True )
+        self._logic.set_event( "on_file_update",        self.__event_add_editor_line,       "gui_update_editor",        True )
+        self._logic.set_event( "on_accept_line",        self.__event_accept_line,           "gui_editor_accept_line",   True )
+        self._logic.set_event( "on_line_lock",          self.__event_lock_line,             "gui_editor_line_lock",     True )
+        self._logic.set_event( "on_line_unlock",        self.__event_unlock_line,           "gui_editor_line_unlock",   True )
+        self._logic.set_event( "on_line_update",        self.__event_change_lines,          "gui_editor_line_update",   True )
+        self._logic.set_event( "on_line_delete",        self.__event_remove_line,           "gui_editor_line_remove",   True )
+        self._logic.set_event( "on_file_register",      self.__event_file_register,         "gui_file_register",        True )
+        self._logic.set_event( "on_file_rename",        self.__event_file_rename,           "gui_file_rename",          True )
+
+        self._application.set_event( "unload",          self.__disconnect_on_window_close,  "gui_fast_unload",          False )
 
     
     def __initialize_resources( self ):
@@ -145,36 +144,31 @@ class c_user_gui:
         """
 
         execution_directory = os.getcwd( )
-        self._application.create_font( "Title",     FONT_BOLD, 100 )
-        self._application.create_font( "SubTitle",  FONT_BOLD, 50 )
-        self._application.create_font( "Steps",     FONT, 20 )
-        self._application.create_font( "Button",    FONT, 20 )
-        self._application.create_font( "TextInput", FONT, 20 )
-        self._application.create_font( "Path",      FONT, 20 )
-        self._application.create_font( "List",      FONT, 20 )
-        self._application.create_font( "Editor",    FONT, 20 )
 
-        self._application.create_image( "Wallpaper",    execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ) )
-        #self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
+        self._general_font = self._application.create_font( "general", FONT, 20 )
 
-        self._application.create_image( "Username",     execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
-        self._application.create_image( "Password",     execution_directory + ICON_PASSWORD,        vector( 30, 30 ) )
-        self._application.create_image( "Next",         execution_directory + ICON_NEXT,            vector( 30, 30 ) )
-        self._application.create_image( "Prev",         execution_directory + ICON_PREV,            vector( 30, 30 ) )
+        self._application.create_image( "WallpaperBlur",    execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ), [IMAGE_FILTER_BLUR] )
+        self._application.create_image( "Wallpaper",        execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ) )
 
-        self._application.create_image( "Folder",       execution_directory + ICON_FOLDER,          vector( 30, 30 ) )
-        self._application.create_image( "File",         execution_directory + ICON_FILE,            vector( 30, 30 ) )
+        self._application.create_image( "Username",         execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
+        self._application.create_image( "Password",         execution_directory + ICON_PASSWORD,        vector( 30, 30 ) )
+        self._application.create_image( "Next",             execution_directory + ICON_NEXT,            vector( 30, 30 ) )
+        self._application.create_image( "Prev",             execution_directory + ICON_PREV,            vector( 30, 30 ) )
 
-        self._application.create_image( "Code",         execution_directory + ICON_PORT,            vector( 30, 30 ) )
-        self._application.create_image( "Copy",         execution_directory + ICON_COPY,            vector( 30, 30 ) )
+        self._application.create_image( "Folder",           execution_directory + ICON_FOLDER,          vector( 30, 30 ) )
+        self._application.create_image( "File",             execution_directory + ICON_FILE,            vector( 30, 30 ) )
 
-        self._application.create_image( "Menu",         execution_directory + ICON_MENU,            vector( 40, 40 ) )
-        self._application.create_image( "Files",        execution_directory + ICON_FILES,           vector( 40, 40 ) )
-        self._application.create_image( "Close",        execution_directory + ICON_CLOSE,           vector( 40, 40 ) )
+        self._application.create_image( "Code",             execution_directory + ICON_PORT,            vector( 30, 30 ) )
+        self._application.create_image( "Copy",             execution_directory + ICON_COPY,            vector( 30, 30 ) )
 
-        self._temp[ "setup_proccess" ]  = 0
+        self._application.create_image( "TitleWelcome",     execution_directory + TITLE_ICON_WELCOME,   vector( 700, 200 ) )
+
+        self._application.create_image( "TitleConnection",  execution_directory + TITLE_ICON_CONNECTION,vector( 500, 170 ) )
+        self._application.create_image( "TitleLoading",     execution_directory + TITLE_ICON_LOADING,   vector( 500, 170 ) )
+
+        self._temp[ "setup_process" ]  = 0
         
-        self._application_config.wallpaper = self._application.image( "Wallpaper" )
+        self._application_config.wallpaper = self._application.image( "WallpaperBlur" )
 
     # endregion
 
@@ -194,12 +188,12 @@ class c_user_gui:
 
         self._scene_loadup = self._application.new_scene( self._scene_loadup_config )
 
-        self._scene_loadup.set_event( "draw",           self.__scene_loadup_draw,   "Scene Loadup Draw Main" )
-        self._scene_loadup.set_event( "mouse_input",    self.__scene_loadup_update, "Scene Loadup Update" )
-        self._scene_loadup.set_event( "keyboard_input", self.__scene_loadup_update, "Scene Loadup Update" )
+        self._scene_loadup.set_event( "draw",           self.__scene_loadup_draw,   "Scene Loadup Draw Main", False )
+        self._scene_loadup.set_event( "mouse_input",    self.__scene_loadup_update, "Scene Loadup Update", True )
+        self._scene_loadup.set_event( "keyboard_input", self.__scene_loadup_update, "Scene Loadup Update", True )
 
     
-    def __scene_loadup_draw( self, event ):
+    def __scene_loadup_draw( self ):
         """
             Main draw function for Loadup Scene.
 
@@ -214,40 +208,12 @@ class c_user_gui:
         fade:           float           = animations.value( "Fade" )
         screen:         vector          = self._application.window_size( )
 
-        title_font:     c_font          = self._application.font( "Title" )
-        title:          str             = "Digital Editor"
-        version:        str             = "User"
+        img:            c_image         = self._application.image( "TitleWelcome" )
+        img_size:       vector          = img.size( )
 
-        title_size:     vector  = render.measure_text( title_font, title )
-        version_size:   vector  = render.measure_text( title_font, version )
+        image_pos:      vector  = ( screen - img_size ) / 2
 
-        title_pos:      vector  = ( screen - title_size ) / 2
-        version_pos:    vector  = ( screen - version_size ) / 2 + vector( 0, 100 )
-
-        back_start  = title_pos - vector( 10, 10 )
-        back_end    = title_pos + vector( title_size.x + 10, 200 + 10 )
-
-        render.shadow(
-            back_start,
-            back_end,
-            color( 216, 208, 215, 255 ),
-            fade,
-            25,
-            10
-        )
-
-        render.rect(
-            back_start,
-            back_end,
-            color( 0, 0, 0, 100 ) * fade,
-            10
-        )
-
-        render.text( title_font, title_pos + vector( 3, -3 ), color( 216, 208, 215, 255 ) * fade, title )
-        render.text( title_font, title_pos, color( 255, 255, 255, 255 ) * fade, title )
-
-        render.text( title_font, version_pos + vector( 3, -3 ), color( 216, 208, 215, 255 ) * fade, version )
-        render.text( title_font, version_pos, color( 255, 255, 255, 255 ) * fade, version )
+        render.image( img, image_pos, color( ) * fade )
 
 
     def __scene_loadup_update( self, event ):
@@ -285,13 +251,16 @@ class c_user_gui:
         self.__scene_setup_initialize_elements( )
 
         animations: c_animations = self._scene_setup.animations()
-        animations.prepare( "Connection",   vector( ) )
-        animations.prepare( "Registration", vector( ) )
-        animations.prepare( "ButtonNext",   250 )
-        animations.prepare( "ProgressBar",  0 )
+        animations.prepare( "TitleConnection",  vector( ) )
+        animations.prepare( "TitleLoading",     vector( ) )
 
-        self._scene_setup.set_event( "draw", self.__scene_setup_draw,               "Scene Setup Draw Main" )
-        self._scene_setup.set_event( "draw", self.__scene_setup_adjust_elements,    "Scene Setup Adjust Elements" )
+        animations.prepare( "ButtonNext",   250 )
+        animations.prepare( "InstructionsHeight", 0 )
+
+        self._scene_setup.set_event( "draw",            self.__scene_setup_draw,                "Scene Setup Draw Main",            False )
+        self._scene_setup.set_event( "draw",            self.__scene_setup_draw_instructions,   "Scene Setup Draw Instructions",    False )
+        self._scene_setup.set_event( "draw",            self.__scene_setup_adjust_elements,     "Scene Setup Adjust Elements",      False )
+        self._scene_setup.set_event( "keyboard_input",  self.__scene_setup_control_steps,       "Scene Setup Control Elements",     False )
 
     
     def __scene_setup_initialize_elements( self ):
@@ -303,37 +272,37 @@ class c_user_gui:
             Returns : None
         """
 
-        text_font:      c_font  = self._application.font( "TextInput" )
-        button_font:    c_font  = self._application.font( "Button" )
-        list_font:      c_font  = self._application.font( "List" )
-
         username_icon:      c_image = self._application.image( "Username" )
         password_icon:      c_image = self._application.image( "Password" )
         code_icon:          c_image = self._application.image( "Code" )
+        next_icon:          c_image = self._application.image( "Next" )
 
-        next_icon:      c_image = self._application.image( "Next" )
-        prev:           c_image = self._application.image( "Prev" )
+        text_input_config                       = text_input_config_t( )
+        text_input_config.color_background.a    = 0
+        text_input_config.color_shadow          = color( 29, 29, 29, 0 )
 
-        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 120 ), 40, vector( 200, 30 ), text_font, code_icon, "project code" )
+        buttons_config              = button_config_t( )
+        buttons_config.back_color   = color( 29, 29, 29 )
 
-        self._registration_type  = c_side_list( self._scene_setup, vector( 50, 120 ), 400, list_font )
-        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 180 ), 40, vector( 200, 30 ), text_font, username_icon, "username" )
-        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 240 ), 40, vector( 200, 30 ), text_font, password_icon, "password" )
+        list_config             = list_config_t( )
+        list_config.back_color  = color( 29, 29, 29, 0 )
 
-        self._button_prev_setup = c_button( self._scene_setup, vector( 50, 250 ),   40, button_font, prev,      "Previous", self.__scene_setup_previous_step )
-        self._button_next_setup = c_button( self._scene_setup, vector( 100, 250 ),  40, button_font, next_icon, "Next",     self.__scene_setup_next_step )
+        self._entry_project_code = c_text_input( self._scene_setup, vector( 50, 120 ), 40, vector( 200, 30 ), self._general_font, code_icon, "project code", "", False, text_input_config )
 
-        self._entry_username.visible( False )
-        self._entry_password.visible( False )
-        self._registration_type.visible( False )
+        self._registration_type  = c_side_list( self._scene_setup, vector( 50, 120 ), 400, self._general_font, list_config )
+        self._entry_username     = c_text_input( self._scene_setup, vector( 50, 180 ), 40, vector( 200, 30 ), self._general_font, username_icon, "username", "", False, text_input_config )
+        self._entry_password     = c_text_input( self._scene_setup, vector( 50, 240 ), 40, vector( 200, 30 ), self._general_font, password_icon, "password", "", True, text_input_config )
+
+        self._button_next_setup  = c_button( self._scene_setup, vector( 100, 250 ),  40, self._general_font, next_icon, "Next", self.__scene_setup_next_step, buttons_config )
+
+        self.__scene_setup_update( )
 
         self._registration_type.add_item( "Register",   None, None )
         self._registration_type.add_item( "Login",      None, None )
         self._registration_type.set_value( "Register" )
 
 
-    @safe_call( c_debug.log_error )
-    def __scene_setup_draw( self, event ):
+    def __scene_setup_draw( self ):
         """
             Main draw function for Setup Scene.
 
@@ -342,61 +311,73 @@ class c_user_gui:
             Returns : None
         """
 
-        steps_font: c_font          = self._application.font( "TextInput" )
+        wallpaper:  c_image         = self._application.image( "Wallpaper" )
         screen:     vector          = self._application.window_size( )
+
+        box_size    = screen * 0.8
+        start_box   = screen * 0.1
+        end_box     = start_box + box_size
 
         render:     c_renderer      = self._application.render( )
         animations: c_animations    = self._scene_setup.animations( )
 
         fade:       float           = animations.value( "Fade" )
         speed:      int             = self._scene_setup_config.speed
-        pad:        int             = 30
+
+        render.shadow( start_box, end_box, color( 207, 210, 215 ), fade, 18, 10 )
+        render.shadow( start_box, end_box, color( 0, 0, 0 ), fade, 10, 10 )
+
+        # Render the Image
+        render.push_clip_rect( vector( ), vector( screen.x / 2, screen.y ), True )
+        render.image( wallpaper, start_box, color( ) * fade, box_size, 10 )
+        render.pop_clip_rect( )
+
+        # Render the background
+        render.push_clip_rect( vector( screen.x / 2, 0 ), screen, True )
+        render.rect( start_box, end_box, color( 29, 29, 29, 200 ) * fade, 10 )
+        render.pop_clip_rect( )
 
         steps = {
-            0: "Connection",
-            1: "Registration"
+            0: "TitleConnection",
+            1: "TitleLoading"
         }
 
-        width:      float = pad
-        for index in steps:
-            size: vector = render.measure_text( steps_font, steps[ index ] )
-            width += size.x + pad
-
-        render.shadow( vector( 50, 50 ), vector( 50 + width, 100 ), color( 0, 0, 0, 100 ), fade, 20, 10 )
-        render.rect( vector( 50, 50 ), vector( 50 + width, 100 ), color( 0, 0, 0, 100 * fade ), 10 )
-
-        offset:     float = pad
-        progress:   float = 0
-
-        selected    = self._temp[ "setup_proccess" ]
+        selected:           int = self._temp[ "setup_process" ]
         
-        for index in steps :
-            step = steps[ index ]
+        for index in steps:
+            step: str = steps[ index ]
 
-            step_size:      vector  = render.measure_text( steps_font, step )
-
-            alpha_step: float = 0
-            if selected == index:
-                progress    = animations.preform( "ProgressBar", offset + step_size.x, speed )
-                alpha_step  = 1
-            else:
-                alpha_step  = 0
+            image:      c_image = self._application.image( step )
+            alpha_step: float   = ( selected == index and 1 or 0 ) * fade
                 
-            wanted_value:   vector  = vector( max( alpha_step , 0.5 ), alpha_step )
-            values:         vector  = animations.preform( step, wanted_value, speed )
+            wanted_value:   vector  = vector( ( 1 - alpha_step ) * 50, alpha_step )
+            values:         vector  = animations.perform( step, wanted_value, speed )
 
-            values.x *= fade
-            current_color = color( ).linear( color( 216, 208, 215, 255 ), values.y ) * values.x
+            image_size: vector = image.size( )
+            render.image( image, vector( screen.x * 0.3 - image_size.x / 2 - values.x, start_box.y + 10 ), color( ) * values.y )
 
-            render.text( steps_font, vector( 50 + offset, 60 ), current_color, step )
+    
+    def __scene_setup_draw_instructions( self ):
 
-            offset += step_size.x + pad
+        screen:     vector          = self._application.window_size( )
 
-        render.shadow( vector( 80, 90 ), vector( 50 + progress, 90 ), color( 216, 208, 215, 255 ), fade, 25 )
-        render.line( vector( 80, 90 ), vector( 50 + progress, 90 ), color( 216, 208, 215, 255 ) * fade )
+        start_buttons_x = screen.x * 0.5 + 20
+        start_widgets_y = screen.y * 0.1 + 20
+
+        render:     c_renderer      = self._application.render( )
+        animations: c_animations    = self._scene_setup.animations( )
+
+        fade:       float           = animations.value( "Fade" ) * animations.value( "TitleConnection" ).y
+
+        # Render the instructions here
+        wrapped_text: str = render.wrap_text( self._general_font, "Enter the project code that you received from a host", screen.x * 0.4 - 40 )
+        render.text( self._general_font, vector( start_buttons_x, start_widgets_y ), color( ) * fade, wrapped_text )
+
+        # By the way update the height of the instructions
+        animations.value( "InstructionsHeight", render.measure_text( self._general_font, wrapped_text ).y + 40 )
 
 
-    def __scene_setup_adjust_elements( self, event ):
+    def __scene_setup_adjust_elements( self ):
         """
             Adjust the scene elements positions.
 
@@ -410,12 +391,42 @@ class c_user_gui:
 
         speed:      int             = self._scene_setup_config.speed
         
-        button_next_drop: float = animations.preform( "ButtonNext", screen.y - 50 - 40, speed )
+        button_next_drop: float = animations.perform( "ButtonNext", screen.y * 0.9 - 20 - 40, speed )
 
-        self._button_prev_setup.position( vector( 50, button_next_drop ) )
-        self._button_next_setup.position( vector( 100 + self._button_prev_setup.size( ).x, button_next_drop ) )
+        start_buttons_x = screen.x * 0.5 + 20
+        start_widgets_y = screen.y * 0.1 + animations.value( "InstructionsHeight" )
 
+        self._button_next_setup.position( vector( screen.x * 0.9 - 20 - self._button_next_setup.size( ).x, button_next_drop ) )
+
+        self._entry_project_code.position( vector( start_buttons_x, start_widgets_y ) )
+
+        self._entry_username.position( vector( start_buttons_x, start_widgets_y + 180 ) )
+        self._entry_password.position( vector( start_buttons_x, start_widgets_y + 240 ) )
+
+        self._registration_type.position( vector( start_buttons_x, start_widgets_y + 120 ) )
+        self._registration_type.width( screen.x * 0.4 - 40 )
+
+
+    def __scene_setup_control_steps( self ):
+
+        progress_index: int = self._temp[ "setup_process" ]
+        if progress_index == 0:
+            # Connections
+
+            if self._entry_project_code.get( ) != "":
+                self._entry_username.visible( True )
+                self._entry_password.visible( True )
+                self._registration_type.visible( True )
+
+            is_username_valid, reason = c_registration.validate_username( self._entry_username.get( ) )
+            is_password_valid, reason = c_registration.validate_password( self._entry_password.get( ) )
+
+            # I want to avoid updating each frame...
+            new_value: bool = is_username_valid and is_password_valid
+            if self._button_next_setup.visible( ) != new_value:
+                self._button_next_setup.visible( new_value )
     
+
     def __scene_setup_next_step( self ):
         """
             Next setup step.
@@ -425,43 +436,22 @@ class c_user_gui:
             Returns :   None
         """
 
-        self._temp[ "setup_proccess" ] = math.clamp( self._temp[ "setup_proccess" ] + 1, 0, 2 ) 
-
-        if self._temp[ "setup_proccess" ] == 1 and self._entry_project_code.get( ) == "":
-            self._temp[ "setup_proccess" ] = 0
-            # Show warning
-            return
+        self._temp[ "setup_process" ] = math.clamp( self._temp[ "setup_process" ] + 1, 0, 1 )
 
         self.__scene_setup_update( )
 
-        if self._temp[ "setup_proccess" ] == 2:
-            self.__project_start( )
-            return
-    
-
-    def __scene_setup_previous_step( self ):
-        """
-            Previous setup step.
-
-            Receive :   None
-
-            Returns :   None
-        """
-
-        self._temp[ "setup_proccess" ] = math.clamp( self._temp[ "setup_proccess" ] - 1, 0, 2 ) 
-
-        self.__scene_setup_update( )
+        if self._temp[ "setup_process" ] == 1:
+            return self.__project_start( )
 
     
     @safe_call( c_debug.log_error )
     def __scene_setup_update( self ):
         
-        process_index = self._temp[ "setup_proccess" ]
+        process_index = self._temp[ "setup_process" ]
 
         changes = {
-            0: [ True, False  ],
-            1: [ False, True ],
-            2: [ False, False ]
+            0: True,
+            1: False
         }
 
         if process_index not in changes:
@@ -469,27 +459,13 @@ class c_user_gui:
         
         current_changes = changes[ process_index ]
 
-        self._entry_project_code.visible( current_changes[ 0 ] )
-        self._entry_username.visible( current_changes[ 1 ] )
-        self._entry_password.visible( current_changes[ 1 ] )
-        self._registration_type.visible( current_changes[ 1 ] )
+        self._entry_project_code.visible(   current_changes )
+
+        self._button_next_setup.visible(    False )
+        self._registration_type.visible(    False )
+        self._entry_username.visible(       False )
+        self._entry_password.visible(       False )
         
-    # endregion
-
-    # region : Scene Wait
-    # This scene is only a placeholder for the moment until the host is fully implemented
-
-    def __scene_wait_initialize( self ):
-        """
-            Initialize the Wait Scene.
-
-            Receive : None
-
-            Returns : None
-        """
-
-        self._scene_wait = self._application.new_scene( )
-
     # endregion
 
     # region : Scene Project
@@ -504,7 +480,7 @@ class c_user_gui:
             Returns : None
         """
 
-        self._application.active_scene( self._scene_wait.index( ) )
+        time.sleep( LOADING_MIN_TIME )
 
         result: bool = self._logic.connect( 
             self._entry_project_code.get( ),
@@ -517,11 +493,12 @@ class c_user_gui:
             time.sleep( LOADING_MIN_TIME )
             self._application.active_scene( self._scene_project.index( ) )
 
+            self._application.maximize_window( )
         else:
-
             self.__show_error_message( self._logic( "last_error" ), self._scene_setup )
-            time.sleep( LOADING_MIN_TIME )
-            self._application.active_scene( self._scene_setup.index( ) )
+            self._temp[ "setup_process" ] = 0
+            
+            self.__scene_setup_control_steps( )
         
 
     def __scene_project_initialize( self ):
@@ -542,8 +519,8 @@ class c_user_gui:
         animations: c_animations = self._scene_project.animations( )
         animations.prepare( "OpenMenu", 0 )
 
-        self._scene_project.set_event( "draw", self.__scene_project_animate_tabs, "Scene Project Animate Tabs" )
-        self._scene_project.set_event( "draw", self.__scene_project_adjust_elements, "Scene Project Adjust Elements" )
+        self._scene_project.set_event( "draw", self.__scene_project_animate_tabs,       "Scene Project Animate Tabs",       False )
+        self._scene_project.set_event( "draw", self.__scene_project_adjust_elements,    "Scene Project Adjust Elements",    False )
 
 
     def __scene_project_initialize_elements( self ):
@@ -555,25 +532,22 @@ class c_user_gui:
             Returns : None
         """
 
-        editor_font:    c_font  = self._application.font( "Editor" )
-        button_font:    c_font  = self._application.font( "Button" )
-        list_font:      c_font  = self._application.font( "List" )
-
         file_icon:      c_image = self._application.image( "Folder" )
         close_icon:     c_image = self._application.image( "Prev" )
 
-        solution_config = solution_explorer_config_t( )
+        solution_config             = solution_explorer_config_t( )
         solution_config.folder_icon = self._application.image( "Folder" )
         solution_config.item_icon   = self._application.image( "File" )
 
-        top_bar_config = list_config_t( )
-        top_bar_config.disable_pressed = True
+        top_bar_config                  = list_config_t( )
+        top_bar_config.disable_pressed  = True
 
-        self._editor            = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), editor_font )
-        self._buttons_bar       = c_side_list( self._scene_project, vector( 50, 50 ), 300, list_font, top_bar_config )
-        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 160 ), vector( 250, 400 ), button_font, solution_config )
+        self._editor            = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), self._general_font )
+        self._buttons_bar       = c_side_list( self._scene_project, vector( 50, 50 ), 300, self._general_font, top_bar_config )
+        self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 140 ), vector( 250, 400 ), self._general_font, solution_config )
 
-        # Utilites
+        # Utilities
+        self._editor.clear( )
         self._editor.open_file( "Welcome" )
         welcome_messages = [ "Welcome to the Digital Editor.", "", "Current version : 1.0 preview.", "Please select a file to start editing." ]
         for msg in welcome_messages:
@@ -593,7 +567,7 @@ class c_user_gui:
         self.__update_sidebar_elements( )
     
 
-    def __scene_project_animate_tabs( self, event ):
+    def __scene_project_animate_tabs( self ):
         """
             Main draw function for Project Scene.
 
@@ -603,12 +577,12 @@ class c_user_gui:
         """
 
         animations: c_animations    = self._scene_project.animations( )
-        speed:     int              = self._scene_project_config.speed
+        speed:      int             = self._scene_project_config.speed
 
-        animations.preform( "OpenMenu", self._opened_what != 0 and 1 or 0, speed )
+        animations.perform( "OpenMenu", self._opened_what != 0 and 300 or 0, speed, 1 )
 
     
-    def __scene_project_adjust_elements( self, event ):
+    def __scene_project_adjust_elements( self ):
         """
             Adjust the scene elements positions.
 
@@ -617,35 +591,17 @@ class c_user_gui:
             Returns : None
         """
 
-        screen:             vector      = self._application.window_size( )
+        screen:     vector          = self._application.window_size( )
+        animations: c_animations    = self._scene_project.animations( )
 
-        animations:         c_animations    = self._scene_project.animations( )
+        opened_tab: float           = animations.value( "OpenMenu" )
 
-        opened_tab = animations.value( "OpenMenu" ) * 300
-
-        self._editor.position( vector( 50 + opened_tab, 150 ) )
-        self._editor.size( vector( screen.x - 100 - opened_tab, screen.y - 200 ) )
+        self._editor.position( vector( 50 + opened_tab, 140 ) )
+        self._editor.size( vector( screen.x - 100 - opened_tab, screen.y - 190 ) )
 
     # endregion
 
     # region : Callbacks
-    
-    def __callback_on_press_files( self, _ ):
-        """
-            Callback for the files button.
-
-            Receive : None
-
-            Returns : None
-        """
-
-        if self._opened_what == 1:
-            self._opened_what = 0
-        else:
-            self._opened_what = 1
-
-        self.__update_sidebar_elements( )
-
     
     def __update_sidebar_elements( self ):
         """
@@ -665,6 +621,23 @@ class c_user_gui:
         current = elements_visible[ self._opened_what ]
 
         self._solution_explorer.visible( current[ 0 ] )
+    
+
+    def __callback_on_press_files( self, _ ):
+        """
+            Callback for the files button.
+
+            Receive : None
+
+            Returns : None
+        """
+
+        if self._opened_what == 1:
+            self._opened_what = 0
+        else:
+            self._opened_what = 1
+
+        self.__update_sidebar_elements( )
        
 
     def __callback_on_press_close( self, _ ):
@@ -678,33 +651,34 @@ class c_user_gui:
 
         self._logic.disconnect( )
         
-
     # endregion
 
     # region : Events
 
     def __event_post_disconnect( self ):
         """
-            After client successfuly disconnect.
+            After client successfully disconnect.
 
             Receive :   
             - event - Event information
 
             Returns :   None
         """
+
+        self._editor.discard_action( )
+
+        self._solution_explorer.clear( )
+        self._editor.clear( )
 
         self._application.active_scene( self._scene_setup.index( ) )
 
-        self._temp[ "setup_proccess" ] = 0
-        self._solution_explorer.clear( )
-        self._editor.clear( )
-        self._editor.discard_action( )
+        self._temp[ "setup_process" ] = 0
         self.__scene_setup_update( )
 
     
-    def __event_register_file( self, event ):
+    def __event_register_files( self ):
         """
-            After client successfuly register.
+            After client successfully register new files.
 
             Receive :   
             - event - Event information
@@ -712,9 +686,7 @@ class c_user_gui:
             Returns :   None
         """
 
-        file_name:      str = event( "file_name" )
-
-        self._solution_explorer.add_item( file_name, lambda: self._logic.request_file( file_name ) )
+        self._solution_explorer.clear( )
 
     
     def __event_clear_editor( self, event ):
@@ -914,7 +886,7 @@ class c_user_gui:
         self._logic.accept_offset( file, offset )
     
 
-    def __event_update_level( self, event ):
+    def __event_file_register( self, event ):
         """
             Update the access level of a file.
 
@@ -958,6 +930,22 @@ class c_user_gui:
             if self._editor.open_file( ) == file_name:
                 self._editor.read_only( False )
 
+    
+    def __event_file_rename( self, event ):
+        
+        old_index: str = event( "old_index" )
+        new_index: str = event( "new_index" )
+
+        if not self._solution_explorer.has_item( old_index ):
+            return
+        
+        self._solution_explorer.remove_item( old_index )
+        self._solution_explorer.add_item( new_index )
+
+        self._editor.open_file( new_index )
+
+        self._logic.accept_file_rename( old_index, new_index )
+
     # endregion
 
     # region : Utilities
@@ -983,9 +971,6 @@ class c_user_gui:
 
         render: c_renderer  = self._application.render( )
 
-        big_font:   c_font      = self._application.font( "SubTitle" )
-        font:       c_font      = self._application.font( "TextInput" )
-
         icon_copy:  c_image     = self._application.image( "Copy" )
 
         c_icon_button( new_window, vector( 430, 10 ), icon_copy, lambda: glfw.set_clipboard_string( None, message ) )
@@ -995,11 +980,17 @@ class c_user_gui:
             fade:   float       = new_window.animations( ).value( "Fade" )
 
             render.push_clip_rect( vector( ), vector( 500, 300 ) )
-            render.text( big_font, vector( 10, 10 ), color( ) * fade, "Error occured" )
-            render.text( font, vector( 10, 80 ), color( 180, 180, 180 ) * fade, render.wrap_text( font, message, 480 ) )
+            render.text( self._general_font, vector( 10, 10 ), color( ) * fade, "Error occurred" )
+            render.text( self._general_font, vector( 10, 80 ), color( 180, 180, 180 ) * fade, render.wrap_text( self._general_font, message, 480 ) )
             render.pop_clip_rect( )
 
         new_window.set_event( "draw", draw, "ErrorMessageDraw" )
+
+
+    def __disconnect_on_window_close( self ):
+
+        if self._logic( "is_connected" ):
+            self._logic.disconnect( )
 
     # endregion
 

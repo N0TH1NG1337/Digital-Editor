@@ -2,3 +2,4 @@ imgui[glfw]
 numpy
 pillow
 cryptography
+argon2-cffi

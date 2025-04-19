@@ -43,13 +43,14 @@ DATABASE_NAME = ".database"
 class c_database:
     # Class for database operations
     
-    _last_error:        str
-    _database_path:     str
+    _last_error:                str
+    _database_path:             str
 
-    _host_index:        str
-    _host_password:     str
+    _host_index:                str
+    _host_password:             str
+    _host_salt:                 str
 
-    _ids:               dict
+    _ids:                       dict
 
     # region : Initialization
 
@@ -91,6 +92,16 @@ class c_database:
             Returns :   None
         """
 
+        success, error = c_registration.validate_username( username )
+        if not success:
+            self._last_error = error
+            return False
+        
+        success, error = c_registration.validate_password( password )
+        if not success:
+            self._last_error = error
+            return False
+
         self._host_index    = username
         self._host_password = password
 
@@ -98,18 +109,30 @@ class c_database:
         index_path: str = os.path.join( self._database_path, DATABASE_NAME, "index.unk" )
 
         if not os.path.exists( index_path ):
-            self._last_error = "Failed to connect to database. reason : Unknown."
+            self._last_error = "Unknown reason"
             return False
         
         with open( index_path, "r" ) as file:
             index_data: dict = json.loads( file.read( ) )
 
+        security:       c_security  = c_security( )
+        password_bytes: bytes       = password.encode( )
+
         if self._host_index not in index_data:
+
+            # Moreover, hash the host password and save to verify on next connect
+            hashed_password, self._host_salt = security.preform_hashing( password_bytes )
+
             # Create a new host id in the index file
+            self._ids = {
+                "self": {
+                    "p1": hashed_password,
+                    "p2": self._host_salt
+                }
+            }
 
-            self._ids = { }
-
-            index_data[ self._host_index ] = { }
+            index_data[ self._host_index ] = self._ids
+            
             # Each field in this will be a username of a client that registered to this host.
             # And the value will be the unique id of the client for user file indexing.
 
@@ -118,6 +141,19 @@ class c_database:
 
         else:
             self._ids = index_data[ self._host_index ]
+
+            host_data: dict = self._ids[ "self" ]
+
+            self._host_salt                 = host_data.get( "p2" )
+            hashed_password                 = host_data.get( "p1" )
+
+            if not self._host_salt or not hashed_password:
+                self._last_error = "Host data corrupted"
+                return False
+            
+            if not security.verify( password_bytes, hashed_password ):
+                self._last_error = "Invalid password"
+                return False
         
         return True
 
@@ -198,8 +234,12 @@ class c_database:
                 "__Creator": self._host_index
             }
 
-            string_data: str = json.dumps( information )
-            encrypted_data: bytes = c_security( ).fast_encrypt( string_data.encode( ), self._host_password.encode( ) )
+            string_data:    str     = json.dumps( information )
+            encrypted_data: bytes   = c_security( ).fast_encrypt( 
+                string_data.encode( ), 
+                self._host_password.encode( ), 
+                bytes.fromhex( self._host_salt ) 
+            )
 
             file.write( encrypted_data )
 
@@ -262,6 +302,11 @@ class c_database:
         """
 
         return self._host_password
+    
+
+    def get_salt( self ) -> str:
+
+        return self._host_salt
 
     
     def get_database_path( self ) -> str:
@@ -278,7 +323,7 @@ class c_database:
 
     def last_error( self ) -> str:
         """
-            Get the last error that occured in this protocol.
+            Get the last error that occurred in this protocol.
 
             Receive :   None
             
@@ -298,7 +343,8 @@ class c_registration:
     _last_error:    str
 
     _username:      str
-    _password:      str # This isnt the password of the user, but the password of the host
+    _password:      bytes # This isn't the password of the user, but the password of the host
+    _salt:          bytes
     _index:         str
 
     _fields:        dict
@@ -330,7 +376,8 @@ class c_registration:
 
         self._database = database
 
-        self._password = self._database.get_password( )
+        self._password  = self._database.get_password( ).encode( )
+        self._salt      =  bytes.fromhex( self._database.get_salt( ) )
 
     # endregion
 
@@ -358,6 +405,11 @@ class c_registration:
         if not result:
             self._last_error = f"Failed to register user. reason : { error_str }"
             return False
+        
+        result, error_str = self.validate_password( password )
+        if not result:
+            self._last_error = f"Failed to register user. reason : { error_str }"
+            return False
 
         if self._database.check_id( username ):
             self._last_error = "Failed to register user. reason : Username already in use."
@@ -374,13 +426,17 @@ class c_registration:
         security: c_security = c_security( )
 
         with open( user_path, "rb" ) as file:
-            data: bytes = security.fast_decrypt( file.read( ), self._password.encode( ) )
+            data: bytes = security.fast_decrypt( 
+                file.read( ), 
+                self._password, 
+                self._salt
+            )
         
         user_information = json.loads( data.decode( ) )
         del data
 
         # No need to check for the host, since the host is the one that creates the user file.
-        salt, hashed_password = security.preform_hashing( password )
+        hashed_password, salt = security.preform_hashing( password )
 
         user_information[ "p1" ] = salt
         user_information[ "p2" ] = hashed_password
@@ -392,7 +448,11 @@ class c_registration:
         self._fields = addition_fields
 
         with open( user_path, "wb" ) as file:
-            file.write( security.fast_encrypt( json.dumps( user_information ).encode( ), self._password.encode( ) ) )
+            file.write( security.fast_encrypt( 
+                json.dumps( user_information ).encode( ), 
+                self._password, 
+                self._salt 
+            ) )
 
         return True
     
@@ -417,6 +477,11 @@ class c_registration:
             self._last_error = f"Failed to login user. reason : { error_str }"
             return False
         
+        result, error_str = self.validate_password( password )
+        if not result:
+            self._last_error = f"Failed to login user. reason : { error_str }"
+            return False
+        
         if not self._database.check_id( username ):
             self._last_error = "Failed to login user. reason : Username not found."
             return False
@@ -429,7 +494,11 @@ class c_registration:
         security: c_security = c_security( )
 
         with open( user_path, "rb" ) as file:
-            data: bytes = security.fast_decrypt( file.read( ), self._password.encode( ) )
+            data: bytes = security.fast_decrypt( 
+                file.read( ), 
+                self._password, 
+                self._salt 
+            )
             
         user_information = json.loads( data.decode( ) )
         del data
@@ -437,7 +506,7 @@ class c_registration:
         # Check if the password is correct
         salt, hashed_password = user_information[ "p1" ], user_information[ "p2" ]
 
-        if not security.verify( password, salt, hashed_password ):
+        if not security.verify( password, hashed_password ):
             self._last_error = "Failed to login user. reason : Invalid password."
             return False
         
@@ -471,7 +540,11 @@ class c_registration:
         security: c_security = c_security( )
 
         with open( user_path, "rb" ) as file:
-            data: bytes = security.fast_decrypt( file.read( ), self._password.encode( ) )
+            data: bytes = security.fast_decrypt( 
+                file.read( ), 
+                self._password, 
+                self._salt 
+            )
             
         user_information = json.loads( data.decode( ) )
         del data
@@ -480,7 +553,11 @@ class c_registration:
             user_information[ field_name ] = field_value
 
         with open( user_path, "wb" ) as file:
-            file.write( security.fast_encrypt( json.dumps( user_information ).encode( ), self._password.encode( ) ) )
+            file.write( security.fast_encrypt( 
+                json.dumps( user_information ).encode( ), 
+                self._password, 
+                self._salt 
+            ) )
  
     # endregion
         
@@ -502,7 +579,8 @@ class c_registration:
         self._fields[ field_name ] = field_value
         
 
-    def validate_username( self, username: str ) -> tuple:
+    @staticmethod
+    def validate_username( username: str ) -> tuple:
         """
             Checks if the username is valid.
 
@@ -531,11 +609,43 @@ class c_registration:
             return False, "Username cannot end with a period."
 
         return True, ""
-        
+    
+
+    @staticmethod
+    def validate_password( password: str ) -> tuple:
+        """
+            Checks if the password is valid.
+
+            Receive :
+            - password - Password to validate
+
+            Returns :   Tuple ( Bool, String )
+        """
+
+        if not password or password == "":
+            return False, "Password cannot be empty."
+
+        if len( password ) < 8:
+            return False, "Password must be at least 8 characters long."
+
+        if not re.search( "[A-Z]", password ):
+            return False, "Password must contain at least one uppercase letter."
+
+        if not re.search( "[a-z]", password ):
+            return False, "Password must contain at least one lowercase letter."
+
+        if not re.search( "[0-9]", password ):
+            return False, "Password must contain at least one digit."
+
+        if not re.search( "[!@#$%^&*(),.?\":{}|<>]", password ):
+            return False, "Password must contain at least one special character."
+
+        return True, ""
+    
 
     def last_error( self ) -> str:
         """
-            Get the last error that occured in this protocol.
+            Get the last error that occurred in this protocol.
 
             Receive :   None
 
@@ -595,312 +705,3 @@ class c_registration:
         return REGISTRATION_HEADER
     
     # endregion
-
-
-
-#class c_registration_protocol:
-#
-#    _last_error:    str
-#    _project_path:  str
-#
-#    _username:      str
-#    _password:      str
-#    _ids:           dict
-#    
-#    # region : Initialization
-#
-#    def __init__( self ):
-#        """ 
-#            Initialize registration protocol.
-#
-#            Receive :   None
-#
-#            Returns :   None
-#        """
-#
-#        self._last_error    = ""
-#        self._project_path  = None
-#
-#        self._username      = None
-#        self._password      = None
-#        self._ids           = {}
-#
-#    
-#    def load_path_for_database( self, path: str ):
-#        """
-#            Load path for database.
-#
-#            Receive :
-#            - path      - Path to database
-#
-#            Returns : None
-#        """
-#
-#        self._project_path = path
-#        self.__create_database( )
-#
-#    
-#    def connect_to_database( self, username: str, password: str ):
-#        """
-#            Connect to database.
-#
-#            Receive :
-#            - username  - Username of creator
-#            - password  - Password of creator
-#
-#            Returns :   None
-#        """
-#
-#        self._username      = username
-#        self._password      = password
-#
-#        # Now we need to check if the host exists in the index file.
-#        index_path: str = os.path.join( self._project_path, DATABASE_NAME, "index.unk" )
-#
-#        if not os.path.exists( index_path ):
-#            self._last_error = "Failed to connect to database. reason : Unknown."
-#            return False
-#        
-#        with open( index_path, "r" ) as file:
-#            index_data: dict = json.loads( file.read( ) )
-#
-#        if self._username not in index_data:
-#            # Create a new host id in the index file
-#
-#            self._ids = { }
-#
-#            index_data[ self._username ] = { }
-#            # Each field in this will be a username of a client that registered to this host.
-#            # And the value will be the unique id of the client for user file indexing.
-#
-#            with open( index_path, "w" ) as file:
-#                file.write( json.dumps( index_data ) )
-#
-#        else:
-#            self._ids = index_data[ self._username ]
-#        
-#        return True
-#
-#    # endregion
-#
-#    # region : Formatting and Parsing
-#
-#    def format_message( self, message: str, arguments: list ):
-#        """
-#            Format message for Registration Protocol.
-#
-#            Receive :
-#            - message   - Command to send
-#            - arguments - Arguments to follow it
-#
-#            Returns :   String value
-#        """
-#
-#        return f"{ REGISTRATION_HEADER }::{ message }->{ '->'.join( arguments ) }"
-#
-#
-#    def parse_message( self, message: str ):
-#        """
-#            Parse information from Registration Protocol message.
-#
-#            Receive :
-#            - message - String value to parse
-#
-#            Returns : Tuple ( cmd, list[arguments] )
-#        """
-#
-#        first_parse = message.split( "::" )
-#        
-#        information = first_parse[ 1 ].split( "->" )
-#        command     = information[ 0 ]
-#
-#        # Remove command from arguments
-#        information.pop( 0 )
-#
-#        return command, information
-#    
-#    # endregion
-#
-#    # region : Registration
-#
-#    @safe_call( c_debug.log_error )
-#    def register_user( self, username: str, password: str ) -> bool:
-#        """
-#            Try to register a new user.
-#
-#            Receive :
-#            - username  - The user's nickname
-#            - password  - Password of the user
-#
-#            Returns :   Result if success
-#        """
-#
-#        result, error_str = self.validate_username( username )
-#        if not result:
-#            self._last_error = f"Failed to register user. reason : { error_str }"
-#            return False
-#
-#        full_path: str = os.path.join( self._project_path, DATABASE_NAME )
-#
-#        if not os.path.exists( full_path ):
-#            self._last_error = "Failed to register user. reason : Unknown."
-#            return False
-#        
-#        #with open( full_path, 'rb' ) as file:
-#        #    users: dict = json.loads( base64.b64decode( file.read( ) ).decode( ) )
-#        with open( full_path, 'r' ) as file:
-#            users: dict = json.loads( file.read( ) )
-#
-#        if username in users:
-#            self._last_error = "Failed to register user. Username is in use."
-#            return False
-#        
-#        security: c_security    = c_security( )
-#        salt, hashed_password   = security.preform_hashing( password )
-#        
-#        users[ username ] = {
-#            "p1": salt,
-#            "p2": hashed_password,
-#            "p3": base64.b64encode( datetime.date.today( ).strftime( "%M:%H->%d/%m/%Y" ).encode( ) ).hex( ) 
-#        }
-#
-#        #with open( full_path, 'wb' ) as file:
-#        #    file.write( base64.b64encode( json.dumps( users ).encode( ) ) )
-#        with open( full_path, 'w' ) as file:
-#            file.write( json.dumps( users ) )
-#
-#        return True
-#
-#    # endregion
-#
-#    # region : Login
-#
-#    @safe_call( c_debug.log_error )
-#    def login_user( self, username: str, password: str ) -> bool:
-#        """
-#            Try to login an user.
-#
-#            Receive :
-#            - username  - The user nickname
-#            - password  - Password of the user
-#
-#            Returns :   Result if success
-#        """
-#
-#        result, error_str = self.validate_username( username )
-#        if not result:
-#            self._last_error = f"Failed to login user. Invalid username, reason : { error_str }"
-#            return False
-#
-#        full_path: str = os.path.join( self._project_path, DATABASE_NAME )
-#
-#        if not os.path.exists( full_path ):
-#            self._last_error = "Failed to login user. reason : Unknown."
-#            return False
-#        
-#        #with open( full_path, 'rb' ) as file:
-#        #    users: dict = json.loads( base64.b64decode( file.read( ) ).decode( ) )
-#        with open( full_path, "r" ) as file:
-#            users: dict = json.loads( file.read( ) )
-#
-#        if not username in users:
-#            self._last_error = "Failed to login user. Username not found."
-#            return False
-#        
-#        current_user_data: dict = users[ username ].copy( )
-#        del users
-#
-#        security:   c_security  = c_security( )
-#        result:     bool        = security.verify( password, current_user_data[ "p1" ], current_user_data[ "p2" ] )
-#
-#        if not result:
-#            self._last_error = "Failed to login user. Invalid password."
-#            return False
-#        
-#        return True
-#
-#    # endregion
-#
-#    # region : Utilities
-#
-#    def validate_username( self, username: str ) -> tuple:
-#        """
-#            Checks if the username is valid.
-#
-#            Receive :
-#            - username - User nickname to validate
-#
-#            Returns :   Tuple ( Bool, String )
-#        """
-#
-#        if not username or username == "":
-#            return False, "Username cannot be empty."
-#
-#        if len( username ) < 3:
-#            return False, "Username must be at least 3 characters long."
-#
-#        if len( username ) > 20:
-#            return False, "Username cannot exceed 20 characters."
-#
-#        if not re.match( "^[a-zA-Z0-9_]*$", username ):
-#            return False, "Username can only contain english letters, numbers and underscores"
-#
-#        if username.startswith( "_" ) or username.startswith( "." ):
-#            return False, "Username cannot start with an underscore or a period."
-#
-#        if username.endswith( "." ):
-#            return False, "Username cannot end with a period."
-#
-#        return True, ""
-#
-#
-#    def __create_database( self ):
-#        """
-#            Create database directory and index file for users.
-#
-#            Receive :   None
-#
-#            Returns :   None
-#        """
-#
-#        database_dir: str = os.path.join( self._project_path, DATABASE_NAME )
-#
-#        if os.path.exists( database_dir ):
-#            return
-#
-#        # Create the database directory
-#        os.makedirs( database_dir, exist_ok=True )
-#
-#        # Create the index file inside the database directory
-#        index_path = os.path.join( database_dir, "index.unk" )
-#        
-#        with open( index_path, "w" ) as file:
-#            first_data = {
-#                "__Creation_Date": datetime.date.today( ).strftime( "%d/%m/%Y" ),
-#                "__Creator": "system"
-#            }
-#            file.write( json.dumps( first_data ) )
-#
-#
-#    def last_error( self ) -> str:
-#        """
-#            Get the last error that occured in this protocol.
-#
-#            Receive :   None
-#
-#            Returns :   String error
-#        """
-#
-#        return self._last_error
-#
-#
-#    def header( self ) -> str:
-#        """
-#            Get the protocol header.
-#
-#            Receive :   None
-#
-#            Returns :   String
-#        """
-#
-#        return REGISTRATION_HEADER

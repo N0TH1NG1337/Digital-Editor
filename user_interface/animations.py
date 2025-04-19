@@ -118,7 +118,7 @@ class c_animations:
 
         self._interpolation = imgui.get_io( ).delta_time
 
-    def preform( self, index: str, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
+    def perform( self, index: str, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
         """
             Preform animation of specific index and return end value
 
@@ -145,8 +145,8 @@ class c_animations:
 
         return self._cache[ index ]
     
-
-    def fast_preform( self, start_value: any, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
+    
+    def fast_perform( self, start_value: any, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
         """
             Preform animation of specific index and return end value
 

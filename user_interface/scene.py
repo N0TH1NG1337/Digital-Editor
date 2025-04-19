@@ -360,7 +360,7 @@ class c_scene:
             self.__initialize_stars( )
 
 
-    def set_event( self, event_index: str, function: any, function_name: str ) -> None:
+    def set_event( self, event_index: str, function: any, function_name: str, get_arguments: bool = True ) -> None:
         """
             Registers functions to a event
 
@@ -377,7 +377,7 @@ class c_scene:
         
 
         event: c_event = self._events[ event_index ]
-        event.set( function, function_name, True )
+        event.set( function, function_name, get_arguments )
 
     # endregion
 
@@ -670,9 +670,9 @@ class c_scene:
         speed: int = self._config.speed
 
         if self._show:
-            fade    = self._animations.preform( "Fade",     self.is_any_window_active( ) and 0.3 or 1, speed )
+            fade    = self._animations.perform( "Fade",     self.is_any_window_active( ) and 0.3 or 1, speed )
         else:
-            fade    = self._animations.preform( "Fade",     0, speed )
+            fade    = self._animations.perform( "Fade",     0, speed )
 
         if not self._config.animate_movement or self._active_handle != -1:
             return
@@ -680,7 +680,7 @@ class c_scene:
         center  = self._parent.window_size( ) / 2
         delta   = ( center - self._mouse_position ) * self._config.movement_factor
         
-        self._animations.preform( "Mouse", delta * fade, speed )
+        self._animations.perform( "Mouse", delta * fade, speed )
 
     # endregion
 

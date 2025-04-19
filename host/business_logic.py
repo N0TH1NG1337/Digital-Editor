@@ -21,7 +21,7 @@ import queue
 import time
 import os
 
-DEFAULT_FOLDER_NAME:    str     = "Digital Files"
+DEFAULT_FOLDER_NAME:    str     = ".digital_files"
 DEFAULT_TRUST_FACTOR:   int     = 50
 
 TIMEOUT_CONNECTION:     float   = 0.5
@@ -31,6 +31,10 @@ TIMEOUT_COMMAND:        float   = 0.1
 ENUM_PROTOCOL_FILES:    int     = 1
 ENUM_PROTOCOL_NETWORK:  int     = 2
 ENUM_PROTOCOL_UNK:      int     = 0
+
+ENUM_SCAN_TYPE_ALL:     int     = 1
+ENUM_SCAN_TYPE_VIRTUAL: int     = 2
+ENUM_SCAN_TYPE_ORIGINAL:int     = 3
 
 
 class c_command:
@@ -148,19 +152,18 @@ class c_client_handle:
     _selected_file:     c_virtual_file              # Selected file
     _selected_line:     int                         # Selected line
 
-    _offsets:           list                        # Offsets for missed lines
     # We dont want modded client to spoof index change response.
     # As a result each change will be added to a list, and in general used as sum( ) for offset
     # And checks if one offset is responded, just remove from the list.
-
+    _offsets:           list                        # Offsets for missed lines
+    
+    # This part will be used to keep track of the issues that the client created.
+    # If the client created an issue, the trust factor will be lowered.
+    # The trust factor will be between 50 - 0. If the trust factor is 0, the client will be disconnected and blacklisted.
     _trust_factor:      int                         # Trust factor for the client
     _is_modded:         bool                        # Is the client modded
     _issues:            list                        # Issues that the client created that lowered the trust factor
-    # This part will be used to keep track of the issues that the client created.
-    # If the client created an issue, the trust factor will be lowered.
-    # If the client didn't create any issue in a while, the trust factor will be increased.
-    # The trust factor will be between 100 - 0. If the trust factor is 0, the client will be disconnected.
-
+    
     _files_commands:    dict
 
     # endregion
@@ -426,8 +429,10 @@ class c_client_handle:
         # End the connection
         self._network.end_connection( )
 
-        # Update the fields
+        # Clear if anything selected on the host side
+        self.clear( )
 
+        # Update the fields
         if update_fields:
             self._registration.set_field( "trust_factor", self._trust_factor )
             self._registration.set_field( "issues", self._issues )
@@ -445,6 +450,16 @@ class c_client_handle:
         self.__event_client_disconnected( notify_the_client, remove_client_handle )
 
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - disconnected" )
+
+
+    def clear( self ):
+        # Clear the user activities, such as line lock or anything similar
+
+        if self._selected_line == 0:
+            return
+        
+        command: c_command = c_command( self, ENUM_PROTOCOL_FILES, FILES_COMMAND_DISCARD_UPDATE, [ self._selected_file.name( ), self._selected_line ] )
+        self.__event_client_command( command )
 
     # endregion
 
@@ -594,7 +609,7 @@ class c_client_handle:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shaffled_key( )
+        key: bytes = self._security.generate_shuffled_key( )
         
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
@@ -610,7 +625,7 @@ class c_client_handle:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shaffled_key( )
+        key: bytes = self._security.generate_shuffled_key( )
         
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
@@ -737,8 +752,22 @@ class c_client_handle:
 
         c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested files" )
 
-        files_list: str = self._files.share_files( )
-        self.send_quick_message( files_list )
+        files: dict = self._files.get_files( )
+
+        self.send_quick_message( self._files.format_message( FILES_COMMAND_RES_FILES, [ str( len( files ) ) ] ) )
+
+        for file in files:
+            file: c_virtual_file = self._files.search_file( file )
+
+            if not file:
+                return
+            
+            access_level: int = file.access_level( )
+            if access_level == FILE_ACCESS_LEVEL_HIDDEN:
+                continue
+
+            message: str = self._files.format_message( FILES_COMMAND_UPDATE_FILE, [ file.name( ), str( access_level ) ] )
+            self.send_quick_message( message )
 
     
     def __get_file( self, command: c_command ):
@@ -769,7 +798,7 @@ class c_client_handle:
 
         self.send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
 
-        key: bytes = self._security.generate_shaffled_key( )
+        key: bytes = self._security.generate_shuffled_key( )
         self._network.send_bytes( self._security.strong_protect( key ) )
 
         for chunk_info in config:
@@ -819,10 +848,10 @@ class c_client_handle:
             return self.lower_trust_factor( 10, "Unauthorized request" )
         
         # In general the locked lines should show up for the client
-        # and it doesnt need to request it if locked
+        # and it doesn't need to request it if locked
         if file.is_line_locked( line_number ):
             # This can happen only in 1 cases.
-            # 1. The client didnt have time to register line lock
+            # 1. The client didn't have time to register line lock
             # 2. The client is modded
 
             # To be sure, will add more checks later
@@ -1002,32 +1031,13 @@ class c_client_handle:
             Returns :   None
         """
 
-        # Here we just perform all the checks...
         arguments:      list    = command.arguments( )
 
-        # Convert the arguments into real values
-        file_name:      str     = arguments[ 0 ]
-        offset_number:  int     = math.cast_to_number( arguments[ 1 ] )
+        # Convert the argument into real values
+        update_type:    int     = math.cast_to_number( arguments[ 0 ] )
 
-        if offset_number is None:
-            return self.lower_trust_factor( 5, "Invalid offset value" ) 
-
-        file: c_virtual_file = self._files.search_file( file_name )
-        if not file:
-            return self.lower_trust_factor( 5, "Invalid file name" ) 
-        
-        access_level: int = file.access_level( )
-        if access_level != FILE_ACCESS_LEVEL_EDIT:
-            return self.lower_trust_factor( 10, "Unauthorized request" )
-        
-        if not self.is_offset( offset_number ):
-            return self.lower_trust_factor( 10, "Unknown offset" )
-        
-        command.clear_arguments( )
-        command.add_arguments( offset_number )
-
-        # In the end process the command in commands pool
-        self.__event_client_command( command )
+        arguments.pop( 0 )
+        self.__get_correct_update_callback( update_type, command )
     
 
     @standalone_execute
@@ -1060,11 +1070,74 @@ class c_client_handle:
 
         file.access_level( new_level )
 
-        # Prepare messafe for client
-        message: str = self._files.format_message( FILES_COMMAND_CHANGE_LEVEL, [ file.name( ), str( new_level ) ] )
+        # Prepare message for client
+        message: str = self._files.format_message( FILES_COMMAND_UPDATE_FILE, [ file.name( ), str( new_level ) ] )
         self.send_quick_message( message )
+
+    # endregion
+
+    # region : Updates verifications
+
+    def __get_correct_update_callback( self, update_type: int, command: c_command ):
         
+        update_callbacks = {
+            FILE_UPDATE_CONTENT:    self.__update_type_content,
+            FILE_UPDATE_NAME:       self.__update_type_name
+        }
+
+        update_callbacks[ update_type ]( command ) 
+
     
+    def __update_type_content( self, command: c_command ):
+        arguments:      list    = command.arguments( )
+
+        file_name:      str     = arguments[ 0 ]
+        offset_number:  int     = math.cast_to_number( arguments[ 1 ] )
+
+        if offset_number is None:
+            return self.lower_trust_factor( 5, "Invalid offset value" ) 
+
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
+        
+        access_level: int = file.access_level( )
+        if access_level != FILE_ACCESS_LEVEL_EDIT:
+            return self.lower_trust_factor( 10, "Unauthorized request" )
+        
+        if not self.is_offset( offset_number ):
+            return self.lower_trust_factor( 10, "Unknown offset" )
+        
+        command.clear_arguments( )
+        command.add_arguments( FILE_UPDATE_CONTENT )
+        command.add_arguments( offset_number )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+
+
+    def __update_type_name( self, command: c_command ):
+
+        arguments:      list    = command.arguments( )
+
+        old_index:      str     = arguments[ 0 ]
+        new_index:      str     = arguments[ 1 ]
+
+        file: c_virtual_file = self._files.search_file( old_index )
+        if not file:
+            return self.lower_trust_factor( 5, "Invalid file name" ) 
+        
+        if file.access_level( ) == FILE_ACCESS_LEVEL_HIDDEN:
+            return self.lower_trust_factor( 10, "Unauthorized request" )
+
+        command.clear_arguments( )
+        command.add_arguments( FILE_UPDATE_CONTENT )
+        command.add_arguments( old_index )
+        command.add_arguments( new_index )
+
+        # In the end process the command in commands pool
+        self.__event_client_command( command )
+
     # endregion
 
     # region : Offsets
@@ -1233,6 +1306,8 @@ class c_client_handle:
 
         self._trust_factor = math.clamp( self._trust_factor - value, 0, 100 )
         self._issues.append( reason )
+        
+        c_debug.log_error( reason )
 
     
     def check_trust_factor( self ) -> bool:
@@ -1480,18 +1555,7 @@ class c_host_business_logic:
 
     # region : Connection
 
-    def setup( self, ip: str, port: int, username: str, password: str ):
-        """
-            Setup the server for host business logic.
-
-            Receive:    
-            - ip    - IP address      
-            - port  - Port number
-            - username  - Username of creator
-            - password  - Password of creator
-
-            Returns:    None
-        """
+    def setup( self, ip: str, port: int, username: str ):
 
         # I dont use @safe_call since I need to add debug options later on
 
@@ -1501,7 +1565,6 @@ class c_host_business_logic:
             self._information[ "ip" ]       = ip
             self._information[ "port" ]     = port
             self._information[ "username" ] = username
-            self._information[ "password" ] = password
 
             self._host_client.attach_information( "username", username )
 
@@ -1514,7 +1577,7 @@ class c_host_business_logic:
         except Exception as e:
 
             # In case of some error. Handle it
-            self._information[ "last_error" ]   = f"Error occured on .setup() : {e}"
+            self._information[ "last_error" ]   = f"Error occurred on .setup() : {e}"
             self._information[ "success" ]      = False
             
 
@@ -1528,7 +1591,7 @@ class c_host_business_logic:
         """
 
         if not self._information[ "success" ]:
-            self._information[ "last_error" ]   = f"Cannot start the server execution if it hasn't been setupped."
+            self._information[ "last_error" ]   = f"Cannot start the server execution if it hasn't been setup."
             return False
         
         # Update is Running flag
@@ -1556,16 +1619,19 @@ class c_host_business_logic:
         """
 
         if not self._information[ "running" ]:
-            return
-
+            return self._network.end_connection( )
+ 
         # Update is Running flag
         self._information[ "running" ] = False
+        c_debug.log_information( "Set [running] flag to False" )
 
         # Call event
         self.__event_host_stop( )
+        c_debug.log_information( "Called __event_host_stop( )" )
 
         # Disconnect from the database
         self._database.disconnect( )
+        c_debug.log_information( "Disconnected from the database" )
 
         # Disconnect all the remaining clients
         for client in self._clients:
@@ -1573,10 +1639,14 @@ class c_host_business_logic:
 
             client.disconnect( True, False )
 
+        c_debug.log_information( "Disconnected every client" )
+
         self._clients.clear( )
+        c_debug.log_information( "Cleared client list" )
 
         # Close the network connection
         self._network.end_connection( )
+        c_debug.log_information( "Closed network connection" )
 
 
     def generate_code( self ) -> str:
@@ -1645,7 +1715,7 @@ class c_host_business_logic:
             Returns:    None
         """
 
-        while self._information[ "running" ]:
+        while self._information[ "running" ] or not self._command_pool.empty( ):
 
             if not self._command_pool.empty( ):
 
@@ -1661,7 +1731,7 @@ class c_host_business_logic:
             else:
                 
                 # If our command queue is empty, just sleep for 0.1 seconds.
-                # Othersize this thread will run million times per second.
+                # Otherwise this thread will run million times per second.
                 time.sleep( TIMEOUT_COMMAND )
 
     # endregion
@@ -1684,7 +1754,8 @@ class c_host_business_logic:
             FILES_COMMAND_DISCARD_UPDATE:   self.__command_execute_discard_update,
             FILES_COMMAND_UPDATE_LINE:      self.__command_execute_commit_update,
             FILES_COMMAND_DELETE_LINE:      self.__command_execute_commit_delete,
-            FILES_COMMAND_APPLY_UPDATE:     self.__command_execute_accept_offset
+            FILES_COMMAND_APPLY_UPDATE:     self.__command_execute_accept_offset,
+            FILES_COMMAND_UPDATE_FILE_NAME: self.__command_execute_change_file_name
         }
 
         base_command_callbacks[ command.command( ) ]( command.client( ), command.arguments( ) )
@@ -1818,24 +1889,47 @@ class c_host_business_logic:
             Returns :   None
         """
 
-        # I know it technically cause bottleneck issue, but this is the system.
-        # Simple and kinda quick... ( or at least should be )
+        update_type: int = arguments[ 0 ]
+        if update_type == FILE_UPDATE_CONTENT:
 
-        # This has to be ordered since the line change can be delayed
+            # I know it technically cause bottleneck issue, but this is the system.
+            # Simple and kinda quick... ( or at least should be )
 
-        # For example
-        # Change [2]
-        # OTHER...
-        # Change [1]
-        # - HEAD OF THE QUEUE
+            # This has to be ordered since the line change can be delayed
 
-        # CHANGE 1 has been commited and the client accepted it, but 
-        # there is still Change [2]
-        # in the queue waiting. Without this, it will mess everything up.
+            # For example
+            # Change [2]
+            # OTHER...
+            # Change [1]
+            # - HEAD OF THE QUEUE
 
-        offset: int = arguments[ 0 ]
-        client.remove_offset( offset )
+            # CHANGE 1 has been committed and the client accepted it, but 
+            # there is still Change [2]
+            # in the queue waiting. Without this, it will mess everything up.
+
+            offset: int = arguments[ 1 ]
+            return client.remove_offset( offset )
         
+        if update_type == FILE_UPDATE_NAME:
+            
+            old_index: str = arguments[ 1 ]
+            new_index: str = arguments[ 2 ]
+
+            return client.files( ).update_name( old_index, new_index )
+        
+    
+    def __command_execute_change_file_name( self, client: c_client_handle, arguments: list ):
+        
+        old_index:          str = arguments[ 0 ]
+        new_index:          str = arguments[ 1 ]
+        new_default_level:  int = arguments[ 2 ]
+
+        file: c_virtual_file = self._files.update_name( old_index, new_index )
+        file.access_level( new_default_level )
+
+        self.__broadcast_for_shareable_clients( None, client, self.__broadcast_change_file_name, old_index, new_index )
+
+    
     # endregion
 
     # region : Broadcasting
@@ -1855,7 +1949,7 @@ class c_host_business_logic:
         for client in self._clients:
             client: c_client_handle = client
 
-            if client.selected_file( ) == file.name( ):
+            if ( file is not None and client.selected_file( ) == file.name( ) ) or file is None:
                 
                 if exception is None or client != exception:
                     broadcast_function( client, file, *args )
@@ -1960,11 +2054,26 @@ class c_host_business_logic:
         message = self._files.format_message( FILES_COMMAND_DELETE_LINE, [ file.name( ), str( line ) ] )
         client.send_quick_message( message )
 
+
+    def __broadcast_change_file_name( self, client: c_client_handle, file: c_virtual_file, old_index: str, new_index: str ):
+
+        client_files: c_files_manager_protocol = client.files( )
+        file = client_files.search_file( old_index )
+
+        if not file:
+            return
+
+        if file.access_level( ) == FILE_ACCESS_LEVEL_HIDDEN:
+            return client.files( ).update_name( old_index, new_index )
+        
+        message = self._files.format_message( FILES_COMMAND_UPDATE_FILE_NAME, [ old_index, new_index ] )
+        client.send_quick_message( message )
+
     # endregion
 
     # region : Files
 
-    def initialize_path( self, path: str, default_access_level: str ):
+    def initialize_base_values( self, path: str, default_access: int, default_scan_type: int ):
         """
             Create and setup the project files path.
 
@@ -1974,45 +2083,68 @@ class c_host_business_logic:
             Returns :   None
         """
 
-        self._information[ "original_path" ] = path
-        self._information[ "default_access" ] = default_access_level
-
-        self.__setup_default_access_level( )
+        self._information[ "original_path" ]        = path
+        self._information[ "default_access" ]       = default_access
+        self._information[ "default_scan_type" ]    = default_scan_type
 
         self.__setup_path( )
 
-        # Setup database
+    
+    def connect_to_database( self, password: str ) -> bool:
+
+        # Load path or create database
         self._database.load_path( self._information[ "normal_path" ] )
-        self._database.connect( self._information[ "username" ], self._information[ "password" ] )
+
+        # Try to connect to database based on username and password
+        result: bool = self._database.connect( self._information[ "username" ], password )
+        if not result:
+            self._information[ "last_error" ] = f"Failed to connect to database. { self._database.last_error( ) }"
+            return False
+        
+        return True
+
+    
+    def complete_setup_files( self ):
 
         self.__setup_files( )
 
         self.__event_files_refresh( )
 
 
-    def __setup_default_access_level( self ):
-        """
-            Setup default access level for new users.
+    def create_empty_file( self, path: str, name: str, access_level: int = FILE_ACCESS_LEVEL_HIDDEN ):
 
-            Receive :   None
+        # Need to parse the data.
+        # We assume that this file is places in the .original_path\\DEFAULT_FOLDER
 
-            Returns :   None
-        """
+        # TODO ! Maybe create the file on the default path ?
 
-        level: str = self._information[ "default_access" ]
-
-        del self._information[ "default_access" ]
-
-        level_number = {
-            "Hidden":   FILE_ACCESS_LEVEL_HIDDEN,
-            "Edit":     FILE_ACCESS_LEVEL_EDIT,
-            "Limit":    FILE_ACCESS_LEVEL_LIMIT
-        }
-
-        if level not in level_number:
-            raise Exception( "Invalid access level type" )
+        normalized_path = os.sep.join( [ path, name ] )
+        normalized_name = normalized_path.replace( self._information[ "normal_path" ] + os.sep, "" )
         
-        self._information[ "default_access" ] = level_number[ level ]
+        file: c_virtual_file = self._files.search_file( normalized_name )
+        if file:
+            return
+        
+        file = self._files.create_new_file( normalized_name, access_level )
+        r = file.create( self._information[ "normal_path" ] )
+
+        if r is not None:
+            c_debug.log_error( r )
+
+        # Now we need to setup the files for connected clients
+        if len( self._clients ) == 0:
+            return
+
+        for client in self._clients:
+            client: c_client_handle = client
+
+            client_files: c_files_manager_protocol = client.files( )
+            
+            for file_index in self._files.get_files( ):
+                v_file: c_virtual_file = self._files.search_file( file_index )
+
+                if v_file and not client_files.search_file( file_index ):
+                    client_files.copy( v_file )
 
 
     def __setup_path( self ):
@@ -2044,10 +2176,16 @@ class c_host_business_logic:
 
         # Here need to make a copy of each file to the new path.
         # Besides, create for each file another file that stores all the changes
-        original_path   = self._information[ "original_path" ]
+        original_path:  str = self._information[ "original_path" ]
+        normal_path:    str = self._information[ "normal_path" ]
+        scan_type:      int = self._information[ "default_scan_type" ]
 
-        self.__dump_path( original_path )
-
+        if scan_type == ENUM_SCAN_TYPE_ALL or scan_type == ENUM_SCAN_TYPE_VIRTUAL:
+            self.__dump_previous_path( normal_path )
+    
+        if scan_type == ENUM_SCAN_TYPE_ALL or scan_type == ENUM_SCAN_TYPE_ORIGINAL:
+            self.__dump_path( original_path )
+            
 
     def __dump_path( self, path: str ):
         """
@@ -2063,6 +2201,8 @@ class c_host_business_logic:
         normal_path     = self._information[ "normal_path" ]
         access_level    = self._information[ "default_access" ]
 
+        allowed_file_types = ( ".py", ".cpp", ".hpp", ".c", ".h", ".cs", ".txt" )
+
         with os.scandir( path ) as entries:
             
             for entry in entries:
@@ -2070,10 +2210,15 @@ class c_host_business_logic:
                 if entry.is_file( ):
                     # Is File
 
-                    # TODO ! Check if the file already copied
-
                     fixed_name = f"{ path.replace( original_path, '' ) }\\{ entry.name }"
                     fixed_name = fixed_name.lstrip( "\\" )
+
+                    if not fixed_name.endswith( allowed_file_types ):
+                        continue
+
+                    # Avoid recreating the same file.
+                    if self._files.search_file( fixed_name ) is not None:
+                        continue
                     
                     file = self._files.create_new_file( fixed_name, access_level, True )
                     r = file.copy( original_path, normal_path )
@@ -2085,7 +2230,42 @@ class c_host_business_logic:
                     # Is Folder
                     
                     self.__dump_path( f"{ path }\\{ entry.name }" )
+    
+
+    def __dump_previous_path( self, path: str ):
+
+        normal_path     = self._information[ "normal_path" ]
+        access_level    = self._information[ "default_access" ]
+
+        allowed_file_types = ( ".py", ".cpp", ".hpp", ".c", ".h", ".cs", ".txt" )
+
+        with os.scandir( path ) as entries:
             
+            for entry in entries:
+                
+                if entry.is_file( ):
+                    # Is File
+                    
+                    fixed_name = f"{ path.replace( normal_path, '' ) }\\{ entry.name }"
+                    fixed_name = fixed_name.lstrip( "\\" )
+
+                    # Make sure there is no junk added by mistake or not.
+                    if not fixed_name.endswith( allowed_file_types ):
+                        continue
+
+                    # Dont create virtual file for changes file
+                    if fixed_name.endswith("_changes.txt"):
+                        continue
+                    
+                    # Create instance of virtual file
+                    file = self._files.create_new_file( fixed_name, access_level, True )
+                    file.attach( normal_path )
+
+                if entry.is_dir( ) and entry.name != DEFAULT_FOLDER_NAME and not entry.name.startswith( "." ):
+                    # Is Folder
+                    
+                    self.__dump_previous_path( f"{ path }\\{ entry.name }" )
+    
     # endregion
 
     # region : Host actions
@@ -2215,6 +2395,34 @@ class c_host_business_logic:
 
         self._command_pool.put( new_command )
 
+    
+    def find_file_information( self, file_name: str ) -> tuple:
+        
+        file: c_virtual_file = self._files.search_file( file_name )
+        if not file:
+            return False, ( "Failed to find file" )
+        
+        file_name, file_type        = file.name( True )
+        normalized_file_name:   str = file_name.split( os.sep )[ -1 ]
+        file_size:              str = str( file.size( ) )
+
+        return True, ( normalized_file_name, file_type, file_size, file.access_level( ) )
+    
+
+    def update_file_details( self, old_index: str, new_index: str, new_default_level: int ):
+        
+        file: c_virtual_file = self._files.search_file( old_index )
+        if not file:
+            return
+
+        new_command: c_command = c_command( self._host_client, ENUM_PROTOCOL_FILES, FILES_COMMAND_UPDATE_FILE_NAME, [ ] )
+
+        new_command.add_arguments( old_index )
+        new_command.add_arguments( new_index ) 
+        new_command.add_arguments( new_default_level ) 
+        
+        self._command_pool.put( new_command )
+
     # endregion
 
     # region : Events
@@ -2316,7 +2524,7 @@ class c_host_business_logic:
             return
 
         # Add the command to the pool
-        self._command_pool.put( event( "command" ) )
+        self._command_pool.put( command )
 
         # Call the event
         event: c_event = self._events[ "on_client_command" ]
@@ -2551,6 +2759,14 @@ class c_host_business_logic:
 
     def get_host_client( self ) -> c_client_handle:
         return self._host_client
+    
+
+    def __call__( self, index: str ):
+        
+        if index in self._information:
+            return self._information[ index ]
+        
+        return None
     
     # endregion
 

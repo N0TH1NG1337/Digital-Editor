@@ -105,7 +105,7 @@ class c_connection:
         """
 
         if self._socket is INVALID:
-            raise Exception( "Cannot end connection if not started" )
+            return
         
         self._socket.close( )
         

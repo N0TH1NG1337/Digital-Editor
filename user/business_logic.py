@@ -92,7 +92,7 @@ class c_user_business_logic:
 
             # Complex events 
             "on_refresh_files":     c_event( ), # Called when user request to refresh files list
-            "on_register_file":     c_event( ), # ?
+            "on_register_files":    c_event( ), # ?
 
             "on_file_set":          c_event( ), # Called whenever the host is going to send the user specific file content.
             "on_file_update":       c_event( ), # ?
@@ -104,7 +104,8 @@ class c_user_business_logic:
             "on_line_update":       c_event( ), # Called when the host updates line / lines. 
             "on_line_delete":       c_event( ), # Called when the host deletes a specific line. ( Line removal is other process than update )
 
-            "on_level_update":      c_event( )  # Called when the host updates a access level to a specific file
+            "on_file_register":     c_event( ), # Called when the host updates a access level to a specific file,
+            "on_file_rename":       c_event( )  # Called when the host updates a file's name
         }
 
     
@@ -132,7 +133,7 @@ class c_user_business_logic:
             FILES_COMMAND_RES_FILES:        self.__command_received_files,
             FILES_COMMAND_SET_FILE:         self.__command_set_file,
 
-            FILES_COMMAND_PREPARE_RESPONSE: self.__commad_response_line_lock,
+            FILES_COMMAND_PREPARE_RESPONSE: self.__command_response_line_lock,
 
             FILES_COMMAND_PREPARE_UPDATE:   self.__command_line_lock,
             FILES_COMMAND_DISCARD_UPDATE:   self.__command_line_unlock,
@@ -140,7 +141,8 @@ class c_user_business_logic:
             FILES_COMMAND_UPDATE_LINE:      self.__command_line_update,
             FILES_COMMAND_DELETE_LINE:      self.__command_line_delete,
 
-            FILES_COMMAND_CHANGE_LEVEL:     self.__command_update_level
+            FILES_COMMAND_UPDATE_FILE:      self.__command_file_register,
+            FILES_COMMAND_UPDATE_FILE_NAME: self.__command_update_file_name
         }
 
     # endregion
@@ -315,7 +317,7 @@ class c_user_business_logic:
 
     def __end_connection( self ):
         """
-            Forcely end connection with server, without notifing it.
+            Forcedly end connection with server, without notifying it.
 
             Receive :   None
 
@@ -439,20 +441,7 @@ class c_user_business_logic:
             Returns : None
         """
 
-        length = len( arguments )
-
-        if length == 1 and arguments[ 0 ] == "":
-            return
-
-        if length % 2 != 0:
-            raise Exception( f"Invalid arguments list. Number of arguments must be even.\nReceived : { arguments }" )
-            
-        for i in range( 0, length, 2 ):
-
-            name:           str = arguments[ i ] 
-            access_level:   int = int( arguments[ i + 1 ] ) 
-
-            self.__event_register_file( name, access_level )
+        self.__event_register_files( )
 
     
     @safe_call( c_debug.log_error )
@@ -507,9 +496,9 @@ class c_user_business_logic:
 
 
     @safe_call( c_debug.log_error )
-    def __commad_response_line_lock( self, arguments: list ):
+    def __command_response_line_lock( self, arguments: list ):
         """
-            Command method for geting line lock response.
+            Command method for getting line lock response.
 
             Receive :
             - arguments - List containing file details
@@ -613,7 +602,7 @@ class c_user_business_logic:
             fixed_line: str = base64.b64decode( received_line ).decode( )
             del received_line
 
-            # Maybe better approuch will be to add '\n' for each line...
+            # Maybe better approach will be to add '\n' for each line...
             if fixed_line == "\n":
                 fixed_line = ""
             
@@ -647,7 +636,7 @@ class c_user_business_logic:
 
     
     @safe_call( c_debug.log_error )
-    def __command_update_level( self, arguments: list ):
+    def __command_file_register( self, arguments: list ):
         """
             Command method for updating access level to a file.
 
@@ -671,7 +660,7 @@ class c_user_business_logic:
             # Create new one
             file = self._files.create_new_file( file_name, access_level, False )
             
-            return self.__event_level_update( file.name( ), file.access_level( ) )
+            return self.__event_file_register( file.name( ), file.access_level( ) )
 
         if not file:
             raise Exception( f"Failed to find file { file_name }" )
@@ -684,8 +673,22 @@ class c_user_business_logic:
             # Change to new access level
             file.access_level( access_level )
 
-        self.__event_level_update( file_name, access_level )
+        self.__event_file_register( file_name, access_level )
 
+
+    @safe_call( c_debug.log_error )
+    def __command_update_file_name( self, arguments: list ):
+
+        old_index: str = arguments[ 0 ]
+        new_index: str = arguments[ 1 ]
+
+        file: c_virtual_file = self._files.search_file( old_index )
+        if not file:
+            return
+        
+        self._files.update_name( old_index, new_index )
+
+        self.__event_file_rename( old_index, new_index )
 
     # endregion
 
@@ -701,7 +704,7 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shaffled_key( )
+        key: bytes = self._security.generate_shuffled_key( )
         
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
@@ -717,7 +720,7 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shaffled_key( )
+        key: bytes = self._security.generate_shuffled_key( )
         
         self._network.send_bytes( self._security.strong_protect( key ) )
         self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
@@ -863,7 +866,17 @@ class c_user_business_logic:
         if not file:
             return
         
-        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ file.name( ), str( offset) ] )
+        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ str( FILE_UPDATE_CONTENT ), file.name( ), str( offset) ] )
+        self.__send_quick_message( message )
+
+
+    def accept_file_rename( self, old_index: str, new_index: str ):
+
+        file: c_virtual_file = self._files.search_file( new_index )
+        if not file:
+            return
+        
+        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ str( FILE_UPDATE_NAME ), old_index, new_index ] )
         self.__send_quick_message( message )
 
     # endregion
@@ -918,23 +931,18 @@ class c_user_business_logic:
         event.invoke( )
 
     
-    def __event_register_file( self, file_name: str, access_level: int ):
+    def __event_register_files( self ):
         """
             Event callback when the user registers a new file.
 
-            Receive :
-            - file_name     - File name
-            - access_level  - File access level
+            Receive :   None
 
             Returns :   None
         """
 
-        self._files.create_new_file( file_name, access_level, False )
+        #self._files.create_new_file( file_name, access_level, False )
 
-        event: c_event = self._events[ "on_register_file" ]
-
-        event.attach( "file_name", file_name )
-        event.attach( "access_level", access_level )
+        event: c_event = self._events[ "on_register_files" ]
 
         event.invoke( )
 
@@ -1074,7 +1082,7 @@ class c_user_business_logic:
         event.invoke( )
 
 
-    def __event_level_update( self, file: str, access_level: int ):
+    def __event_file_register( self, file: str, access_level: int ):
         """
             Event callback for updating file's access level.
 
@@ -1085,10 +1093,20 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        event: c_event = self._events[ "on_level_update" ]
+        event: c_event = self._events[ "on_file_register" ]
 
         event.attach( "file", file )
         event.attach( "access_level", access_level )
+
+        event.invoke( )
+
+
+    def __event_file_rename( self, old_index: str, new_index: str ):
+
+        event: c_event = self._events[ "on_file_rename" ]
+
+        event.attach( "old_index", old_index )
+        event.attach( "new_index", new_index )
 
         event.invoke( )
 

@@ -13,7 +13,6 @@
 
 import OpenGL.GL as gl
 import glfw
-import imgui
 
 # Import utilities
 from utilities.color    import color
@@ -178,9 +177,9 @@ class c_window:
 
         if self._show:
             is_this_last_window = self._parent.last_window( ) is self
-            fade: float = self._animations.preform( "Fade", is_this_last_window and 1 or 0.3, self._config.speed )
+            fade: float = self._animations.perform( "Fade", is_this_last_window and 1 or 0.3, self._config.speed )
         else:
-            fade: float = self._animations.preform( "Fade", 0, self._config.speed )
+            fade: float = self._animations.perform( "Fade", 0, self._config.speed )
 
         self._render.push_position( self._position )
 
@@ -190,15 +189,15 @@ class c_window:
 
         self.__event_draw( )
 
-        # Render elemements
+        # Render elements
         for item in self._elements:
             item.draw( fade )
 
         self._render.pop_position( )
 
-        self.__unload_window( )
-
         self._render.pop_clip_rect( )
+
+        self.__unload_window( )
 
 
     def __draw_background( self, fade: float ) -> None:
@@ -449,7 +448,7 @@ class c_window:
     def try_to_get_handle( self, index: int ) -> bool:
         """
             Tries to a get handle for specific item.
-            Used to proccess 1 input at a time.
+            Used to process 1 input at a time.
             
             Receives:   
             - index - Element index
@@ -467,7 +466,7 @@ class c_window:
 
     def release_handle( self, index: int ) -> None:
         """
-            If a specific index called it and active_handle is setted.
+            If a specific index called it and active_handle is set.
             It will release it.
             
             Receives:   
@@ -526,6 +525,7 @@ class c_window:
             return self._show
         
         self._show = new_value
+        return new_value
 
     
     def parent( self ) -> any:
@@ -606,7 +606,7 @@ class c_window:
 
         fade: float = self._animations.value( "Fade" )
 
-        if fade == 0 and not self._show and self._active_handle == -1:
+        if fade == 0 and not self._show:
             self._parent.deattach_window( self )
 
     # endregion

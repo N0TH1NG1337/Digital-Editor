@@ -224,16 +224,17 @@ class c_renderer:
 
     # region : Show Textures
 
-    def image( self, img: c_image, position: vector, clr: color, size: vector = None ) -> None:
+    def image( self, img: c_image, position: vector, clr: color, size: vector = None, roundness: int = 0 ) -> None:
         """
             Renders Image in a specific place with specific size.
             Recommended : use original size for the image while loading and while using
 
             Receives:   
-            - img               - Image object
-            - position          - Position
-            - clr               - Color 
-            - size [optional]   - Image size
+            - img                   - Image object
+            - position              - Position
+            - clr                   - Color 
+            - size [optional]       - Image size
+            - roundness [optional]  - Image roundness
 
             Returns:    None
         """
@@ -246,12 +247,22 @@ class c_renderer:
         if size is None:
             size = img.size( )
 
-        self._draw_list.add_image(
-            img( ), 
-            ( position.x, position.y ), 
-            ( position.x + size.x, position.y + size.y ), 
-            col=clr( )
-        )
+        if roundness == 0:
+            self._draw_list.add_image(
+                img( ), 
+                ( position.x, position.y ), 
+                ( position.x + size.x, position.y + size.y ), 
+                col=clr( )
+            )
+
+        else:
+            self._draw_list.add_image_rounded(
+                img( ),
+                ( position.x, position.y ),
+                ( position.x + size.x, position.y + size.y ),
+                col=clr( ),
+                rounding=roundness
+            )
 
     
     def text( self, font: c_font, position: vector, clr: color, text: str, flags: str = "" ) -> None:
@@ -556,15 +567,21 @@ class c_renderer:
             Returns:    None
         """
 
+        add_position    = self.__get_last_position( )
+        position        = position + add_position
+        end_position    = end_position + add_position
+
         for radius in range( 0, glow + 1 ):
             radius = radius / 2
-            
-            self.rect_outline( 
-                vector( position.x - radius, position.y - radius ), 
-                vector( end_position.x + radius, end_position.y + radius ),
-                color( clr.r, clr.g, clr.b, glow - radius * 2 ) * alpha,
-                1,
-                roundness + radius
+
+            fixed_color = color( clr.r, clr.g, clr.b, glow - radius * 2 ) * alpha
+
+            self._draw_list.add_rect(
+                position.x - radius, position.y - radius,               # unpack the position 2d cords      [ignore .z]
+                end_position.x + radius, end_position.y + radius,       # unpack the end position 2d cords  [ignore .z]
+                fixed_color( ),                                         # call color object to return ImColor u32 type
+                rounding=( roundness + radius ),                        # assignee rounding if need
+                thickness=1                                             # set outline thickness
             )
             
     

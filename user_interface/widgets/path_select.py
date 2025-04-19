@@ -259,14 +259,25 @@ class c_base_folder:
 
 
 class path_select_config_t:
-    speed:              int     = 10
-    pad:                int     = 10
-    seperate:           int     = 4
-    roundness:          int     = 10
+    speed:              int
+    pad:                int
+    separate:           int
+    roundness:          int
 
-    seperate_color:     color   = color( 216, 208, 215 )
-    path_text_color:    color   = color( )
-    back_color:         color   = color( 0, 0, 0, 100 )
+    separate_color:     color
+    path_text_color:    color
+    back_color:         color
+
+    def __init__( self ):
+
+        self.speed:              int     = 10
+        self.pad:                int     = 10
+        self.separate:           int     = 4
+        self.roundness:          int     = 10
+
+        self.separate_color:     color   = color( 207, 210, 215 )
+        self.path_text_color:    color   = color( )
+        self.back_color:         color   = color( 0, 0, 0, 150 )
 
 
 class c_path_select:
@@ -371,7 +382,7 @@ class c_path_select:
         """
 
         pad:            int     = self._config.pad
-        seperate:       int     = self._config.seperate
+        seperate:       int     = self._config.separate
         back_button:    int     = pad * 3 + self._back_icon.size( ).x + seperate
         position:       vector  = vector( self._position.x + back_button, self._position.y )
         size:           vector  = vector( self._size.x - back_button - pad * 2, self._back_icon.size( ).y + pad * 2 )
@@ -463,11 +474,18 @@ class c_path_select:
         """
 
         pad:                        int     = self._config.pad
+        seperate:                   int     = self._config.separate
+        back_button:                int     = pad * 3 + self._back_icon.size( ).x + seperate
 
         self._window_size.y                 = self._size.y - self._input_path.fixed_size( ).y
+        self._window_size.x                 = self._size.x
 
         parent_position:            vector  = self._parent.relative_position( )
         self._relative_position:    vector  = vector( parent_position.x + self._position.x, parent_position.y + self._position.y )
+
+        
+        self._input_path.position( vector( self._position.x + back_button, self._position.y ) )
+        self._input_path.size( vector( self._size.x - back_button - pad * 2, self._input_path.size( ).y ) )
     
 
     def __animate( self ):
@@ -483,12 +501,12 @@ class c_path_select:
 
         speed: int = self._config.speed
 
-        fade: float = self._animations.preform( "Fade", self._is_visible and 1 or 0, speed )
+        fade: float = self._animations.perform( "Fade", self._is_visible and 1 or 0, speed )
         if fade == 0:
             return
 
-        self._animations.preform( "Back", self._is_hovered_back and 1 or 0.3, speed )
-        self._animations.preform( "Scroll", self._offset, speed, 1 )
+        self._animations.perform( "Back", self._is_hovered_back and 1 or 0.3, speed )
+        self._animations.perform( "Scroll", self._offset, speed, 1 )
 
 
     def __draw_back( self, fade: float ):
@@ -517,7 +535,7 @@ class c_path_select:
         self._render.shadow(
             self._position,
             self._position + self._size, 
-            back_color,
+            back_color.alpha_override( 255 ),
             fade,
             20,
             roundness
@@ -536,8 +554,8 @@ class c_path_select:
         """
         
         pad:                int     = self._config.pad
-        seperate:           int     = self._config.seperate
-        seperate_color:     color   = self._config.seperate_color
+        seperate:           int     = self._config.separate
+        seperate_color:     color   = self._config.separate_color
         back_icon_size:     vector  = self._back_icon.size( )
         path_size:          vector  = self._input_path.fixed_size( )
         seperate_position:  vector  = vector( self._position.x + pad * 2 + back_icon_size.x, self._position.y + pad )
@@ -563,8 +581,8 @@ class c_path_select:
 
         speed:          int     = self._config.speed
         pad:            int     = self._config.pad
-        seperate:       int     = self._config.seperate
-        seperate_color: color   = self._config.seperate_color
+        seperate:       int     = self._config.separate
+        seperate_color: color   = self._config.separate_color
         
         end_position:   vector  = self._position + self._size
         start_position: vector  = end_position - self._window_size
@@ -596,9 +614,9 @@ class c_path_select:
             info        = self._files_information[ name ]
             icon_size   = self._folder_icon.size( )
             
-            show            = self._animations.preform( f"Folder_{ name }_show",        info[ "is_hovered" ] and 1 or 0.5, speed / 3 ) * fade
-            show_seperate   = self._animations.preform( f"Folder_{ name }_seperate",    info[ "is_hovered" ] and 1 or 0, speed ) * fade
-            hover_add       = self._animations.preform( f"Folder_{ name }_hover_add",   info[ "is_hovered" ] and pad * 2 + seperate or 0, speed, 1 )
+            show            = self._animations.perform( f"Folder_{ name }_show",        info[ "is_hovered" ] and 1 or 0.5, speed / 3 ) * fade
+            show_seperate   = self._animations.perform( f"Folder_{ name }_seperate",    info[ "is_hovered" ] and 1 or 0, speed ) * fade
+            hover_add       = self._animations.perform( f"Folder_{ name }_hover_add",   info[ "is_hovered" ] and pad * 2 + seperate or 0, speed, 1 )
 
             icon_position = vector( start_position.x + pad, start_position.y + drop )
             text_position = vector( start_position.x + icon_size.x + pad * 2 + hover_add, start_position.y + drop + ( icon_size.y - name_size.y ) / 2 )
@@ -649,8 +667,8 @@ class c_path_select:
             Returns :   None
         """
 
-        seperate:       int     = self._config.seperate
-        seperate_color: color   = self._config.seperate_color
+        seperate:       int     = self._config.separate
+        seperate_color: color   = self._config.separate_color
         
         end_position:   vector  = self._position + self._size
         start_position: vector  = end_position - self._window_size
@@ -694,7 +712,7 @@ class c_path_select:
         self._mouse_position.x  = event( "x" )
         self._mouse_position.y  = event( "y" )
 
-        self._is_hovered = self._mouse_position.is_in_bounds( self._position, self._size.x, self._size.y )
+        self._is_hovered = self._mouse_position.is_in_bounds( self._relative_position, self._size.x, self._size.y )
 
         self.__hover_back_button( )
         if self._is_hovered_back:
@@ -884,20 +902,22 @@ class c_path_select:
             Returns :   Active folder
         """
 
-        data = path.split( os.sep )
+        data:           list    = path.split( os.sep )
+        folders_count:  int     = len( data )
 
-        for folder in data:
+        for i, folder in enumerate( data ):
+            if not folder:
+                continue
 
-            # Fix for disks paths...
-            if folder.endswith( ":" ):
-                folder = f"{folder}\\"
+            is_drive_letter = ( len( folder ) == 2 and folder.endswith( ":" ) )
+
+            if i == 0 and is_drive_letter:
+                folder = f"{folder}{os.sep}"
 
             self._active_folder = c_base_folder( self._active_folder, folder )
 
         self._active_folder.dump( )
-        
         self.__prepare_animations( )
-
         self._input_path.value( self._active_folder.absolute_path( ) )
 
         return self._active_folder
