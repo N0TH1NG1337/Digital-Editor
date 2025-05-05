@@ -83,7 +83,7 @@ class c_client_gui:
 
         self._application.create_image( "City",         execution_directory + PHOTO_CITY,         vector( 3150, 1816 ) )
 
-        self._application.create_image( "User",         execution_directory + ICON_USER,          vector( 40, 40 ) )
+        self._application.create_image( "User",         execution_directory + ICON_USERS,          vector( 40, 40 ) )
         self._application.create_image( "Next",         execution_directory + ICON_NEXT,          vector( 40, 40 ) )
         self._application.create_image( "Check",        execution_directory + ICON_CHECK,         vector( 40, 40 ) )
         self._application.create_image( "Edit",         execution_directory + ICON_EDIT,          vector( 40, 40 ) )

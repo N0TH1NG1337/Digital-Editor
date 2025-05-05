@@ -116,7 +116,7 @@ class c_virtual_file:
 
     # region : Creation and referencing
 
-    def create( self, path: str ):
+    def create( self, path: str, message: str = "\n" ):
         """
             Create new empty file.
 
@@ -132,8 +132,8 @@ class c_virtual_file:
             os.makedirs( os.path.dirname( file_path ), exist_ok=True )
 
             with open( file_path, 'w' ) as f:
-                # On empty file add 2 empty lines to edit
-                f.write( '\n'.join( [ "", "" ] ) )
+                f.write( message + "\n" )
+                f.write( "\n" )
 
             self._normal_path = path
 
@@ -344,6 +344,9 @@ class c_virtual_file:
         with open( file_path, 'rb' ) as f:
             data = f.read( )
 
+        if data.endswith( b'\n' ):
+            data = data + b'\r'
+
         return data.decode( ).splitlines( )
     
 
@@ -415,6 +418,9 @@ class c_virtual_file:
         with open( file_path, "rb" ) as f:
             data = f.read( )
 
+        if data.endswith( b'\n' ):
+            data = data + b'\r'
+
         lines: list = data.decode( ).splitlines( )
         del data
 
@@ -477,6 +483,9 @@ class c_virtual_file:
         data = b''
         with open( file_path, "rb" ) as f:
             data = f.read( )
+
+        if data.endswith( b'\n' ):
+            data = data + b'\r'
 
         lines: list = data.decode( ).splitlines( )
         del data

@@ -142,6 +142,9 @@ class c_single_input_logic:
         self._animations.prepare( "typing",     0 )
         self._animations.prepare( "offset",     0 )
 
+        if self._is_password:
+            self._animations.prepare( "show_value", 0 )
+
 
     def __init_bones( self ):
         
@@ -355,7 +358,18 @@ class c_single_input_logic:
 
 
     def __get_visible_text( self ) -> str:
-        return self._is_password and "*" * len( self._input ) or self._input
+
+        if self._is_password:
+            length: int = len( self._input )
+            value: float = self._animations.perform( "show_value", self._is_holding and length or 0, self._config.speed, 0.1 )
+            
+            index:  int = int( value )
+            start:  str = self._input[ :index ]
+            end:    str = "*" * ( length - index )
+
+            return start + end
+
+        return self._input
     
 
     def __get_cursor_text( self ) -> str:
@@ -414,6 +428,15 @@ class c_single_input_logic:
         
         button = event( "button" )
         action = event( "action" )
+
+        if button == glfw.MOUSE_BUTTON_RIGHT:
+            if action == glfw.PRESS:
+                self._is_holding = self._is_hovered
+
+            if action == glfw.RELEASE and self._is_holding:
+                self._is_holding = False
+            
+            return
 
         if button != glfw.MOUSE_BUTTON_LEFT:
             return

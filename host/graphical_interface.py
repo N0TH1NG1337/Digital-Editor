@@ -2,7 +2,7 @@
     project     : Digital Editor
 
     type:       : Host
-    file        : Graphical icon_user Interface
+    file        : Graphical icon_users Interface
 
     description : Host GUI class
 """
@@ -20,47 +20,49 @@ class c_host_gui:
     
     # region : Privates attributes
 
-    _application:           c_application
-    _logic:                 c_host_business_logic
+    _application:               c_application
+    _logic:                     c_host_business_logic
 
-    _scene_loadup:          c_scene
-    _scene_setup:           c_scene
-    _scene_project:         c_scene
+    _scene_loadup:              c_scene
+    _scene_setup:               c_scene
+    _scene_project:             c_scene
 
-    _application_config:    application_config_t
-    _scene_loadup_config:   scene_config_t
-    _scene_setup_config:    scene_config_t
-    _scene_project_config:  scene_config_t
+    _application_config:        application_config_t
+    _scene_loadup_config:       scene_config_t
+    _scene_setup_config:        scene_config_t
+    _scene_project_config:      scene_config_t
 
-    _temp:                  dict
+    _temp:                      dict
 
-    _entry_username:        c_text_input
-    _entry_password:        c_text_input
-    _entry_ip:              c_text_input
-    _entry_port:            c_text_input
-    _path_select:           c_path_select
-    _list_access_level:     c_side_list
-    _list_scan_options:     c_side_list
-    _button_prev_setup:     c_button
-    _button_next_setup:     c_button
+    _entry_username:            c_text_input
+    _entry_password:            c_text_input
+    _entry_ip:                  c_text_input
+    _entry_port:                c_text_input
+    _path_select:               c_path_select
+    _list_access_level:         c_side_list
+    _list_original_scan_option: c_side_list
+    _list_virtual_scan_option:  c_side_list
+    _max_clients:               c_slider_int
+    _button_prev_setup:         c_button
+    _button_next_setup:         c_button
 
-    _editor:                c_editor
-    _button_menu:           c_icon_button
-    _button_files:          c_icon_button
-    _button_admin:          c_icon_button
+    _editor:                    c_editor
+    _button_menu:               c_icon_button
+    _button_files:              c_icon_button
+    _button_admin:              c_icon_button
 
-    _button_close:          c_icon_button
-    _button_share:          c_button
-    _button_users:          c_button
-    _button_logs:           c_button
+    _button_close:              c_icon_button
+    _button_share:              c_button
+    _button_users:              c_button
+    _button_logs:               c_button
 
-    _solution_explorer:     c_solution_explorer
-    _button_dump_path:      c_button
-    _button_add_file:       c_button
+    _solution_explorer:         c_solution_explorer
+    _button_dump_path:          c_button
+    _button_add_file:           c_button
 
-    _opened_what:           int
+    _opened_what:               int
 
-    _general_font:          c_font
+    _general_font:              c_font
 
     # endregion
 
@@ -170,7 +172,7 @@ class c_host_gui:
         self._application.create_image( "icon_listen",          execution_directory + ICON_LISTEN,          DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_port",            execution_directory + ICON_PORT,            DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_share",           execution_directory + ICON_SHARE,           DEFAULT_ICON_SIZE )
-        self._application.create_image( "icon_user",            execution_directory + ICON_USER,            DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_users",           execution_directory + ICON_USERS,           DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_info",            execution_directory + ICON_INFO,            DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_copy",            execution_directory + ICON_COPY,            DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_lock",            execution_directory + ICON_LOCKED,          DEFAULT_ICON_SIZE )
@@ -178,10 +180,13 @@ class c_host_gui:
         self._application.create_image( "icon_tune",            execution_directory + ICON_TUNE,            DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_check",           execution_directory + ICON_CHECK,           DEFAULT_ICON_SIZE )
 
+        self._application.create_image( "icon_addfile",         execution_directory + ICON_ADD_FILE,        DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_refresh",         execution_directory + ICON_REFRESH,         DEFAULT_ICON_SIZE )
+
         self._application.create_image( "title_welcome",     execution_directory + TITLE_ICON_WELCOME,      vector( 700, 200 ) )
 
-        self._application.create_image( "title_start",       execution_directory + TITLE_ICON_START,        vector( 500, 170 ) )
         self._application.create_image( "title_files",       execution_directory + TITLE_ICON_FILES,        vector( 500, 170 ) )
+        self._application.create_image( "title_configure",   execution_directory + TITLE_ICON_CONFIGURE,    vector( 500, 170 ) )
         self._application.create_image( "title_connection",  execution_directory + TITLE_ICON_CONNECTION,   vector( 500, 170 ) )
         self._application.create_image( "title_loading",     execution_directory + TITLE_ICON_LOADING,      vector( 500, 170 ) )
         
@@ -268,13 +273,16 @@ class c_host_gui:
 
         animations: c_animations = self._scene_setup.animations()
         animations.prepare( "title_files",          vector( ) )
-        animations.prepare( "title_start",          vector( ) )
+        animations.prepare( "title_configure",      vector( ) )
         animations.prepare( "title_connection",     vector( ) )
         animations.prepare( "title_loading",        vector( ) )
         
         animations.prepare( "button_height",        250 )
+        animations.prepare( "instructions_heights1", vector( ) )
+        animations.prepare( "instructions_heights2", 0 )
 
         self._scene_setup.set_event( "draw",            self.__scene_setup_draw,               "gui_scene_setup_draw_main",         False )
+        self._scene_setup.set_event( "draw",            self.__scene_setup_draw_instructions,  "gui_scene_setup_draw_instructions", False )
         self._scene_setup.set_event( "draw",            self.__scene_setup_adjust_elements,    "gui_scene_setup_adjust_elements",   False )
         self._scene_setup.set_event( "keyboard_input",  self.__scene_setup_control_steps,      "gui_scene_setup_control_elements",  False )
 
@@ -319,8 +327,12 @@ class c_host_gui:
         self._path_select       = c_path_select( self._scene_setup, self._general_font, vector( 50, 120 ), vector( 500, 560 ), path_icons, path_config )
 
         # Second we need the settings
-        self._list_scan_options = c_side_list( self._scene_setup, vector( 50, 750 ), 500, self._general_font, list_config )
-        self._list_access_level = c_side_list( self._scene_setup, vector( 50, 700 ), 500, self._general_font, list_config )
+        #self._list_scan_options = c_side_list( self._scene_setup, vector( 50, 750 ), 500, self._general_font, list_config )
+        self._list_access_level         = c_side_list( self._scene_setup, vector( 50, 50 ), 500, self._general_font, list_config )
+
+        self._list_original_scan_option = c_side_list( self._scene_setup, vector( 50, 50 ), 500, self._general_font, list_config )
+        self._list_virtual_scan_option  = c_side_list( self._scene_setup, vector( 50, 50 ), 500, self._general_font, list_config )
+        self._max_clients               = c_slider_int( self._scene_setup, vector( 50, 50 ), 300, self._general_font, 0, 20, 10 )
 
         # Third the connection details
         self._entry_ip          = c_text_input( self._scene_setup, vector( 50, 120 ), 40, vector( 200, 30 ), self._general_font, ip_icon, "ip", "0.0.0.0", False, text_input_config )
@@ -347,11 +359,21 @@ class c_host_gui:
         self._list_access_level.set_value( "Hidden" )
 
         # Configure the scan options list
-        self._list_scan_options.add_item( "Original", None )
-        self._list_scan_options.add_item( "Virtual", None )
-        self._list_scan_options.add_item( "Both", None )
+        #self._list_scan_options.add_item( "Original", None )
+        #self._list_scan_options.add_item( "Virtual", None )
+        #self._list_scan_options.add_item( "Both", None )
 
-        self._list_scan_options.set_value( "Both" )
+        #self._list_scan_options.set_value( "Both" )
+        self._list_original_scan_option.add_item( "Disable",    None )
+        self._list_original_scan_option.add_item( "Create",     None )
+        self._list_original_scan_option.add_item( "Overwrite",  None )
+
+        self._list_virtual_scan_option.add_item( "Disable",    None )
+        self._list_virtual_scan_option.add_item( "Include",    None )
+
+        self._list_original_scan_option.set_value( "Create" )
+        self._list_virtual_scan_option.set_value( "Include" )
+        
 
 
     def __scene_setup_draw( self ):
@@ -391,7 +413,7 @@ class c_host_gui:
 
         steps = {
             0: "title_files",
-            1: "title_start",
+            1: "title_configure",
             2: "title_connection",
             3: "title_loading"
         }
@@ -410,6 +432,47 @@ class c_host_gui:
             image_size: vector = image.size( )
             render.image( image, vector( screen.x * 0.3 - image_size.x / 2 - values.x, start_box.y + 10 ), color( ) * values.y )
 
+    
+    def __scene_setup_draw_instructions( self ):
+
+        screen:     vector          = self._application.window_size( )
+
+        start_x = screen.x * 0.5 + 20
+        start_y = screen.y * 0.1 + 20
+
+        render:     c_renderer      = self._application.render( )
+        animations: c_animations    = self._scene_setup.animations( )
+
+        fade:       float           = animations.value( "Fade" ) * animations.value( "title_configure" ).y
+
+        allowed_wraped_width = screen.x * 0.4 - 40
+
+        first_wrapped_text:     str = render.wrap_text( self._general_font, "Select the default access level for new users",        allowed_wraped_width )
+        second_wrapped_text:    str = render.wrap_text( self._general_font, "Select scan mode for original project files",          allowed_wraped_width )
+        third_wrapped_text:     str = render.wrap_text( self._general_font, "Select scan mode for scanned project files",           allowed_wraped_width )
+        forth_wrapped_text:     str = render.wrap_text( self._general_font, "Select max clients amount that can join this session", allowed_wraped_width )
+
+        first_size:     vector = render.measure_text( self._general_font, first_wrapped_text )
+        second_size:    vector = render.measure_text( self._general_font, second_wrapped_text )
+        third_size:     vector = render.measure_text( self._general_font, third_wrapped_text )
+        forth_size:     vector = render.measure_text( self._general_font, forth_wrapped_text )
+
+        position = vector( start_x, start_y )
+
+        render.text( self._general_font, position, color( ) * fade, first_wrapped_text )
+        position.y += 80 + first_size.y
+
+        render.text( self._general_font, position, color( ) * fade, second_wrapped_text )
+        position.y += 80 + second_size.y
+
+        render.text( self._general_font, position, color( ) * fade, third_wrapped_text )
+        position.y += 80 + third_size.y
+
+        render.text( self._general_font, position, color( ) * fade, forth_wrapped_text )
+
+        animations.value( "instructions_heights1", vector( first_size.y + 20, second_size.y + 20, third_size.y + 20 ) )
+        animations.value( "instructions_heights2", forth_size.y )
+
 
     def __scene_setup_adjust_elements( self ):
         """
@@ -424,6 +487,9 @@ class c_host_gui:
         screen:     vector          = self._application.window_size( )
 
         speed:      int             = self._scene_setup_config.speed
+
+
+        instructions_heights1: vector = animations.value( "instructions_heights1" )
         
         button_next_drop: float = animations.perform( "button_height", screen.y * 0.9 - 20 - 40, speed )
         
@@ -442,11 +508,26 @@ class c_host_gui:
         self._path_select.position( vector( start_buttons_x, start_widgets_y ) )
         self._path_select.size( vector( screen.x * 0.4 - 40, button_next_drop - self._path_select.position( ).y - 10 ) )
 
-        self._list_access_level.position( vector( start_buttons_x, start_widgets_y ) )
-        self._list_access_level.width( self._path_select.size( ).x )
+        start_widgets_y += instructions_heights1.x
+        width = self._path_select.size( ).x
 
-        self._list_scan_options.position( vector( start_buttons_x, self._list_access_level.position( ).y + 40 + 20 ) )
-        self._list_scan_options.width( self._path_select.size( ).x )
+        self._list_access_level.position( vector( start_buttons_x, start_widgets_y ) )
+        self._list_access_level.width( width )
+
+        start_widgets_y += instructions_heights1.y + 60
+
+        self._list_original_scan_option.position( vector( start_buttons_x, start_widgets_y ) )
+        self._list_original_scan_option.width( width )
+
+        start_widgets_y += instructions_heights1.z + 60
+
+        self._list_virtual_scan_option.position( vector( start_buttons_x, start_widgets_y ) )
+        self._list_virtual_scan_option.width( width )
+
+        start_widgets_y += animations.value( "instructions_heights2" ) + 60
+
+        self._max_clients.position( vector( start_buttons_x, start_widgets_y ) )
+        self._max_clients.width( width )
 
     
     def __scene_setup_control_steps( self ):
@@ -458,19 +539,17 @@ class c_host_gui:
             Returns : None
         """
 
-        #progress_index: int = self._temp[ "setup_process" ]
-        #if progress_index == 0:
-        #    # Registration
+        progress_index: int = self._temp[ "setup_process" ]
+        if progress_index == 2:
+            # Registration
 
-        #    is_username_valid, reason = c_registration.validate_username( self._entry_username.get( ) )
-        #    is_password_valid, reason = c_registration.validate_password( self._entry_password.get( ) )
+            is_username_valid, reason = c_registration.validate_username( self._entry_username.get( ) )
+            is_password_valid, reason = c_registration.validate_password( self._entry_password.get( ) )
 
-        #    # I want to avoid updating each frame...
-        #    new_value: bool = is_username_valid and is_password_valid
-        #    if self._button_next_setup.visible( ) != new_value:
-        #        self._button_next_setup.visible( new_value )
-
-        pass
+            # I want to avoid updating each frame...
+            new_value: bool = is_username_valid and is_password_valid
+            if self._button_next_setup.visible( ) != new_value:
+                self._button_next_setup.visible( new_value )
     
 
     def __scene_setup_next_step( self ):
@@ -525,7 +604,9 @@ class c_host_gui:
         self._path_select.visible( current_changes[ 0 ] )
 
         self._list_access_level.visible( current_changes[ 1 ] )
-        self._list_scan_options.visible( current_changes[ 1 ] )
+        self._list_original_scan_option.visible( current_changes[ 1 ] )
+        self._list_virtual_scan_option.visible( current_changes[ 1 ] )
+        self._max_clients.visible( current_changes[ 1 ] )
 
         self._entry_ip.visible( current_changes[ 2 ] )
         self._entry_port.visible( current_changes[ 2 ] )
@@ -534,7 +615,7 @@ class c_host_gui:
         self._entry_password.visible( current_changes[ 2 ] )
 
         self._button_prev_setup.visible( not current_changes[ 0 ] and process_index != 3 )
-        self._button_next_setup.visible( process_index != 3 )
+        self._button_next_setup.visible( process_index != 3 and process_index != 2 )
         
     # endregion
 
@@ -579,7 +660,7 @@ class c_host_gui:
         self.__scene_setup_update( )
 
         # Show window
-        print( error )
+        self.__show_error_message( error, self._scene_setup )
 
 
     def __project_load_platform( self ) -> tuple:
@@ -596,32 +677,34 @@ class c_host_gui:
         if not values:
             return False, f"Failed to cast port value { self._entry_port.get( ) }"
 
-        username_value: str = self._entry_username.get( )
+        username_value:     str = self._entry_username.get( )
+        max_clients_value:  int = self._max_clients.get( )
 
-        self._logic.setup( values[ 0 ], values[ 1 ], username_value )
+        self._logic.setup( values[ 0 ], values[ 1 ], username_value, max_clients_value )
 
         return self._logic( "success" ), self._logic( "last_error" )
     
 
     def __project_load_base( self ) -> None:
 
-        different_scan_types = {
-            "Both":     ENUM_SCAN_TYPE_ALL,
-            "Virtual":  ENUM_SCAN_TYPE_VIRTUAL,
-            "Original": ENUM_SCAN_TYPE_ORIGINAL
-        }
-
         different_access_levels = {
             "Hidden":   FILE_ACCESS_LEVEL_HIDDEN,
             "Edit":     FILE_ACCESS_LEVEL_EDIT,
             "Limit":    FILE_ACCESS_LEVEL_LIMIT
         }
-        
-        path_value:     str = self._path_select.get_path( )
-        access_value:   int = different_access_levels[ self._list_access_level.get( ) ]
-        scan_value:     int = different_scan_types[ self._list_scan_options.get( ) ]
 
-        self._logic.initialize_base_values( path_value, access_value, scan_value )
+        scan_type_original_files = {
+            "Disable":      ENUM_SCAN_DISABLE,
+            "Create":       ENUM_SCAN_CREATE_NEW,
+            "Overwrite":    ENUM_SCAN_OVERWRITE
+        }
+        
+        path_value:     str     = self._path_select.get_path( )
+        access_value:   int     = different_access_levels[ self._list_access_level.get( ) ]
+        scan_value:     int     = scan_type_original_files[ self._list_original_scan_option.get( ) ]
+        scan_virtuals:  bool    = self._list_virtual_scan_option.get( ) == "Include"
+
+        self._logic.initialize_base_values( path_value, access_value, scan_value, scan_virtuals )
 
     
     def __project_connect( self ) -> tuple:
@@ -666,13 +749,15 @@ class c_host_gui:
         """
 
         file_icon:      c_image = self._application.image( "icon_folder" )
-        admin_icon:     c_image = self._application.image( "icon_user" )
+        admin_icon:     c_image = self._application.image( "icon_users" )
         close_icon:     c_image = self._application.image( "icon_previous" )
 
 
         share_icon:     c_image = self._application.image( "icon_share" )
-        user_icon:      c_image = self._application.image( "icon_user" )
+        user_icon:      c_image = self._application.image( "icon_users" )
         info_icon:      c_image = self._application.image( "icon_info" )
+        add_file_icon:  c_image = self._application.image( "icon_addfile" )
+        refresh_icon:   c_image = self._application.image( "icon_refresh" )
 
         solution_config = solution_explorer_config_t( )
         solution_config.folder_icon = self._application.image( "icon_folder" )
@@ -684,8 +769,8 @@ class c_host_gui:
         self._editor            = c_editor( self._scene_project, vector( 50, 140 ), vector( 1000, 760 ), self._general_font )
         self._buttons_bar       = c_side_list( self._scene_project, vector( 50, 50 ), 400, self._general_font, top_bar_config )
         self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 140 ), vector( 250, 500 ), self._general_font, solution_config )
-        self._button_dump_path  = c_button( self._scene_project, vector( 50, 660 ), 40, self._general_font, info_icon, "Refresh path", self.__callback_on_press_refresh_path )
-        self._button_add_file   = c_button( self._scene_project, vector( 50, 720 ), 40, self._general_font, info_icon, "Add file", self.__callback_on_press_new_file )
+        self._button_dump_path  = c_button( self._scene_project, vector( 50, 660 ), 40, self._general_font, refresh_icon, "Refresh path", self.__callback_on_press_refresh_path )
+        self._button_add_file   = c_button( self._scene_project, vector( 50, 720 ), 40, self._general_font, add_file_icon, "Add file", self.__callback_on_press_new_file )
 
         self._button_share  = c_button( self._scene_project, vector( 50, 140 ), 40, self._general_font, share_icon, "Share", self.__callback_on_press_share )
         self._button_users  = c_button( self._scene_project, vector( 50, 200 ), 40, self._general_font, user_icon, "Users", self.__callback_on_press_users )
@@ -888,7 +973,7 @@ class c_host_gui:
         for client in clients:
             client: c_client_handle = client
 
-            clients_list.add_item( client( "username" ), self._application.image( "icon_user" ), self.__callback_on_client_click( ) )
+            clients_list.add_item( client( "username" ), self._application.image( "icon_users" ), self.__callback_on_client_click( ) )
 
 
     def __callback_on_client_click( self ):
@@ -916,7 +1001,7 @@ class c_host_gui:
             client_window_config.title_font     = self._general_font
             client_window_config.back_wallpaper = self._application.image( "wallpaper" )
             
-            client_info_window: c_window        = self._scene_project.create_window( vector( 400, 200 ), vector( 400, 390 ), client_window_config )
+            client_info_window: c_window        = self._scene_project.create_window( vector( 400, 200 ), vector( 800, 390 ), client_window_config )
             animations:         c_animations    = client_info_window.animations( )
 
             def kick_user( ):
@@ -924,15 +1009,24 @@ class c_host_gui:
                 client.disconnect( )
                 client_info_window.show( False )
 
-            c_button( client_info_window, vector( 10, 145 ), 40, self._general_font, icon, "Kick", kick_user )
+
+            def update_trust_factor( event ):
+
+                new_value: int = event( "new_value" )
+                client.trust_factor( new_value )
+
+
+            trust_factor_slider = c_slider_int( client_info_window, vector( 10, 130 ), 300, self._general_font, 0, DEFAULT_TRUST_FACTOR, client.trust_factor( ) )
+            trust_factor_slider.set_callback( update_trust_factor )
+
+            c_button( client_info_window, vector( 10, 170 ), 40, self._general_font, icon, "Disconnect", kick_user )
 
             files_list_config = list_config_t( )
-            files_list_config.slots_count   = 3
+            files_list_config.slots_count   = 6
             files_list_config.back_color    = files_list_config.back_color * 0
 
-            files_list: c_list = c_list( client_info_window, vector( 10, 200 ), 380, self._general_font, files_list_config)
-
-            files: list = client.files_list( )
+            files_list: c_list = c_list( client_info_window, vector( 400, 10 ), 380, self._general_font, files_list_config)
+            files:      list = client.files_list( )
 
             for file_name in files:
                 files_list.add_item( file_name, self._application.image( "icon_file" ), self.__callback_on_file_click( client ) )
@@ -940,10 +1034,9 @@ class c_host_gui:
             def draw_client( ):
                 fade = animations.value( "Fade" )
                 render.text( self._general_font, vector( 10, 10 ), color( ) * fade,   f"user  | \t{ username }" )
-                render.text( self._general_font, vector( 10, 40 ), color( ) * fade,   f"trust | \t{ client.get_trust_factor( ) }" )
-
-                render.text( self._general_font, vector( 10, 80 ), color( ) * fade,   f"file  | \t{ client.selected_file( ) }" )
-                render.text( self._general_font, vector( 10, 110 ), color( ) * fade,  f"line  | \t{ client.selected_line( ) }" )
+                render.text( self._general_font, vector( 10, 40 ), color( ) * fade,   f"file  | \t{ client.selected_file( ) }" )
+                render.text( self._general_font, vector( 10, 70 ), color( ) * fade,  f"line  | \t{ client.selected_line( ) }" )
+                render.text( self._general_font, vector( 10, 100 ), color( ) * fade,   f"trust | \t{ client.trust_factor( ) }" )
 
             client_info_window.set_event( "draw", draw_client, "render", False )
 
@@ -972,7 +1065,6 @@ class c_host_gui:
             file_window_config.back_wallpaper = self._application.image( "wallpaper" )
             
             file_window: c_window       = self._scene_project.create_window( vector( 400, 300 ), vector( 400, 200 ), file_window_config )
-            animations:  c_animations   = file_window.animations( )
 
             list_config = list_config_t( )
             list_config.slots_count = 3
@@ -1364,6 +1456,46 @@ class c_host_gui:
 
         self._logic.delete_line( file, line )
     
+    # endregion
+
+    # region : Utilities
+
+    def __show_error_message( self, message: str, scene: c_scene ):
+        """
+            Create and attach error message to a scene.
+
+            Receive :
+            - message - Error message
+            - scene_index - Scene index to attach the error screen
+
+            Returns :   None
+        """
+
+        size:   vector = vector( 500, 250 )
+        screen: vector = self._application.window_size( ) / 2
+
+        error_window_config = window_config_t( )
+        error_window_config.show_bar = True
+
+        new_window = scene.create_window( screen - ( size / 2 ), size, error_window_config )
+
+        render: c_renderer  = self._application.render( )
+
+        icon_copy:  c_image     = self._application.image( "icon_copy" )
+
+        c_icon_button( new_window, vector( 430, 10 ), icon_copy, lambda: glfw.set_clipboard_string( None, message ) )
+
+        def draw( event ):
+
+            fade:   float       = new_window.animations( ).value( "Fade" )
+
+            render.push_clip_rect( vector( ), vector( 500, 300 ) )
+            render.text( self._general_font, vector( 10, 10 ), color( ) * fade, "Error occurred" )
+            render.text( self._general_font, vector( 10, 80 ), color( 180, 180, 180 ) * fade, render.wrap_text( self._general_font, message, 480 ) )
+            render.pop_clip_rect( )
+
+        new_window.set_event( "draw", draw, "draw_error_window" )
+
     # endregion
 
     def execute( self ):

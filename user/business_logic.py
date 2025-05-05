@@ -65,13 +65,13 @@ class c_user_business_logic:
             Returns:    None
         """
 
-        self._network       = c_network_protocol( )
-
         self._files         = c_files_manager_protocol( )
 
         self._registration  = c_registration( )
         
         self._security      = c_security( )
+
+        self._network       = c_network_protocol( )
     
 
     def __initialize_events( self ):
@@ -213,16 +213,13 @@ class c_user_business_logic:
 
             Returns :   Result
         """
-
-        try:
-            self._network.start_connection( CONNECTION_TYPE_CLIENT, ip, port )
-            
-            return True
-        except Exception as e:
-
-            # TODO ! ADD DEBUG OPTIONS LATER
-            return False
+        result = self._network.start_connection( CONNECTION_TYPE_CLIENT, ip, port, 5 ) is True
         
+        # Or just idle. 
+        self._information[ "last_error" ] = "The server might be full or offline."
+
+        return result
+
     
     def __preform_safety_registration( self ) -> bool:
         """
@@ -232,19 +229,42 @@ class c_user_business_logic:
 
             Returns :   None
         """
-
-        # Quick 3 hand shake thing :P
-
-        # Share this client public key
-        self._network.send_bytes( self._security.share( SHARE_TYPE_LONG_PART ) )
         
-        # Receive host's public key
-        self._security.share( SHARE_TYPE_LONG_PART, self._network.receive( ) )
+        # Send public key and signature
+        public_key, signature = self._security.share( ENUM_COMPLEX_KEY )
+        self._network.send_bytes( signature )
+        self._network.send_bytes( public_key )
 
-        # Receive the quick key
-        self._security.share( SHARE_TYPE_QUICK_PART, self._network.receive( ) )
+        # Receive server's public key and signature
+        server_signature    = self._network.receive_chunk( )
+        server_public_key   = self._network.receive_chunk( )
+        if not self._security.share( ENUM_COMPLEX_KEY, ( server_public_key, server_signature ) ):
+            return False
+        
+        encrypted_nonce         = self._network.receive_chunk( )
+        ephemeral_public_key    = self._network.receive_chunk( )
 
-        # TODO ! Add check if everything is fine.
+        nonce_signature = self._security.respond_to_challenge( encrypted_nonce, ephemeral_public_key )
+        if not nonce_signature:
+            return False
+        
+        self._network.send_bytes( nonce_signature )
+
+        # Challenge the server (mutual authentication)
+        client_enc_nonce, client_nonce, client_ephemeral_pub_key = self._security.initiate_challenge( )
+        self._network.send_bytes( client_enc_nonce )
+        self._network.send_bytes( client_ephemeral_pub_key )
+
+        server_nonce_signature = self._network.receive_chunk( )
+        if not self._security.verify_challenge( client_nonce, server_nonce_signature ):
+            return False
+        
+        inner_layer_key = self._network.receive_chunk( )
+        outer_layer_key = self._network.receive_chunk( )
+        self._security.share( ENUM_INNER_LAYER_KEY, inner_layer_key )
+        self._security.share( ENUM_OUTER_LAYER_KEY, outer_layer_key )
+
+        self._security.sync_outer_level_keys( )
 
         return True
 
@@ -267,16 +287,21 @@ class c_user_business_logic:
 
         message: str = self._registration.format_message( register_command[ register_type ], [ username, password ] )
 
-        value: bytes = self._security.strong_protect( message.encode( ) )
+        value: bytes = self._security.complex_protection( message.encode( ) )
         if not value:
             # This can happen only if the length is more than 190 bytes.
             # This mean that the username + password are ( 190 - 16 ) 174 bytes
             return False
-        
-        self._network.send_bytes( value )
+
+        self.__send_quick_bytes( value )
+        #self._network.send_bytes( value )
 
         # Preform the checks here...
-        command, arguments = self._registration.parse_message( self.__receive( ).decode( ) )
+        received_value: bytes = self.__receive( )
+        if not received_value:
+            return False
+
+        command, arguments = self._registration.parse_message( received_value.decode( ) )
         if command != REGISTRATION_RESPONSE:
             return False
         
@@ -325,6 +350,9 @@ class c_user_business_logic:
         """
 
         self._network.end_connection( )
+
+        self._security.reset_input_sequence_number( )
+        self._security.reset_output_sequence_number( )
 
         # Invoke post_disconnect event
         # After we done with the connection, in some cases we will just need to clean up somethings.
@@ -379,19 +407,43 @@ class c_user_business_logic:
         """
 
         # Receive the key and remove the protection
-        key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MESSAGE ) )
-        if not key:
-            return None
+        #key: bytes = self._security.complex_remove_protection( self._network.receive( TIMEOUT_MESSAGE ) )
+        #if not key:
+        #    return None
                 
         # Receive the message
-        message: bytes = self._network.receive( TIMEOUT_MESSAGE )
+        #message: bytes = self._network.receive( TIMEOUT_MESSAGE )
 
-        # If there is no message, continue
-        if message is None:
-            return None
+        ## If there is no message, continue
+        #if message is None:
+        #    return None
+        
+        #self._security.increase_input_sequence_number( )
 
-        # Remove shuffle and protection
-        return self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+        ## Remove shuffle and protection
+        #return self._security.dual_unprotect( message )
+
+        result: bytes = b''
+
+        has_next: bool = True
+        while has_next:
+            chunk: bytes = self._network.receive_chunk( TIMEOUT_MESSAGE )
+
+            if not chunk:
+                return None
+            
+            self._security.increase_input_sequence_number( )
+
+            chunk = self._security.dual_unprotect( chunk )
+            if not chunk:
+                return None
+            
+            has_next    = chunk[ 0 ].to_bytes( ) == b'1'
+            chunk       = chunk[ 1: ]
+
+            result += chunk
+
+        return result
 
 
     def __handle_receive( self, receive: str ):
@@ -406,6 +458,9 @@ class c_user_business_logic:
 
         if receive == DISCONNECT_MSG:
             return self.__end_connection( )
+        
+        if receive == COMMAND_ROTATE_KEY:
+            return self.__handle_security_rotation( )
         
         if receive.startswith( self._files.get_header( ) ):
             return self.__handle_files_message( receive )
@@ -425,6 +480,20 @@ class c_user_business_logic:
 
         if command in self._commands:
             return self._commands[ command ]( arguments )
+        
+    
+    def __handle_security_rotation( self ):
+
+        new_key = self._network.receive_chunk( )
+
+        self.__send_quick_message( COMMAND_ROTATE_KEY )
+
+        self._security.share( ENUM_OUTER_LAYER_KEY, new_key )
+
+        self._security.sync_outer_level_keys( )
+
+        self._security.reset_input_sequence_number( )
+        self._security.reset_output_sequence_number( )
 
     # endregion
 
@@ -457,28 +526,36 @@ class c_user_business_logic:
 
         file_name: str = arguments[ 0 ]
         file_size: int = int( arguments[ 1 ] )
-
-        key: bytes = self._security.remove_strong_protection( self._network.receive( ) )
-        if not key:
-            return
-                
-        message: list = self._network.receive( -1, True )
-        if message is None:
-            return
         
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
             raise Exception( f"Failed to find file { file_name }" )
+        
 
         data = b''
-        for chunk in message:
-            data += self._security.remove_quick_protection( self._security.unshuffle( key, chunk ) )
+        has_next: bool = True
 
-        # Clear list with information to avoid filling the memory
-        message.clear( )
+        while has_next:
+            chunk: bytes = self._network.receive_chunk( )
+            #if not chunk:
+            #    return None
+            
+            self._security.increase_input_sequence_number( )
+
+            chunk = self._security.dual_unprotect( chunk )
+            if not chunk:
+                return
+            
+            has_next    = chunk[ 0 ].to_bytes( ) == b'1'
+            chunk       = chunk[ 1: ]
+
+            data += chunk
 
         if len( data ) != file_size:
             raise Exception( f"Failed to receive normally file { file_name }" )
+        
+        if data.endswith( b'\n' ):
+            data = data + b'\r'
 
         lines: list = data.decode( ).splitlines( )
         del data
@@ -704,10 +781,13 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shuffled_key( )
-        
-        self._network.send_bytes( self._security.strong_protect( key ) )
-        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
+        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
+        #self._network.send_bytes( self._security.complex_protection( key ) )
+
+        #self._security.increase_output_sequence_number( )
+
+        #self._network.send_bytes( self._security.dual_protect( message ) )
+        self.__send_quick_bytes( message.encode( ) )
 
     
     def __send_quick_bytes( self, data: bytes ):
@@ -720,10 +800,27 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shuffled_key( )
+        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
         
-        self._network.send_bytes( self._security.strong_protect( key ) )
-        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
+        #self._network.send_bytes( self._security.complex_protection( key ) )
+        #self._security.increase_output_sequence_number( )
+        #self._network.send_bytes( self._security.dual_protect( data ) )
+
+        config = self._network.get_raw_details( len( data ) )
+
+        for info in config:
+            start       = info[ 0 ]
+            end         = info[ 1 ]
+            has_next    = info[ 2 ] and b'1' or b'0'
+
+            chunk: bytes = has_next + data[ start:end ]
+            
+            self._security.increase_output_sequence_number( )
+            chunk = self._security.dual_protect( chunk )
+
+            result = self._network.send_bytes( chunk )
+            if not result:
+                return self.__end_connection( )
 
 
     def request_files( self ):

@@ -8,9 +8,11 @@
 """
 
 
+from protocols.security import *
 from utilities.wrappers import safe_call
 from utilities.debug    import *
 import socket
+import base64
 
 INVALID                 = None
 
@@ -45,7 +47,8 @@ class c_connection:
         self._socket    = INVALID
 
 
-    def start( self, type_socket: int, ip: str, port: int ) -> bool:
+    @safe_call( None )
+    def start( self, type_socket: int, ip: str, port: int, timeout: int = -1 ) -> bool:
         """
             Start connection based on type, ip and port.
 
@@ -61,6 +64,9 @@ class c_connection:
         self._port  = port
 
         self._socket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+
+        if timeout > -1:
+            self._socket.settimeout( timeout )
 
         if type_socket == CONNECTION_TYPE_CLIENT:
             self._socket.connect( ( self._ip, self._port ) )
@@ -151,10 +157,10 @@ class c_network_protocol:
             Returns : Network Protocol object
         """
 
-        self._connection = connection is None and c_connection( ) or connection
+        self._connection    = connection is None and c_connection( ) or connection
 
 
-    def start_connection( self, type_connection: int, ip: str, port: int ):
+    def start_connection( self, type_connection: int, ip: str, port: int, timeout: int = -1 ) -> bool:
         """
             Start connection based on type, ip and port.
 
@@ -166,7 +172,7 @@ class c_network_protocol:
             Returns :   None
         """
 
-        self._connection.start( type_connection, ip, port )
+        return self._connection.start( type_connection, ip, port, timeout )
 
 
     def end_connection( self ):
@@ -217,34 +223,6 @@ class c_network_protocol:
 
             # If timed out
             return None, None
-        
-
-    @safe_call( c_debug.log_error )
-    def send( self, value: str ):
-        """
-            Send string value.
-
-            Receive : 
-            - value - Text willing to send
-
-            Returns :   None
-        """
-
-        if self._connection( ) is INVALID:
-            raise Exception( "Invalid connection. make sure you have established connection" )
-
-        encoded_value = value.encode( )
-        del value   # Delete useless copy of string
-
-        details: list = self.get_raw_details( len( encoded_value ) )
-        
-        for chunk in details:
-            start       = chunk[ 0 ]
-            end         = chunk[ 1 ]
-            has_next    = chunk[ 2 ]
-
-            self.send_raw( encoded_value[ start:end ], has_next )
-
 
     def get_raw_details( self, length: int ) -> list:
         """
@@ -274,27 +252,9 @@ class c_network_protocol:
             total = total + size
 
         return result
-    
 
     @safe_call( c_debug.log_error )
-    def send_raw( self, raw_chunk: bytes, has_next: bool ):
-        """
-            Send raw bytes chunk.
-
-            Receive :
-            - raw_chunk - Just chunk of bytes selected after .get_raw_details( ) was called.
-            - has_next  - Has more chunks go send after this one.
-
-            Returns :   None
-        """
-
-        correct_value = self.value_format( raw_chunk, has_next )
-
-        for i in correct_value:
-            self._connection( ).send( i )
-
-
-    def send_bytes( self, raw_bytes: bytes ):
+    def send_bytes( self, raw_bytes: bytes ) -> bool:
         """
             Send full raw bytes.
 
@@ -304,60 +264,32 @@ class c_network_protocol:
             Returns :   None
         """
 
-        config = self.get_raw_details( len( raw_bytes ) )
+        connection_object = self._connection( )
+        if not connection_object:
+            return False
+        
+        length: int = len( raw_bytes )
+        
+        if length > 9999:
+            return False
+        
+        connection_object.send( self.get_message_header( length ) )
+        connection_object.send( raw_bytes )
 
-        for chunk_info in config:
-            start = chunk_info[ 0 ]
-            end = chunk_info[ 1 ]
-            has_next = chunk_info[ 2 ]
+        return True
 
-            chunk = raw_bytes[ start:end ]
-            self.send_raw( chunk, has_next )
-
-
-    @safe_call( c_debug.log_error, [ 
-        # Ignore these messages in the debug log
-        "timed out",                                    # Its fine...
-        "invalid literal for int() with base 10",       # Like I closed the socket and we .recv( ) returned invalid number
-        "[WinError 10038]",                             # Pops up when close socket while the timeout is active
-        "[WinError 10054]"                              # Have no idea but ig its fine
-    ] )
-    def receive( self, timeout: int = -1, receive_as_list: bool = False ) -> any:
-        """
-            Pop bytes from buffer. 
-
-            Receive : 
-            - timeout [optional] - Timeout for receiving something.
-            - receive_as_list [optional] - If you want to receive as list
-
-            Returns :   Bytes / List
-        """
-
-        # Note ! These is a small chance to get error WinError 10038, inside the call.
+    @safe_call( None ) 
+    def receive_chunk( self, timeout: int = -1 ) -> bytes:
 
         if self._connection( ) is INVALID:
-            raise Exception( "Invalid connection. make sure you have established connection" )
-
+            return None
+        
         if timeout != -1:
             self._connection( ).settimeout( timeout )
-
-        if receive_as_list:
-            data = [ ]
-        else:
-            data = b''
             
-        has_next: bool  = True
+        length: int = int( self._connection( ).recv( HEADER_SIZE ).decode( ) )
 
-        while has_next:
-            has_next:   bool    = self._connection( ).recv( 1 ).decode( ) == "1"
-            length:     int     = int( self._connection( ).recv( HEADER_SIZE ).decode( ) )
-            
-            if receive_as_list:
-                data.append( self.__receive_fixed( length ) )
-            else:
-                data += self.__receive_fixed( length )
-
-        return data
+        return self.__receive_fixed( length )
 
 
     def __receive_fixed( self, length: int ) -> bytes:
@@ -379,33 +311,11 @@ class c_network_protocol:
             received_raw_data += chunk_data
 
         return received_raw_data
+    
 
+    def get_message_header( self, length: int ) -> bytes:
 
-    def value_format( self, value: any, has_next: bool = False ) -> list:
-        """
-            Format the value for a config to send.
-
-            Reecive : 
-            - value                 - Value willing to send [ str | bytes ]
-            - has_next [optional]   - If there is something else afterwards to receive
-
-            Returns :   List 
-        """
-
-        length = str( len( value ) ).zfill( HEADER_SIZE )
-        
-        result = [ ]
-
-        result.append( ( has_next and "1" or "0" ).encode( ) )
-        result.append( length.encode( ) )
-
-        if type( value ) == bytes:
-            result.append( value )
-
-        else:
-            result.append( value.encode( ) ) 
-           
-        return result
+        return str( length ).zfill( HEADER_SIZE ).encode( )
     
     
     def is_valid( self, try_ping: bool = False ) -> bool:
@@ -419,7 +329,7 @@ class c_network_protocol:
 
         if try_ping:
             try:
-                self.send( PING_MSG )
+                self.send_bytes( PING_MSG.encode( ) )
 
                 return True
             except Exception:

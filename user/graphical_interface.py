@@ -984,7 +984,7 @@ class c_user_gui:
             render.text( self._general_font, vector( 10, 80 ), color( 180, 180, 180 ) * fade, render.wrap_text( self._general_font, message, 480 ) )
             render.pop_clip_rect( )
 
-        new_window.set_event( "draw", draw, "ErrorMessageDraw" )
+        new_window.set_event( "draw", draw, "draw_error_window" )
 
 
     def __disconnect_on_window_close( self ):

@@ -37,8 +37,11 @@ def safe_call( call_on_fail: any = None, ignore_errors: list = [ ] ):
                 for error in ignore_errors:
                     error: str = error
 
-                    if error == e_str or e_str.startswith( error ):
-                        return
+                    try:
+                        if e_str.index( error ):
+                            return
+                    except:
+                        pass
 
                 if hasattr( function, "__qualname__" ):
                     class_name = function.__qualname__.split( '.' )[ 0 ]

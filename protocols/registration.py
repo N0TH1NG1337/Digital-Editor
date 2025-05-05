@@ -440,7 +440,6 @@ class c_registration:
 
         user_information[ "p1" ] = salt
         user_information[ "p2" ] = hashed_password
-        user_information[ "p3" ] = base64.b64encode( datetime.date.today( ).strftime( "%M:%H->%d/%m/%Y" ).encode( ) ).hex( )
 
         for field_name, field_value in addition_fields.items( ):
             user_information[ field_name ] = field_value
@@ -515,7 +514,6 @@ class c_registration:
         del self._fields[ "__Creator" ]
         del self._fields[ "p1" ]
         del self._fields[ "p2" ]
-        del self._fields[ "p3" ]
 
         return True
 

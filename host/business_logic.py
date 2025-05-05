@@ -27,14 +27,20 @@ DEFAULT_TRUST_FACTOR:   int     = 50
 TIMEOUT_CONNECTION:     float   = 0.5
 TIMEOUT_MSG:            float   = 0.5
 TIMEOUT_COMMAND:        float   = 0.1
+SLEEP_ON_IDLE:          float   = 2.0
 
 ENUM_PROTOCOL_FILES:    int     = 1
 ENUM_PROTOCOL_NETWORK:  int     = 2
 ENUM_PROTOCOL_UNK:      int     = 0
 
-ENUM_SCAN_TYPE_ALL:     int     = 1
-ENUM_SCAN_TYPE_VIRTUAL: int     = 2
-ENUM_SCAN_TYPE_ORIGINAL:int     = 3
+
+ENUM_SCAN_DISABLE:      int = 1
+ENUM_SCAN_CREATE_NEW:   int = 2
+ENUM_SCAN_OVERWRITE:    int = 3
+
+#ENUM_SCAN_TYPE_ALL:     int     = 1
+#ENUM_SCAN_TYPE_VIRTUAL: int     = 2
+#ENUM_SCAN_TYPE_ORIGINAL:int     = 3
 
 
 class c_command:
@@ -166,6 +172,8 @@ class c_client_handle:
     
     _files_commands:    dict
 
+    _start_rotation:    bool
+
     # endregion
 
     # region : Initialization client handle
@@ -226,6 +234,8 @@ class c_client_handle:
         self._trust_factor      = DEFAULT_TRUST_FACTOR
         self._offsets           = [ ]
         self._issues            = [ ]
+
+        self._start_rotation    = False
 
         self._files_commands = {
             FILES_COMMAND_REQ_FILES:        self.__share_files,
@@ -309,17 +319,51 @@ class c_client_handle:
             Returns :   None
         """
 
-        # Receive Client's public key
-        self._security.share( SHARE_TYPE_LONG_PART, self._network.receive( ) )
+        # Send public key and signature
+        public_key, signature = self._security.share( ENUM_COMPLEX_KEY )
+        self._network.send_bytes( signature )
+        self._network.send_bytes( public_key )
 
-        # Share host's client handle public key
-        self._network.send_bytes( self._security.share( SHARE_TYPE_LONG_PART ) )
+        # Receive client's public key and signature
+        client_signature    = self._network.receive_chunk( )
+        client_public_key   = self._network.receive_chunk( )
+        
+        # Register this information
+        if not self._security.share( ENUM_COMPLEX_KEY, ( client_public_key, client_signature ) ):
+            return False
 
-        # Generate quick key
-        self._security.generate_quick_key( )
+        
+        # Generate and send nonce challenge
+        encrypted_nonce, nonce, ephemeral_pub_key = self._security.initiate_challenge( )
+        
+        # Send to client the information
+        self._network.send_bytes( encrypted_nonce )
+        self._network.send_bytes( ephemeral_pub_key )
 
-        # Share the quick key with the client
-        self._network.send_bytes( self._security.share( SHARE_TYPE_QUICK_PART ) )
+        # Receive client's nonce response
+        nonce_signature = self._network.receive_chunk( )
+        if not self._security.verify_challenge( nonce, nonce_signature ):
+            return False
+        
+        
+        # Handle client's challenge (mutual authentication)
+        client_encryped_nonce = self._network.receive_chunk( )
+        client_ephemeral_pub_key = self._network.receive_chunk( )
+
+        server_nonce_signature = self._security.respond_to_challenge( client_encryped_nonce, client_ephemeral_pub_key )
+        if not server_nonce_signature:
+            return False
+        
+        self._network.send_bytes( server_nonce_signature )
+
+        # Now, after we done with the verification we can share the inner layer key
+        self._security.generate_key( ENUM_INNER_LAYER_KEY )
+        self._security.generate_key( ENUM_OUTER_LAYER_KEY )
+
+        self._security.sync_outer_level_keys( )
+
+        self._network.send_bytes( self._security.share( ENUM_INNER_LAYER_KEY ) )
+        self._network.send_bytes( self._security.share( ENUM_OUTER_LAYER_KEY ) )
 
         return True
     
@@ -335,7 +379,7 @@ class c_client_handle:
 
         # Here will be the registration process
 
-        raw_msg: str = self._security.remove_strong_protection( self._network.receive( ) ).decode( )
+        raw_msg: str = self._security.complex_remove_protection( self.__receive( ) ).decode( )
         
         if not raw_msg.startswith( self._registration.header( ) ):
             self._information[ "last_error" ] = "Cannot receive normalized registration information about client"
@@ -362,7 +406,7 @@ class c_client_handle:
             success:    bool        = self._registration.login_user( arguments[ 0 ], arguments[ 1 ] )
 
 
-        response:   str         = self._registration.format_message( 
+        response: str = self._registration.format_message( 
             REGISTRATION_RESPONSE, 
             [ 
                 success and "1" or "0", 
@@ -381,6 +425,9 @@ class c_client_handle:
             # Now since we have registered the user. Get the fields we need
             self._trust_factor = self._registration.get_field( "trust_factor" )
             self._issues       = self._registration.get_field( "issues" )
+
+            if not self.check_trust_factor( ):
+                return False
 
             # Now get the files access levels
             stored_access_levels = self._registration.get_field( "files" )
@@ -481,15 +528,18 @@ class c_client_handle:
             if not self.check_trust_factor( ):
                 return self.disconnect( False )
             
+            self.trust_factor_latency( )
+            
+            if not self._start_rotation and self._security.should_rotate( ):
+                self.__start_security_rotation( )
+                continue
+            
             message: bytes = self.__receive( )
 
             if not message:
                 continue
-            
-            # Decode the message
-            message: str = message.decode( )
         
-            self.__handle_message( message )
+            self.__handle_message( message.decode( ) )
 
 
     def __receive( self ) -> bytes:
@@ -502,19 +552,42 @@ class c_client_handle:
         """
 
         # Receive the key and remove the protection
-        key: bytes = self._security.remove_strong_protection( self._network.receive( TIMEOUT_MSG ) )
-        if not key:
-            return None
+        #key: bytes = self._security.complex_remove_protection( self._network.receive( TIMEOUT_MSG ) )
+        #if not key:
+        #    return None
                 
         # Receive the message
-        message: bytes = self._network.receive( TIMEOUT_MSG )
+        #message: bytes = self._network.receive( TIMEOUT_MSG )
 
         # If there is no message, continue
-        if message is None:
-            return None
+        #if message is None:
+        #    return None
+        
+        #self._security.increase_input_sequence_number( )
 
         # Remove shuffle and protection
-        return self._security.remove_quick_protection( self._security.unshuffle( key, message ) )
+        #return self._security.dual_unprotect( message )
+
+        result: bytes = b''
+
+        has_next: bool = True
+        while has_next:
+            chunk: bytes = self._network.receive_chunk( TIMEOUT_MSG )
+            if not chunk:
+                return None
+            
+            self._security.increase_input_sequence_number( )
+
+            chunk = self._security.dual_unprotect( chunk )
+            if not chunk:
+                return self.lower_trust_factor( 10, "Failed to decrypt received message." )
+            
+            has_next    = chunk[ 0 ] == b'1'
+            chunk       = chunk[ 1: ]
+
+            result += chunk
+
+        return result
 
 
     def __handle_message( self, message: str ):
@@ -533,6 +606,9 @@ class c_client_handle:
 
         if message == PING_MSG:
             return c_debug.log_information( f"Client ( { self( 'username' ) } ) - pinged" )
+        
+        if message == COMMAND_ROTATE_KEY:
+            return self.__complete_security_rotation( )
 
         # Try to parse the message and create new command object
         new_command = self.__parse_message( message )
@@ -609,10 +685,12 @@ class c_client_handle:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shuffled_key( )
+        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
         
-        self._network.send_bytes( self._security.strong_protect( key ) )
-        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( message.encode( ) ) ) )
+        #self._network.send_bytes( self._security.complex_protection( key ) )
+        #self._security.increase_output_sequence_number( )
+        #self._network.send_bytes( self._security.dual_protect( message ) )
+        self.send_quick_bytes( message.encode( ) )
     
 
     def send_quick_bytes( self, data: bytes ):
@@ -625,10 +703,46 @@ class c_client_handle:
             Returns :   None
         """
 
-        key: bytes = self._security.generate_shuffled_key( )
+        config = self._network.get_raw_details( len( data ) )
+
+        for info in config:
+            start       = info[ 0 ]
+            end         = info[ 1 ]
+            has_next    = info[ 2 ] and b'1' or b'0'
+
+            chunk: bytes = has_next + data[ start:end ]
+            
+            self._security.increase_output_sequence_number( )
+            chunk = self._security.dual_protect( chunk )
+
+            result = self._network.send_bytes( chunk )
+            if not result:
+                return # self.disconnect( False, True, False )
+
+        #self._security.increase_output_sequence_number( )
+        #self._network.send_bytes( self._security.dual_protect( data ) )
+
+
+    def __start_security_rotation( self ):
         
-        self._network.send_bytes( self._security.strong_protect( key ) )
-        self._network.send_bytes( self._security.shuffle( key, self._security.quick_protect( data ) ) )
+        self.send_quick_message( COMMAND_ROTATE_KEY )
+        
+        self._security.generate_key( ENUM_OUTER_LAYER_KEY )
+
+        self._network.send_bytes( self._security.share( ENUM_OUTER_LAYER_KEY ) )
+
+        self._security.reset_output_sequence_number( )
+
+        self._start_rotation = True
+
+    
+    def __complete_security_rotation( self ):
+        
+        self._security.sync_outer_level_keys( )
+
+        self._security.reset_input_sequence_number( )
+
+        self._start_rotation = False
 
     # endregion
 
@@ -798,16 +912,30 @@ class c_client_handle:
 
         self.send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
 
-        key: bytes = self._security.generate_shuffled_key( )
-        self._network.send_bytes( self._security.strong_protect( key ) )
+        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
+        #self._security.increase_output_sequence_number( )
 
-        for chunk_info in config:
-            start       = chunk_info[ 0 ]
-            end         = chunk_info[ 1 ]
-            has_next    = chunk_info[ 2 ]
+        for info in config:
+            start       = info[ 0 ]
+            end         = info[ 1 ]
+            has_next    = info[ 2 ] and b'1' or b'0'
 
-            file_chunk = file.read( start, end )
-            self._network.send_raw( self._security.shuffle( key, self._security.quick_protect( file_chunk ) ), has_next )
+            chunk: bytes = has_next + file.read( start, end )
+            
+            self._security.increase_output_sequence_number( )
+            chunk = self._security.dual_protect( chunk )
+
+            result = self._network.send_bytes( chunk )
+            if not result:
+                return self.disconnect( False, True, False )
+
+        #for chunk_info in config:
+        #    start       = chunk_info[ 0 ]
+        #    end         = chunk_info[ 1 ]
+        #    has_next    = chunk_info[ 2 ]
+
+        #    file_chunk = file.read( start, end )
+        #    self._network.send_raw( self._security.dual_protect( file_chunk ), has_next )
 
         # After we done with the file. need to notify the client with locked lines
         lines: list = file.locked_lines( )
@@ -1306,7 +1434,7 @@ class c_client_handle:
 
         self._trust_factor = math.clamp( self._trust_factor - value, 0, 100 )
         self._issues.append( reason )
-        
+
         c_debug.log_error( reason )
 
     
@@ -1322,16 +1450,31 @@ class c_client_handle:
         return self._trust_factor > 0
     
 
-    def get_trust_factor( self ) -> int:
+    def trust_factor_latency( self ):
+        
+        pure_value = DEFAULT_TRUST_FACTOR - self._trust_factor
+        
+        if pure_value == 0:
+            return
+        
+        pure_value = pure_value / DEFAULT_TRUST_FACTOR
+        time.sleep( pure_value * 4 )
+    
+
+    def trust_factor( self, value: int = None ) -> int:
         """
-            Get client's trust factor value.
+            Get/Set client's trust factor value.
 
             Receive :   None
 
             Returns :   Number value
         """
 
-        return self._trust_factor
+        if value is None:
+            return self._trust_factor
+        
+        self._trust_factor = value
+        return value
 
     # endregion
 
@@ -1555,16 +1698,18 @@ class c_host_business_logic:
 
     # region : Connection
 
-    def setup( self, ip: str, port: int, username: str ):
+    def setup( self, ip: str, port: int, username: str, max_clients: int ):
 
         # I dont use @safe_call since I need to add debug options later on
 
         try:
 
             # Just save the information
-            self._information[ "ip" ]       = ip
-            self._information[ "port" ]     = port
-            self._information[ "username" ] = username
+            self._information[ "ip" ]           = ip
+            self._information[ "port" ]         = port
+            self._information[ "username" ]     = username
+            self._information[ "max_clients" ]  = max_clients
+
 
             self._host_client.attach_information( "username", username )
 
@@ -1694,6 +1839,9 @@ class c_host_business_logic:
         """
 
         while self._information[ "running" ]:
+
+            while len( self._clients ) >= self._information[ "max_clients" ]:
+                time.sleep( SLEEP_ON_IDLE )
 
             # Get the new client
             client_socket, client_addr = self._network.accept_connection( TIMEOUT_CONNECTION )
@@ -2073,7 +2221,7 @@ class c_host_business_logic:
 
     # region : Files
 
-    def initialize_base_values( self, path: str, default_access: int, default_scan_type: int ):
+    def initialize_base_values( self, path: str, default_access: int, scan_types: int, should_scan_virtual: bool ):
         """
             Create and setup the project files path.
 
@@ -2085,7 +2233,8 @@ class c_host_business_logic:
 
         self._information[ "original_path" ]        = path
         self._information[ "default_access" ]       = default_access
-        self._information[ "default_scan_type" ]    = default_scan_type
+        self._information[ "scan_types" ]           = scan_types
+        self._information[ "should_scan_virtual" ]  = should_scan_virtual
 
         self.__setup_path( )
 
@@ -2126,7 +2275,7 @@ class c_host_business_logic:
             return
         
         file = self._files.create_new_file( normalized_name, access_level )
-        r = file.create( self._information[ "normal_path" ] )
+        r = file.create( self._information[ "normal_path" ], f"File created by { self._information[ "username" ] }" )
 
         if r is not None:
             c_debug.log_error( r )
@@ -2145,6 +2294,10 @@ class c_host_business_logic:
 
                 if v_file and not client_files.search_file( file_index ):
                     client_files.copy( v_file )
+
+                    client.change_access_level( v_file.name( ), v_file.access_level( ) )
+
+            
 
 
     def __setup_path( self ):
@@ -2178,12 +2331,14 @@ class c_host_business_logic:
         # Besides, create for each file another file that stores all the changes
         original_path:  str = self._information[ "original_path" ]
         normal_path:    str = self._information[ "normal_path" ]
-        scan_type:      int = self._information[ "default_scan_type" ]
 
-        if scan_type == ENUM_SCAN_TYPE_ALL or scan_type == ENUM_SCAN_TYPE_VIRTUAL:
+        scan_types:             int    = self._information[ "scan_types" ]
+        should_scan_virtual:    bool   = self._information[ "should_scan_virtual" ]
+
+        if should_scan_virtual:
             self.__dump_previous_path( normal_path )
     
-        if scan_type == ENUM_SCAN_TYPE_ALL or scan_type == ENUM_SCAN_TYPE_ORIGINAL:
+        if not scan_types == ENUM_SCAN_DISABLE:
             self.__dump_path( original_path )
             
 
@@ -2197,9 +2352,10 @@ class c_host_business_logic:
             Returns :   None
         """
         
-        original_path   = self._information[ "original_path" ]
-        normal_path     = self._information[ "normal_path" ]
-        access_level    = self._information[ "default_access" ]
+        original_path           = self._information[ "original_path" ]
+        normal_path             = self._information[ "normal_path" ]
+        access_level            = self._information[ "default_access" ]
+        should_avoid_rescanning = self._information[ "scan_types" ] == ENUM_SCAN_CREATE_NEW
 
         allowed_file_types = ( ".py", ".cpp", ".hpp", ".c", ".h", ".cs", ".txt" )
 
@@ -2217,7 +2373,7 @@ class c_host_business_logic:
                         continue
 
                     # Avoid recreating the same file.
-                    if self._files.search_file( fixed_name ) is not None:
+                    if should_avoid_rescanning and self._files.search_file( fixed_name ) is not None:
                         continue
                     
                     file = self._files.create_new_file( fixed_name, access_level, True )

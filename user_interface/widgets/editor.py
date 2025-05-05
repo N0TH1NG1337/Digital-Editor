@@ -33,6 +33,8 @@ EXCEPTIONS = {
     "\"": "\"\""
 }
 
+INVALID_VECTOR = vector( -1, -1 )
+
 
 class editor_config_t:
     pad:            int = 10
@@ -292,6 +294,9 @@ class c_editor:
         self._animations.prepare( "update_hover",       0 )
         self._animations.prepare( "lines_show",         0 )
 
+        self._animations.prepare( "cursor_fade",    0 )
+        self._animations.prepare( "selection_fade", 0 )
+
 
     def __init_bones( self ):
         
@@ -418,12 +423,12 @@ class c_editor:
         self.__draw_top_bar( fade )
         self.__draw_background( fade )
 
+        self.__draw_selection( fade )
+
         # Draw the lines content here
         self.__draw_lines( fade )
 
         self.__draw_cursor( fade )
-
-        self.__draw_selection( fade )
 
         # Draw the scroll bars
         self.__draw_y_axis_scrollbar( fade )
@@ -500,6 +505,9 @@ class c_editor:
         
         if self._is_typing:
             animations.perform( "cursor", self._position + self.__char_vector_to_relative( self._cursor ), speed * 2 )
+
+        animations.perform( "cursor_fade", ( self._is_typing and not self.is_anything_selected( ) ) and 1 or 0, speed )
+        animations.perform( "selection_fade", self.is_anything_selected( ) and 1 or 0, speed )
     
 
     def __draw_top_bar( self, fade: float ):
@@ -759,7 +767,21 @@ class c_editor:
 
         render.gradiant( start_lock_gradient, end_lock_gradient, locked_color * 0, locked_color * line.fade_locked, locked_color * 0, locked_color * line.fade_locked )
 
-        render.push_clip_rect( vector( start_position.x + pad + pad_for_number, line.position.y ), vector( start_position.x + size.x - locked_by_value, line.position.y + line.size.y ), True )
+        render.push_clip_rect( vector( start_position.x + pad + pad_for_number, start_lock_gradient.y ), vector( start_position.x + size.x - locked_by_value, end_lock_gradient.y ), True )
+        
+        # Draw the tabs here
+        tabs_count = self.__count_tabs( line.text )
+        if tabs_count > 0:
+            start_tabs: float = start_position.x + pad + pad_for_number
+            tab_width:  float = render.measure_text( self._font, "    " ).x
+
+            scroll:     float = self._animations.value( "scroll" ).x
+            tab_color:  color = color_theme.copy( ) * 0.1
+
+            for i in range( tabs_count ):
+                start_tab_line = vector( start_tabs + i * tab_width + scroll, start_lock_gradient.y )
+                end_tab_line = vector( start_tab_line.x, end_lock_gradient.y )
+                render.line( start_tab_line, end_tab_line, tab_color * fade )
 
         # Draw the line here
         highlighted_text = self._syntax_highlighting.highlight( line.text )
@@ -792,6 +814,8 @@ class c_editor:
     
         color_theme:    color   = self._config.color_theme
 
+        fade: float = fade * self._animations.value( "cursor_fade" )
+
         self._render.shadow(
             start,
             end,
@@ -812,6 +836,8 @@ class c_editor:
         if fade == 0:
             return self.__reset_selection( )
         
+        fade: float = fade * self._animations.value( "selection_fade" )
+        
         if self._selection_position.x is None or self._selection_position.y is None:
             return
 
@@ -830,27 +856,30 @@ class c_editor:
         if self._selection_position.z == 0 and self._selection_index.x == self._selection_index.y:
             return self.__reset_selection( )
         
-        color_theme:    color   = self._config.color_theme
+        color_theme:    color   = self._config.color_theme * 0.1
         pad:            int     = self._config.pad
-        separate:       int     = self._config.separate
+        roundness:      int     = self._config.roundness
         line_height:    int     = self._line_height
 
         lines: list = self.get_selection( )
         for line_info in lines:
-            start_position = self._position + self.__char_vector_to_relative( vector( line_info.x, line_info.z ) ) + vector( 0, line_height - separate )
+            start_position = self._position + self.__char_vector_to_relative( vector( line_info.x, line_info.z ) ) + vector( 0, 0 ) #line_height - separate )
             end_position = self._position + self.__char_vector_to_relative( vector( line_info.y, line_info.z ) ) + vector( pad, line_height )
 
-            self._render.neon( start_position, end_position, color_theme * fade, 18, separate / 2 )
+            #self._render.neon( start_position, end_position, color_theme * fade, 18, separate / 2 )
+            if end_position.x > pad:
+                self._render.rect( start_position, end_position, color_theme * fade, roundness )
 
 
     def __draw_y_axis_scrollbar( self, fade: float ):
         
         separate:       int     = self._config.separate
+        roundness:      int     = self._config.roundness
         color_theme:    color   = self._config.color_theme
 
         bar_height:     int     = self._bar_height + self._config.pad
 
-        window_delta:   float   = self._size.y - bar_height
+        window_delta:   float   = self._size.y - bar_height - roundness
         drop                    = len( self._lines ) * self._line_height
 
         if drop == 0:
@@ -865,7 +894,7 @@ class c_editor:
         fixed           = window_delta * scroll_delta
         value           = abs( scroll_y ) * scroll_delta
 
-        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y + bar_height )
+        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y + bar_height + roundness )
         start_position: vector  = vector( position.x, position.y + value )
         end_position:   vector  = vector( position.x + separate, start_position.y + fixed )
 
@@ -876,9 +905,10 @@ class c_editor:
     def __draw_x_axis_scrollbar( self, fade: float ):
 
         separate:       int     = self._config.separate
+        roundness:      int     = self._config.roundness
         color_theme:    color   = self._config.color_theme
 
-        window_delta:   float   = self._size.x
+        window_delta:   float   = self._size.x - roundness
 
         drop:           float   = self._offset.z
 
@@ -894,7 +924,7 @@ class c_editor:
         fixed           = window_delta * scroll_delta
         value           = abs( scroll_x ) * scroll_delta
 
-        position:       vector  = vector( self._position.x, self._position.y + self._size.y - separate )
+        position:       vector  = vector( self._position.x + roundness, self._position.y + self._size.y - separate )
         start_position: vector  = vector( position.x + value, position.y )
         end_position:   vector  = vector( start_position.x + fixed, position.y + separate )
 
@@ -1147,14 +1177,46 @@ class c_editor:
         if action == glfw.RELEASE:
             return
         
-        if key == glfw.KEY_C:
+        if key == glfw.KEY_C and self._is_ctrl:
             # Copy selected text
             lines: list = self.get_selection( )
             result: list = [ ]
             for line_details in lines:
                 result.append( self._lines[ line_details.z ].text[ line_details.x:line_details.y+1 ] )
-
+            
             return glfw.set_clipboard_string( None, "\n".join( result ) )
+        
+        if key == glfw.KEY_V and self._is_ctrl:
+
+            if not self._is_typing:
+                return
+            
+            self.__delete_selection( )
+
+            result: bytes   = glfw.get_clipboard_string( None )
+            result: str     = result.decode( )
+
+            # Splitlines does mess if the last char is \n.
+            if result.endswith( "\n" ):
+                result += "\r"
+
+            lines: list = result.splitlines( )
+
+            for line_str in lines:
+                new_line: c_line = c_line( )
+
+                new_line.text       = line_str
+                new_line.previous   = line_str
+
+                self.__complete_new_line( new_line )
+
+                new_line.is_locked = 1
+
+                self._lines.insert( self._cursor.y, new_line )
+                self._cursor.y      += 1
+                self._chosen_amount += 1
+
+            self.__set_cursor_at_end( )
     
 
     def __repeat_handle( self, key: int ) -> bool:
@@ -1221,6 +1283,56 @@ class c_editor:
 
         if self._selection_position.x is not None:
             self._selection_position.y = value
+    
+
+    def __delete_selection( self ) -> bool:
+
+        # Try to imitate as close as possible to real editor
+        lines:      list    = self.get_selection( )
+        length:     int     = len( lines )
+
+        if length == 1 and lines[ 0 ].z == -1:
+            return False
+
+        result:     bool    = False
+        first_line: int     = None
+
+        for line_details in lines:
+            selected_line_index = line_details.z + 1 
+
+            if selected_line_index >= self._chosen_line and selected_line_index < ( self._chosen_line + self._chosen_amount ):
+                
+                # Delete the selected content
+                line: c_line = self._lines[ selected_line_index - 1 ]
+                first_line = selected_line_index
+
+                line.text = line.text[ :line_details.x ] + line.text[ line_details.y: ]
+                
+                result = True
+
+        if length > 1:
+            for index, detail in enumerate( reversed( lines ) ):
+
+                selected_line_index = detail.z + 1
+
+                if selected_line_index >= self._chosen_line and selected_line_index < ( self._chosen_line + self._chosen_amount ):
+
+                    line: c_line = self._lines[ selected_line_index - 1 ]
+                    if line.text == "" and selected_line_index != self._chosen_line:
+                        self._lines.remove( line )
+                        self._chosen_amount -= 1
+        
+        if result:
+
+            if first_line is not None:
+                self._cursor.y = math.clamp( lines[ 0 ].z, self._chosen_line, self._chosen_line + self._chosen_amount - 1 )
+                self._cursor.x = lines[ 0 ].x
+
+                self.__clamp_cursor( )
+
+            self.__reset_selection( )
+
+        return result
     
     # endregion
 
@@ -1393,6 +1505,10 @@ class c_editor:
         return result
 
 
+    def is_anything_selected( self ) -> bool:
+
+        return self._selection_index.x != INVALID_VECTOR and self._selection_index.y != INVALID_VECTOR
+    
     # endregion
 
     # region : Private utilities
@@ -1533,6 +1649,19 @@ class c_editor:
         
         return max( first_vector.y, second_vector.y ) == first_vector.y and first_vector or second_vector
     
+
+    def __count_tabs( self, line: str ) -> int:
+        count: int = 0
+
+        for char in line:
+            if char == " ":
+                count += 1
+
+            else:
+                break
+
+        return int( count // 4 ) + int( count % 4 )
+    
     # endregion
 
     # region : Public changes
@@ -1570,6 +1699,8 @@ class c_editor:
 
     def __insert( self, text: str ):
         
+        self.__delete_selection( )
+
         # Get the new value length
         length = len( text )
 
@@ -1586,6 +1717,9 @@ class c_editor:
 
     
     def __pop( self ) -> str:
+
+        if self.__delete_selection( ):
+            return ""
         
         if self._cursor.x == 0:
 
@@ -1624,6 +1758,8 @@ class c_editor:
 
     def __tab( self ):
 
+        self.__delete_selection( )
+
         cursor_placement:   int = self._cursor.x
         add_to_tab:         int = 4 - ( cursor_placement % 4 )
 
@@ -1631,6 +1767,8 @@ class c_editor:
 
     
     def __enter( self ):
+
+        self.__delete_selection( )
         
         new_line:       c_line = c_line( )
         current_line:   c_line = self.get_cursor_line( )
