@@ -1,16 +1,15 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Event
 
-    description : Event class.
-                used to create option to callback more than 1 function 
-                with specific arguments based on needs
-
-    changes : 
-    - Changed the callbacks from dictionary to list handler
+    description : Implements an event system that allows associating multiple
+                  callback functions with a specific event. When the event
+                  is triggered, all registered callbacks are executed with
+                  predefined arguments.
 """
+
 
 class c_event:
 
@@ -21,11 +20,12 @@ class c_event:
 
     def __init__( self ):
         """
-            Event class constructor
+        Initializes a new Event object.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    Event object
+        Returns: Event: A new Event object with initialized handlers for
+                       event information and callback functions.
         """
 
         # Setup event information handler
@@ -40,13 +40,13 @@ class c_event:
 
     def attach( self, index: str, value: any ) -> None:
         """
-            Attach new/update information for the event
+        Attaches or updates information associated with the event.
 
-            Receives:   
-            - index     - information index
-            - value     - specific value
+        Receive:
+        - index (str): The key or identifier for the information.
+        - value (any): The data to be stored for the given index.
 
-            Returns:    None
+        Returns: None
         """
 
         self._information[ index ] = value
@@ -54,14 +54,16 @@ class c_event:
 
     def set( self, callback: any, index: str, allow_arguments: bool = True ) -> None:
         """
-            Attach new callback for the event
+        Registers a new callback function to be executed when the event is triggered.
 
-            Receives:   
-            - callback                      - executable function pointer
-            - index                         - function index
-            - allow_arguments [optional]    - allow the function to request information
+        Receive:
+        - callback (callable): The function to be called when the event occurs.
+        - index (str): An identifier for this specific callback.
+        - allow_arguments (bool, optional): If True, the callback function will
+                                             receive the event's attached information
+                                             as arguments when executed. Defaults to True.
 
-            Returns:    None
+        Returns: None
         """
 
         self._calls.append( {
@@ -73,17 +75,18 @@ class c_event:
     
     def unset( self, index: str ):
         """
-            Detach callback from the event
+        Removes a registered callback function from the event based on its index.
 
-            Receives:   
-            - index                         - function index
+        Receive:
+        - index (str): The identifier of the callback function to remove.
 
-            Returns:    None
+        Returns: None
         """
 
         for call in self._calls:
             if call[ "index" ] == index:
                 self._calls.remove( call )
+                return
 
     # endregion
 
@@ -91,11 +94,11 @@ class c_event:
 
     def invoke( self ) -> None:
         """
-            Executes the event and calls all the functions
+        Triggers the event, executing all registered callback functions.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         for item in self._calls:
@@ -109,13 +112,18 @@ class c_event:
 
     def __request( self, index: str ) -> any:
         """
-            Request information from the event.
-            Called inside a callback on event invoke
+        Retrieves information attached to the event.
 
-            Receives:   
-            - index - specific information index
+        This method is intended to be called from within a callback function
+        during the event's invocation to access specific data associated with
+        the event.
 
-            Returns:    Any value, or None on fail
+        Receive:
+        - index (str): The key or identifier of the information being requested.
+
+        Returns:
+        - any: The value associated with the given index, or None if the index
+               is not found in the event's information.
         """
 
         if index in self._information:

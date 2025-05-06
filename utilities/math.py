@@ -1,10 +1,11 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Math
 
-    description : Math static functions
+    description : Provides a collection of static mathematical utility functions
+                  such as linear interpolation and value clamping.
 """
 
 
@@ -13,15 +14,16 @@ class math:
     @staticmethod
     def linear( start_value: any, end_value: any, interpolation: float, hold: float = 0.01 ):
         """
-            Linear interpolation function.
+        Performs linear interpolation between two numerical values.
 
-            Receives:   
-            - start_value     - the old value
-            - end_value       - goal value
-            - interpolation   - weight from 0 to 1
-            - hold [optional] - breaks limit interpolation.
+        Receive:
+        - start_value (int | float): The initial value.
+        - end_value (int | float): The target value.
+        - interpolation (float): A weight between 0.0 and 1.0.
+        - hold (float, optional): A small positive threshold.
 
-            Returns:    Interpolated value from the end to the start
+        Returns:
+        - float: The interpolated value.
         """
 
         # Submit the end value and avoid over calculations on end
@@ -38,17 +40,20 @@ class math:
         
         return delta
     
+
     @staticmethod
     def clamp( value: any, min_value: any, max_value: any ):
         """
-            Clamp value between limits
+        Clamps a given value within a specified range.
 
-            Receives:   
-            - value       - actual value that needs to clamp
-            - min_value   - minimun possible value
-            - max_value   - maximum possible value
+        Receive:
+        - value (any): The value to be clamped.
+        - min_value (any): The lower bound of the clamping range.
+        - max_value (any): The upper bound of the clamping range.
 
-            Returns:    Clamped value
+        Returns:
+        - any: The clamped value, which will be within the [min_value, max_value]
+               range (inclusive).
         """
 
         if value > max_value:
@@ -63,12 +68,14 @@ class math:
     @staticmethod
     def cast_to_number( value: any ) -> any:
         """
-            Try to cast value to a number.
+        Attempts to convert a given value to an integer.
 
-            Receive :   
-            - value - Any type of value
+        Receive:
+        - value (any): The value to attempt conversion on.
 
-            Returns :   Number or None
+        Returns:
+        - int: The integer representation of the value if successful.
+        - None: If the conversion to an integer fails.
         """
 
         try:

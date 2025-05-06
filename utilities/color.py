@@ -1,10 +1,13 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Color
 
-    description : Color class
+    description : Represents a color with Red, Green, Blue, and Alpha components.
+                  Provides functionalities for color manipulation, conversion
+                  (to HSV), interpolation, copying, and integration with
+                  ImGui's color representation.
 """
 
 from utilities.math import math
@@ -14,7 +17,6 @@ import imgui
 # Define function from imgui
 color32u = imgui.get_color_u32_rgba
 
-# RGBA Color class
 
 class color:
 
@@ -27,15 +29,16 @@ class color:
 
     def __init__( self, r: any = 255, g: any = 255, b: any = 255, a: any = 255 ):
         """
-            Color class constructor
+        Initializes a new Color object with optional RGBA components.
 
-            Receives:   
-            - r [optional] - start value for red    int | float
-            - g [optional] - start value for green  int | float
-            - b [optional] - start value for blue   int | float
-            - a [optional] - start value for alpha  int | float
+        Receive:
+        - r (int | float, optional): The initial value for the red component (0-255). Defaults to 255.
+        - g (int | float, optional): The initial value for the green component (0-255). Defaults to 255.
+        - b (int | float, optional): The initial value for the blue component (0-255). Defaults to 255.
+        - a (int | float, optional): The initial value for the alpha component (0-255). Defaults to 255.
 
-            Returns:    Color object
+        Returns:
+        - Color: A new Color object with the specified initial components.
         """
 
         self.r = r
@@ -49,11 +52,11 @@ class color:
 
     def copy( self ) -> any:
         """
-            Create another instance of color object as the one called from
+        Creates and returns a new Color object with the same RGBA values.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    Color object
+        Returns: Color: A new Color object that is an exact copy of the calling instance.
         """
 
         return color( self.r, self.g, self.b, self.a ) 
@@ -61,11 +64,12 @@ class color:
     
     def unpack( self ) -> tuple:
         """
-            Unpacks and returns tuple value from color object
+        Returns the RGBA components of the color as a tuple.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    Tuple
+        Returns: tuple: A tuple containing the red, green, blue, and alpha
+                       components of the color in that order: (r, g, b, a).
         """
 
         return self.r, self.g, self.b, self.a
@@ -73,11 +77,13 @@ class color:
 
     def to_hsv( self ) -> tuple:
         """
-            Convert RGBA Into HSV value,
+        Converts the RGBA color values to HSV (Hue, Saturation, Value) with Alpha.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   Tuple ( H, S, V, A )
+        Returns : tuple: A tuple containing the HSV and Alpha values: (H, S, V, A),
+                       where H, S, and V are in the range [0.0, 1.0], and A is
+                       also in the range [0.0, 1.0].
         """
 
         r, g, b = self.r / 255, self.g / 255, self.b / 255
@@ -111,15 +117,16 @@ class color:
 
     def as_hsv( self, h: float, s: float, v: float, a: float ) -> any:
         """
-            Convert HSV value to RGBA Color object.
+        Creates a new Color object from HSV (Hue, Saturation, Value) and Alpha values.
 
-            Receive:
-            - h - Hue value
-            - s - Saturation value
-            - v - Value value
-            - a - Alpha value
+        Receive:
+        - h (float): Hue value in the range [0.0, 1.0].
+        - s (float): Saturation value in the range [0.0, 1.0].
+        - v (float): Value value in the range [0.0, 1.0].
+        - a (float): Alpha value in the range [0.0, 1.0].
 
-            Returns :   Color object
+        Returns : Color: A new Color object with RGBA components derived from the
+                         provided HSV and Alpha values.
         """
 
         i = int(h * 6.0)
@@ -150,19 +157,19 @@ class color:
 
         return self
 
-
     # endregion
 
     # region : Operations
 
     def alpha_override( self, new_alpha: any ) -> any:
         """
-            Create new instance of color object with new alpha
+        Creates a new Color object with the same RGB values but a different alpha value.
 
-            Receives:   
-            - new_alpha - new alpha value for new color [ int | float ]
+        Receive:
+        - new_alpha (int | float): The new alpha value (0-255) for the new Color object.
 
-            Returns:    Color object
+        Returns:
+        - Color: A new Color object with the updated alpha component.
         """
 
         return color( self.r, self.g, self.b, new_alpha )
@@ -170,14 +177,19 @@ class color:
 
     def linear( self, other: any, weight: float, hold: float = 0.01 ) -> any:
         """
-            Linear interpolation between 2 colors
-        
-            Receives:   
-            - other             - other color
-            - weight            - weight between the 2 colors 
-            - hold [optional]   - breaks limit interpolation.
+        Performs linear interpolation between the current color and another color.
 
-            Returns:    New Color object
+        Receive:
+        - other (Color): The other Color object to interpolate towards.
+        - weight (float): A value between 0.0 and 1.0 representing the interpolation
+                          amount. 0.0 returns the current color, 1.0 returns the
+                          'other' color, and values in between return an interpolated color.
+        - hold (float, optional): A small positive value that can affect the
+                                   interpolation if the weight is very close to
+                                   0.0 or 1.0. Defaults to 0.01.
+
+        Returns:
+        - Color: A new Color object representing the interpolated color.
         """
 
         return color(
@@ -193,11 +205,12 @@ class color:
 
     def __str__( self ):
         """
-            Override ToString function for color object
-        
-            Receives:   None
+        Overrides the default string representation of the Color object.
 
-            Returns:    string representing color
+        Receive: None
+
+        Returns: str: A string representation of the Color object in the format
+                     "color(r, g, b, a)".
         """
 
         return f"color({ self.r }, { self.g }, { self.b }, { self.a })"
@@ -205,12 +218,14 @@ class color:
 
     def __mul__( self, over_alpha: any ) -> any:
         """
-            Override Multipy operator to adjust alpha value
+        Overrides the multiplication operator (*) to adjust the alpha value of the color.
 
-            Receives:   
-            - over_alpha - from 0 or 1 value adjust [ int | float ]
+        Receive:
+        - over_alpha (int | float): A scaling factor (typically between 0 and 1)
+                                    to multiply the current alpha value by.
 
-            Returns:    Color object
+        Returns:
+        - Color: A new Color object with the same RGB values and the adjusted alpha.
         """
 
         return color( self.r, self.g, self.b, self.a * over_alpha )
@@ -218,11 +233,14 @@ class color:
 
     def __eq__( self, other: any ) -> bool:
         """
-            Override equality operator for color object
+        Overrides the equality operator (==) for Color objects.
 
-            Receives:   None
+        Receive:
+        - other (Color): The other Color object to compare with.
 
-            Returns:    bool
+        Returns:
+        - bool: True if all RGBA components of both Color objects are equal;
+                False otherwise.
         """
 
         return self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a
@@ -230,11 +248,11 @@ class color:
 
     def __call__( self ):
         """
-            Function to return an u32 color type for ImGui Render
+        Returns an ImColor object (u32 color type) suitable for ImGui rendering.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    ImColor object
+        Returns: imgui.ImColor: An ImColor object representing the color.
         """
 
         return color32u(

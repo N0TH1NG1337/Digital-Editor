@@ -1,10 +1,12 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Image
 
-    description : Image class. Used for User Interface
+    description : Represents an image resource, primarily used for rendering
+                  elements within the User Interface. Handles loading,
+                  storing, and providing access to image data for OpenGL.
 """
 
 import  OpenGL.GL   as      gl
@@ -16,12 +18,10 @@ from utilities.wrappers     import safe_call
 from utilities.debug        import c_debug
 
 
-INVALID = -1    # Invalid image id
+INVALID:            int = -1    # Invalid image id
+IMAGE_FILTER_BLUR:  int = 1
 
-IMAGE_FILTER_BLUR = 1
 
-
-# Image class
 class c_image:
 
     _id:    any     # Image's Texture ID by OpenGL
@@ -31,11 +31,13 @@ class c_image:
 
     def __init__( self ):
         """
-            Image class constructor
+        Initializes a new Image object.
 
-            Receives:   None
+        Receive:
+        - None
 
-            Returns:    Image object
+        Returns:
+        - Image: A new Image object with default initial values.
         """
 
         self._id    = INVALID
@@ -45,14 +47,15 @@ class c_image:
     @safe_call( c_debug.log_error )
     def load( self, path: str, size: vector, flags: list = [ ] ) -> any:
         """
-            Load Image object from specific path
+        Loads an image from a specified path and configures it for OpenGL.
 
-            Receives:   
-            - path              - image location path
-            - size              - font height
-            - flags [optional]  - Image flags
+        Receive:
+        - path (str): The file path of the image to load.
+        - size (vector): A Vector object representing the desired dimensions (width, height) of the image.
+        - flags (list, optional): A list of image processing flags. Defaults to an empty list.
 
-            Returns:    Image object
+        Returns:
+        - Image: The Image object with the loaded image data and OpenGL texture ID.
         """
 
         # Attach wanted size
@@ -98,11 +101,13 @@ class c_image:
 
     def __call__( self ):
         """
-            Receive OpenGL Image ID
+        Returns the OpenGL texture ID of the loaded image.
 
-            Receives:   None
+        Receive:
+        - None
 
-            Returns:    OpenGL Image ID
+        Returns:
+        - int: The OpenGL texture ID associated with this Image object.
         """
 
         return self._id
@@ -110,11 +115,13 @@ class c_image:
 
     def size( self ) -> vector:
         """
-            Receive Image size
+        Returns the dimensions (width and height) of the image.
 
-            Receives:   None
+        Receive:
+        - None
 
-            Returns:    Vector object
+        Returns:
+        - vector: A Vector object representing the width (x) and height (y) of the image.
         """
 
         return self._size

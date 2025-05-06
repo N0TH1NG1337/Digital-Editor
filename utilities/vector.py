@@ -1,19 +1,18 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Vector
 
-    description : Vector class
+    description : Represents a 3D vector, which can also be used for 2D
+                  operations as the z-component defaults to zero. Provides
+                  various vector operations such as addition, subtraction,
+                  multiplication, division, distance calculation, linear
+                  interpolation, and equality checks.
 """
 
-# Import extensitions
 import math             as      original_math
 from utilities.math     import  math
-
-
-# 3D Vector class
-# Can be also used as 2D since we dont have in the project 3D objects
 
 class vector:
 
@@ -25,15 +24,15 @@ class vector:
 
     def __init__( self, x: any = 0, y: any = 0, z: any = 0 ):
         """
-            Vector class constructor
+        Initializes a new Vector object with optional x, y, and z components.
 
-            Receives:   
+        Receive:
+        - x (int | float, optional): The initial value for the x-axis component. Defaults to 0.
+        - y (int | float, optional): The initial value for the y-axis component. Defaults to 0.
+        - z (int | float, optional): The initial value for the z-axis component. Defaults to 0.
 
-            - x [optional] - start value for x-axis [ int | float ] 
-            - y [optional] - start value for y-axis [ int | float ] 
-            - z [optional] - start value for z-axis [ int | float ] 
-
-            Returns:    Vector object
+        Returns:
+        - Vector: A new Vector object with the specified initial components.
         """
 
         self.x = x
@@ -43,13 +42,15 @@ class vector:
 
     def raw( self, tuple_object: tuple ) -> any:
         """
-            Vector class second constructor.
-            Converts tuple values into vector object
+        Alternative constructor for the Vector class, initializing from a tuple.
 
-            Receives:   
-            - tuple_object - 2 value tuple
+        Receive:
+        - tuple_object (tuple): A tuple containing two values. The first value
+                                will be assigned to the x-axis, and the second
+                                to the y-axis.
 
-            Returns:    Vector object
+        Returns:
+        - Vector: The Vector object initialized with the values from the input tuple.
         """
 
         self.x = tuple_object[ 0 ]
@@ -64,11 +65,16 @@ class vector:
 
     def copy( self ) -> any:
         """
-            Create another instance of vector object as the one called from
+        Creates and returns a new Vector object with the same component values.
 
-            Receives:   None
+        This method generates a distinct copy of the current Vector object,
+        ensuring that modifications to the copy do not affect the original.
 
-            Returns:    Vector object
+        Receive:
+        - None
+
+        Returns:
+        - Vector: A new Vector object that is an exact copy of the calling instance.
         """
 
         return vector( self.x, self.y, self.z )
@@ -79,17 +85,18 @@ class vector:
 
     def is_in_bounds( self, start_vector: any, width: any, height: any ) -> bool:
         """
-            Is this vector in between 2 other vectors representing a rect 
-        
-            Receives:   
-            - start_vector  - start of the rect
-            - width         - width of the rect  [ int | float ] 
-            - height        - height of the rect [ int | float ] 
+        Checks if the vector's x and y components lie within a defined rectangular area.
 
-            Returns:    Bool value
+        Receive:
+        - start_vector (Vector): The Vector object representing the top-left
+                                 corner of the rectangle.
+        - width (int | float): The width of the rectangle.
+        - height (int | float): The height of the rectangle.
+
+        Returns:
+        - bool: True if the vector is within or on the boundary of the rectangle;
+                False otherwise.
         """
-
-        # assert( type( start_vector ) == vector, "start_vector must be a vector" )
 
         if self.x < start_vector.x or self.x > (start_vector.x + width):
             return False
@@ -102,32 +109,36 @@ class vector:
 
     def distance( self, other_vector: any ) -> float:
         """
-            Calculate the distance between current vector and other vector
-        
-            Receives:   
-            - other_vector - other vector to calculate distance to
+        Calculates the Euclidean distance between the current vector and another vector.
 
-            Returns:    Float value
+        Receive:
+        - other_vector (Vector): The other Vector object to which the distance
+                                 is to be calculated.
+
+        Returns:
+        - float: The distance between the two vectors.
         """
-
-        # assert( type( other_vector ) == vector, "other_vector must be a vector" )
 
         return original_math.sqrt( ( other_vector.x - self.x )**2 + ( other_vector.y - self.y ) **2 )
     
 
     def linear( self, other: any, weight: float, hold: float = 0.01 ) -> any:
         """
-            Linear interpolation between 2 vectors
-        
-            Receives:   
-            - other             - other vector
-            - weight            - weight between the 2 vectors 
-            - hold [optional]   - breaks limit interpolation.
+        Performs linear interpolation between the current vector and another vector.
 
-            Returns:    New Vector object
+        Receive:
+        - other (Vector): The other Vector object to interpolate towards.
+        - weight (float): A value between 0.0 and 1.0 representing the interpolation
+                          amount. 0.0 returns the current vector, 1.0 returns the
+                          'other' vector, and values in between return a vector
+                          along the line segment.
+        - hold (float, optional): A small positive value that can affect the
+                                   interpolation if the weight is very close to
+                                   0.0 or 1.0. Defaults to 0.01.
+
+        Returns:
+        - Vector: A new Vector object representing the interpolated point.
         """
-
-        # assert( type( other ) == vector, "other must be a vector" )
 
         return vector(
             math.linear( self.x, other.x, weight, hold ),
@@ -141,11 +152,14 @@ class vector:
     
     def __str__( self ):
         """
-            Override ToString function for vector object
-        
-            Receives:   None
+        Overrides the default string representation of the Vector object.
 
-            Returns:    string representing vector
+        Receive:
+        - None
+
+        Returns:
+        - str: A string representation of the Vector object in the format
+               "vector(x, y, z)".
         """
 
         return f"vector({ self.x }, { self.y }, { self.z })"
@@ -153,12 +167,17 @@ class vector:
 
     def __add__( self, other ):
         """
-            Override Add operator between vector to vector / number
-        
-            Receives:   
-            - other: add value. can be vector or int or float
+        Overrides the addition operator (+) for Vector objects.
 
-            Returns:    New vector object
+        Receive:
+        - other (Vector | int | float): The value to add. It can be another
+                                       Vector object or a numerical value.
+
+        Returns:
+        - Vector: A new Vector object representing the result of the addition.
+
+        Raises:
+        - Exception: If the 'other' operand is not a Vector, int, or float.
         """
 
         other_type = type( other )
@@ -174,12 +193,17 @@ class vector:
 
     def __sub__( self, other ):
         """
-            Override Subtruct operator between vector to vector / number
-        
-            Receives:   
-            - other: sub value. can be vector or int or float
+        Overrides the subtraction operator (-) for Vector objects.
 
-            Returns:    New vector object
+        Receive:
+        - other (Vector | int | float): The value to subtract. It can be another
+                                       Vector object or a numerical value.
+
+        Returns:
+        - Vector: A new Vector object representing the result of the subtraction.
+
+        Raises:
+        - Exception: If the 'other' operand is not a Vector, int, or float.
         """
 
         other_type = type( other )
@@ -195,12 +219,17 @@ class vector:
 
     def __mul__( self, other ):
         """
-            Override Multiply operator between vector to vector / number
-        
-            Receives:   
-            - other: mult value. can be vector or int or float
+        Overrides the multiplication operator (*) for Vector objects.
 
-            Returns:    New vector object
+        Receive:
+        - other (Vector | int | float): The value to multiply by. It can be
+                                       another Vector object or a numerical value.
+
+        Returns:
+        - Vector: A new Vector object representing the result of the multiplication.
+
+        Raises:
+        - Exception: If the 'other' operand is not a Vector, int, or float.
         """
 
         other_type = type( other )
@@ -216,12 +245,17 @@ class vector:
 
     def __truediv__( self, other ):
         """
-            Override Devide operator between vector to vector / number
-        
-            Receives:   
-            - other: div value. can be vector or int or float
+        Overrides the true division operator (/) for Vector objects.
 
-            Returns:    New vector object
+        Receive:
+        - other (Vector | int | float): The divisor. It can be another Vector
+                                       object or a numerical value.
+
+        Returns:
+        - Vector: A new Vector object representing the result of the division.
+
+        Raises:
+        - Exception: If the 'other' operand is not a Vector, int, or float.
         """
 
         other_type = type( other )
@@ -238,12 +272,17 @@ class vector:
 
     def __eq__( self, other ):
         """
-            Override Equal operator between vector to vector / tuple
-        
-            Receives:   
-            - other: sub value. can be vector or tuple
+        Overrides the equality operator (==) for Vector objects.
 
-            Returns:    Bool value
+        Receive:
+        - other (Vector | tuple): The value to compare with. It can be another
+                                  Vector object or a tuple of length 3.
+
+        Returns:
+        - bool: True if the vector is equal to the 'other' operand; False otherwise.
+
+        Raises:
+        - Exception: If the 'other' operand is not a Vector or a tuple.
         """
 
         other_type = type( other )

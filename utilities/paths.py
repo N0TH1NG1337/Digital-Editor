@@ -1,9 +1,6 @@
 FONT                = "C:\\Windows\\Fonts\\Tahoma.ttf"
-FONT_BOLD           = "C:\\Windows\\Fonts\\Tahomabd.ttf"
-FONT_THIN           = "C:\\Windows\\Fonts\\Tahoma.ttf"
 
 PHOTO_WALLPAPER     = "\\resources\\wallpaper.jpg"
-PHOTO_CITY          = "\\resources\\city.png"
 
 ICON_USERNAME       = "\\resources\\small_icon_user.png"
 ICON_PASSWORD       = "\\resources\\small_icon_key.png"
@@ -13,11 +10,6 @@ ICON_FILE           = "\\resources\\small_icon_file.png"
 ICON_LISTEN         = "\\resources\\small_icon_listen.png"
 ICON_PORT           = "\\resources\\small_icon_code.png"
 
-#ICON_MENU           = "\\resources\\menu.png"
-#ICON_FILES          = "\\resources\\file.png"
-#ICON_ADMIN          = "\\resources\\user.png"
-#ICON_CLOSE          = "\\resources\\close.png"
-
 ICON_COPY           = "\\resources\\small_icon_copy.png"
 ICON_SHARE          = "\\resources\\small_icon_share.png"
 ICON_INFO           = "\\resources\\small_icon_info.png"
@@ -26,7 +18,7 @@ ICON_PREV           = "\\resources\\small_icon_prev.png"
 ICON_LOCKED         = "\\resources\\small_icon_lock.png"
 ICON_VISIBLE        = "\\resources\\small_icon_visible.png"
 ICON_TUNE           = "\\resources\\small_icon_tune.png"
-ICON_CHECK          = "\\resources\\medium_icons_check.png"
+ICON_CHECK          = "\\resources\\small_icon_check.png"
 ICON_ADD_FILE       = "\\resources\\small_icon_addfile.png"
 ICON_REFRESH        = "\\resources\\small_icon_refresh.png"
 
@@ -34,5 +26,4 @@ TITLE_ICON_CONFIGURE    = "\\resources\\title_configure.png"
 TITLE_ICON_FILES        = "\\resources\\title_files.png"
 TITLE_ICON_CONNECTION   = "\\resources\\title_connection.png"
 TITLE_ICON_LOADING      = "\\resources\\title_loading.png"
-
 TITLE_ICON_WELCOME      = "\\resources\\title_welcome.png"

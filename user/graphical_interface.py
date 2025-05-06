@@ -12,7 +12,8 @@ from user_interface.application import *
 from utilities.paths            import *
 from utilities.debug            import *
 
-LOADING_MIN_TIME = 2
+DEFAULT_ICON_SIZE:  vector  = vector( 30, 30 )
+LOADING_MIN_TIME:   int     = 2
 
 class c_user_gui:
 
@@ -42,6 +43,7 @@ class c_user_gui:
     _buttons_bar:           c_side_list
 
     _solution_explorer:     c_solution_explorer
+    _refresh_files:         c_button
 
     _opened_what:           int
     _temp:                  dict
@@ -160,6 +162,8 @@ class c_user_gui:
 
         self._application.create_image( "Code",             execution_directory + ICON_PORT,            vector( 30, 30 ) )
         self._application.create_image( "Copy",             execution_directory + ICON_COPY,            vector( 30, 30 ) )
+
+        self._application.create_image( "icon_refresh",         execution_directory + ICON_REFRESH,         DEFAULT_ICON_SIZE )
 
         self._application.create_image( "TitleWelcome",     execution_directory + TITLE_ICON_WELCOME,   vector( 700, 200 ) )
 
@@ -293,7 +297,7 @@ class c_user_gui:
         self._entry_username     = c_text_input( self._scene_setup, vector( 50, 180 ), 40, vector( 200, 30 ), self._general_font, username_icon, "username", "", False, text_input_config )
         self._entry_password     = c_text_input( self._scene_setup, vector( 50, 240 ), 40, vector( 200, 30 ), self._general_font, password_icon, "password", "", True, text_input_config )
 
-        self._button_next_setup  = c_button( self._scene_setup, vector( 100, 250 ),  40, self._general_font, next_icon, "Next", self.__scene_setup_next_step, buttons_config )
+        self._button_next_setup  = c_button( self._scene_setup, vector( 100, 250 ), 40, self._general_font, next_icon, "Next", self.__scene_setup_next_step, buttons_config )
 
         self.__scene_setup_update( )
 
@@ -534,6 +538,7 @@ class c_user_gui:
 
         file_icon:      c_image = self._application.image( "Folder" )
         close_icon:     c_image = self._application.image( "Prev" )
+        refresh_icon:   c_image = self._application.image( "icon_refresh" )
 
         solution_config             = solution_explorer_config_t( )
         solution_config.folder_icon = self._application.image( "Folder" )
@@ -545,6 +550,7 @@ class c_user_gui:
         self._editor            = c_editor( self._scene_project, vector( 50, 100 ), vector( 1000, 760 ), self._general_font )
         self._buttons_bar       = c_side_list( self._scene_project, vector( 50, 50 ), 300, self._general_font, top_bar_config )
         self._solution_explorer = c_solution_explorer( self._scene_project, vector( 50, 140 ), vector( 250, 400 ), self._general_font, solution_config )
+        self._refresh_files     = c_button( self._scene_project, vector( 50, 560 ), 40, self._general_font, refresh_icon, "Refresh files", self.__callback_on_press_refresh )
 
         # Utilities
         self._editor.clear( )
@@ -621,6 +627,7 @@ class c_user_gui:
         current = elements_visible[ self._opened_what ]
 
         self._solution_explorer.visible( current[ 0 ] )
+        self._refresh_files.visible( current[ 0 ] )
     
 
     def __callback_on_press_files( self, _ ):
@@ -650,6 +657,11 @@ class c_user_gui:
         """
 
         self._logic.disconnect( )
+
+    
+    def __callback_on_press_refresh( self ):
+        
+        self._logic.request_files( )
         
     # endregion
 
@@ -946,6 +958,10 @@ class c_user_gui:
 
         self._logic.accept_file_rename( old_index, new_index )
 
+
+    def __event_add_log( self, event ):
+
+        pass
     # endregion
 
     # region : Utilities

@@ -247,7 +247,7 @@ class c_virtual_file:
             file_name, file_type = self.name( True )
 
             file_path = f"{ self._normal_path }\\{ file_name }_changes.txt"
-            name_path = f"{ self._normal_path }\\{ new_name.rsplit( ".", 1 )[ 0 ] }_changes.txt"
+            name_path = f"{ self._normal_path }\\{ new_name.rsplit( '.', 1 )[ 0 ] }_changes.txt"
 
             os.rename( file_path, name_path )
         

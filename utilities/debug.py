@@ -1,10 +1,12 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Debug
 
-    description : Debug handler
+    description : Provides static methods for enabling, disabling, and writing
+                  log messages (errors and general information) to a specified
+                  log file.
 """
 
 import logging as log_lib
@@ -17,13 +19,14 @@ class c_debug:
     @staticmethod
     def load_basic_debugging( file_name: str ):
         """
-            Enable basic logging.
+        Enables basic logging to a specified file.
 
-            Receive :
-            - file_name - Output log file path.
+        Receive :
+        - file_name (str): The path to the file where log messages will be written.
 
-            Returns :   None
+        Returns : None
         """
+
         global ENABLE_DEBUG_LOGGING
         ENABLE_DEBUG_LOGGING = True
 
@@ -33,12 +36,13 @@ class c_debug:
     @staticmethod    
     def disable_basic_debugging( ):
         """
-            Disable basic logging.
+        Disables basic logging.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
+
         global ENABLE_DEBUG_LOGGING
         ENABLE_DEBUG_LOGGING = False
 
@@ -46,13 +50,14 @@ class c_debug:
     @staticmethod
     def log_error( error_msg: any ):
         """
-            Log into file specific error messsage.
+        Logs a specific error message to the debugging log file.
 
-            Receive :
-            - error_msg - Error message to log
+        Receive :
+        - error_msg (any): The error message to be logged.
 
-            Returns :   None
+        Returns : None
         """
+
         global ENABLE_DEBUG_LOGGING
         if not ENABLE_DEBUG_LOGGING:
             return
@@ -63,13 +68,14 @@ class c_debug:
     @staticmethod
     def log_information( info: any ):
         """
-            Log into file specific information messsage.
+        Logs a specific informational message to the debugging log file.
 
-            Receive :
-            - info - information message to log
+        Receive :
+        - info (any): The informational message to be logged.
 
-            Returns :   None
+        Returns : None
         """
+
         global ENABLE_DEBUG_LOGGING
         if not ENABLE_DEBUG_LOGGING:
             return

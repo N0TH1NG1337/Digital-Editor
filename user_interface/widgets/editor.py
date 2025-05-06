@@ -446,7 +446,7 @@ class c_editor:
         self._discard_size  = render.measure_text( self._font, "Discard" )
 
         drop            = len( self._lines ) * self._line_height
-        fixed_drop      = self._size.y - self._config.pad
+        fixed_drop      = self._size.y - ( self._bar_height + self._config.pad * 3 )
 
         if drop > fixed_drop:
             drop_min    = fixed_drop - drop
@@ -879,7 +879,7 @@ class c_editor:
 
         bar_height:     int     = self._bar_height + self._config.pad
 
-        window_delta:   float   = self._size.y - bar_height - roundness
+        window_delta:   float   = self._size.y - bar_height
         drop                    = len( self._lines ) * self._line_height
 
         if drop == 0:
@@ -894,7 +894,7 @@ class c_editor:
         fixed           = window_delta * scroll_delta
         value           = abs( scroll_y ) * scroll_delta
 
-        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y + bar_height + roundness )
+        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y + bar_height )
         start_position: vector  = vector( position.x, position.y + value )
         end_position:   vector  = vector( position.x + separate, start_position.y + fixed )
 

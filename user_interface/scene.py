@@ -59,7 +59,6 @@ class c_scene:
     _events:        dict            # Scene events
     _elements:      list            # Scene attached elements
     _windows:       list            # Windows attached to scene
-    _notifications: list            # Notification attached to scene
 
     _render:        c_renderer      # Render functions
     _animations:    c_animations    # Animations handle

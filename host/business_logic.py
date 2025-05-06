@@ -15,7 +15,6 @@ from utilities.event            import c_event
 from utilities.wrappers         import safe_call, standalone_execute, static_arguments
 from utilities.math             import math
 
-import threading
 import base64
 import queue
 import time
@@ -38,9 +37,38 @@ ENUM_SCAN_DISABLE:      int = 1
 ENUM_SCAN_CREATE_NEW:   int = 2
 ENUM_SCAN_OVERWRITE:    int = 3
 
-#ENUM_SCAN_TYPE_ALL:     int     = 1
-#ENUM_SCAN_TYPE_VIRTUAL: int     = 2
-#ENUM_SCAN_TYPE_ORIGINAL:int     = 3
+ENUM_LOG_INFO:          int = 1
+ENUM_LOG_ERROR:         int = 2
+
+class c_log:
+
+    _type:      int # Log type
+    _time:      str # Log timestamp
+
+    _user:      str # Who registered this log
+    _message:   str # Log meesage it self
+
+    def __init__( self, message: str, log_type: int = ENUM_LOG_INFO, user: str = "system" ):
+        
+        self._type = log_type
+        self._user = user
+
+        self._message = message
+
+        self._time = time.strftime( "%y-%m-%d %H:%M:%S", time.localtime( ) )
+
+    
+    def type( self ) -> int:
+        return self._type
+    
+    def time( self ) -> str:
+        return self._time
+    
+    def user( self ) -> str:
+        return self._user
+    
+    def message( self ) -> str:
+        return self._message
 
 
 class c_command:
@@ -204,9 +232,11 @@ class c_client_handle:
         """
 
         self._events = {
-            "on_client_connected":      c_event(),
-            "on_client_disconnected":   c_event(),
-            "on_client_command":        c_event()
+            "on_client_connected":      c_event( ),
+            "on_client_disconnected":   c_event( ),
+            "on_client_command":        c_event( ),
+
+            "on_client_log":            c_event( )
         }
 
     
@@ -268,7 +298,7 @@ class c_client_handle:
             Returns:    bool - Is the client connected successfully
         """
 
-        c_debug.log_information( f"New connection. Ip - { address[ 0 ] } : Port - { address[ 1 ] }" )
+        self.__event_client_log( f"New connection. Ip - { address[ 0 ] } : Port - { address[ 1 ] }" )
 
         # Attach connection
         self.__attach_connection( socket_object, address )
@@ -365,6 +395,8 @@ class c_client_handle:
         self._network.send_bytes( self._security.share( ENUM_INNER_LAYER_KEY ) )
         self._network.send_bytes( self._security.share( ENUM_OUTER_LAYER_KEY ) )
 
+        self.__event_client_log( f"Secured connection with the client { self._network.get_address( )[ 0 ] }:{ self._network.get_address( )[ 1 ] }" )
+
         return True
     
 
@@ -376,8 +408,6 @@ class c_client_handle:
 
             Returns:    Result
         """
-
-        # Here will be the registration process
 
         raw_msg: str = self._security.complex_remove_protection( self.__receive( ) ).decode( )
         
@@ -392,16 +422,13 @@ class c_client_handle:
         
         success = False
 
-        # username: str = arguments[ 0 ]
-        # password: str = arguments[ 1 ]
-
         if command == REGISTRATION_COMMAND_REG:
             # Register
             
             success:    bool        = self._registration.register_user( arguments[ 0 ], arguments[ 1 ], { "files": { }, "trust_factor": DEFAULT_TRUST_FACTOR, "issues": [ ] } )
         
         elif command == REGISTRATION_COMMAND_LOG:
-            # Logic
+            # Login
             
             success:    bool        = self._registration.login_user( arguments[ 0 ], arguments[ 1 ] )
 
@@ -418,7 +445,7 @@ class c_client_handle:
         
         if success:
             
-            c_debug.log_information( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
+            self.__event_client_log( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
 
             self._information[ "username" ] = arguments[ 0 ]
 
@@ -441,6 +468,8 @@ class c_client_handle:
                 file.access_level( access_level )
 
             return True
+        
+        self.__event_client_log( f"Client with username ( { arguments[ 0 ] } ) failed registration" )
 
         # Here we have a problem
         return False
@@ -471,6 +500,7 @@ class c_client_handle:
 
         # Potentially notify the client
         if notify_the_client:
+            self.__event_client_log( f"Notifying client ( { self( 'username' ) } ) about disconnection" )
             self.send_quick_message( DISCONNECT_MSG )
 
         # End the connection
@@ -496,7 +526,7 @@ class c_client_handle:
         # Call the event
         self.__event_client_disconnected( notify_the_client, remove_client_handle )
 
-        c_debug.log_information( f"Client ( { self( 'username' ) } ) - disconnected" )
+        self.__event_client_log( f"client ( { self( 'username' ) } ) disconnected" )
 
 
     def clear( self ):
@@ -507,6 +537,8 @@ class c_client_handle:
         
         command: c_command = c_command( self, ENUM_PROTOCOL_FILES, FILES_COMMAND_DISCARD_UPDATE, [ self._selected_file.name( ), self._selected_line ] )
         self.__event_client_command( command )
+
+        self.__event_client_log( f"Cleared client ( { self( 'username' ) } ) actions" )
 
     # endregion
 
@@ -551,26 +583,9 @@ class c_client_handle:
             Returns :   Received Bytes
         """
 
-        # Receive the key and remove the protection
-        #key: bytes = self._security.complex_remove_protection( self._network.receive( TIMEOUT_MSG ) )
-        #if not key:
-        #    return None
-                
-        # Receive the message
-        #message: bytes = self._network.receive( TIMEOUT_MSG )
+        result:     bytes   = b''
+        has_next:   bool    = True
 
-        # If there is no message, continue
-        #if message is None:
-        #    return None
-        
-        #self._security.increase_input_sequence_number( )
-
-        # Remove shuffle and protection
-        #return self._security.dual_unprotect( message )
-
-        result: bytes = b''
-
-        has_next: bool = True
         while has_next:
             chunk: bytes = self._network.receive_chunk( TIMEOUT_MSG )
             if not chunk:
@@ -582,7 +597,7 @@ class c_client_handle:
             if not chunk:
                 return self.lower_trust_factor( 10, "Failed to decrypt received message." )
             
-            has_next    = chunk[ 0 ] == b'1'
+            has_next    = chunk[ :1 ] == b'1'
             chunk       = chunk[ 1: ]
 
             result += chunk
@@ -600,12 +615,14 @@ class c_client_handle:
             Returns :   None
         """
 
+        self.__event_client_log( f"Received from client ( { self( 'username' ) } ) -> { message }", False )
+
         # Manual checks
         if message == DISCONNECT_MSG:
             return self.disconnect( False, True )
 
         if message == PING_MSG:
-            return c_debug.log_information( f"Client ( { self( 'username' ) } ) - pinged" )
+            return self.__event_client_log( f"Client ( { self( 'username' ) } ) pinged", False )
         
         if message == COMMAND_ROTATE_KEY:
             return self.__complete_security_rotation( )
@@ -620,9 +637,8 @@ class c_client_handle:
             del new_command
             return
 
-        # Check if the client handle can handle the command by it self
-        # Note ! In some cases, there will be callback for a command, but later it will pass
-        # the command object to the command pool, to order the command result.
+        # Each command has to be processed on the client handle first.
+        # It will process all the verefications and only then pass to the main queue
         if new_command.protocol( ) == ENUM_PROTOCOL_FILES:
 
             callback = self._files_commands[ new_command.command( ) ]
@@ -653,7 +669,7 @@ class c_client_handle:
         return c_command( self, ENUM_PROTOCOL_UNK, message, None )
 
 
-    def __verify( self, command: c_command ) -> bool:
+    def __verify( self, cmd: c_command ) -> bool:
         """
             Verify if the command is valid.
 
@@ -663,14 +679,16 @@ class c_client_handle:
             Returns :   Result 
         """
 
-        protocol = command.protocol( )
+        protocol = cmd.protocol( )
 
         if protocol == ENUM_PROTOCOL_UNK:
             self.lower_trust_factor( 10, "Invalid command" )
+
+            self.__event_client_log( f"Failed to find protocol for message from client ( { self( 'username' ) } ) \n{ cmd.command( ) }", True )
             return False
 
         if protocol == ENUM_PROTOCOL_FILES:
-            return command.command( ) in self._files_commands
+            return cmd.command( ) in self._files_commands
 
         return True
 
@@ -685,11 +703,6 @@ class c_client_handle:
             Returns :   None
         """
 
-        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
-        
-        #self._network.send_bytes( self._security.complex_protection( key ) )
-        #self._security.increase_output_sequence_number( )
-        #self._network.send_bytes( self._security.dual_protect( message ) )
         self.send_quick_bytes( message.encode( ) )
     
 
@@ -719,12 +732,11 @@ class c_client_handle:
             if not result:
                 return # self.disconnect( False, True, False )
 
-        #self._security.increase_output_sequence_number( )
-        #self._network.send_bytes( self._security.dual_protect( data ) )
-
 
     def __start_security_rotation( self ):
         
+        self.__event_client_log( f"Started key rotation for client ( { self( 'username' ) } )" )
+
         self.send_quick_message( COMMAND_ROTATE_KEY )
         
         self._security.generate_key( ENUM_OUTER_LAYER_KEY )
@@ -743,6 +755,8 @@ class c_client_handle:
         self._security.reset_input_sequence_number( )
 
         self._start_rotation = False
+
+        self.__event_client_log( f"Completed key rotation for client ( { self( 'username' ) } )" )
 
     # endregion
 
@@ -798,6 +812,18 @@ class c_client_handle:
 
         event.invoke( )
     
+
+    def __event_client_log( self, message: str, save_in_app: bool = True, log_type: int = ENUM_LOG_INFO, user: str = "system" ):
+        
+        event: c_event = self._events[ "on_client_log" ]
+        
+        event.attach( "message",        message )
+        event.attach( "save_in_app",    save_in_app )
+        event.attach( "log_type",       log_type )
+        event.attach( "user",           user )
+
+        event.invoke( )
+
 
     def set_event( self, event_name: str, callback: any, index: str ):
         """
@@ -864,7 +890,7 @@ class c_client_handle:
             Returns :   None
         """
 
-        c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested files" )
+        self.__event_client_log( "requested files list", user=f"client ( { self( 'username' ) } )" )
 
         files: dict = self._files.get_files( )
 
@@ -895,6 +921,8 @@ class c_client_handle:
         """
 
         file_name: str = command.arguments( )[ 0 ]
+
+        self.__event_client_log( f"requested file { file_name }", user=f"client ( { self( 'username' ) } )" )
 
         file: c_virtual_file = self._files.search_file( file_name )
         if file is None:
@@ -927,15 +955,9 @@ class c_client_handle:
 
             result = self._network.send_bytes( chunk )
             if not result:
-                return self.disconnect( False, True, False )
-
-        #for chunk_info in config:
-        #    start       = chunk_info[ 0 ]
-        #    end         = chunk_info[ 1 ]
-        #    has_next    = chunk_info[ 2 ]
-
-        #    file_chunk = file.read( start, end )
-        #    self._network.send_raw( self._security.dual_protect( file_chunk ), has_next )
+                return # self.disconnect( False, True, False )
+            
+        self.__event_client_log( f"sent file { file_name } to client ( { self( 'username' ) } )" )
 
         # After we done with the file. need to notify the client with locked lines
         lines: list = file.locked_lines( )
@@ -961,6 +983,8 @@ class c_client_handle:
         file_name:      str     = arguments[ 0 ]
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
+        self.__event_client_log( f"request line { line_number } in { file_name }", user=f"client ( { self( 'username' ) } )" )
+
         if line_number is None:
             return self.lower_trust_factor( 5, "Invalid line number" ) 
 
@@ -985,7 +1009,7 @@ class c_client_handle:
             # To be sure, will add more checks later
             self._is_modded = True  
 
-        c_debug.log_information( f"Client ( { self( 'username' ) } ) - requested line { line_number } in file { file.name( ) }" )
+        self.__event_client_log( f"response for line { line_number } in { file_name } completed" )
 
         # Change the command arguments into real values
         command.clear_arguments( )
@@ -1013,6 +1037,8 @@ class c_client_handle:
         file_name:      str     = arguments[ 0 ]
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
+        self.__event_client_log( f"request to discard line { line_number } in { file_name }", user=f"client ( { self( 'username' ) } )" )
+
         if line_number is None:
             return self.lower_trust_factor( 5, "Invalid line number" ) 
 
@@ -1032,6 +1058,8 @@ class c_client_handle:
 
         if line_number != self.selected_line( ):
             return self.lower_trust_factor( 5, "Incorrect line index" )
+        
+        self.__event_client_log( f"response to discard line { line_number } in { file_name } completed" )
 
         # Change the command arguments into real values
         command.clear_arguments( )
@@ -1059,6 +1087,8 @@ class c_client_handle:
         file_name:      str     = arguments[ 0 ]
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
         lines_number:   int     = math.cast_to_number( arguments[ 2 ] )
+
+        self.__event_client_log( f"request to update line { line_number } in { file_name } with { lines_number } new lines", user=f"client ( { self( 'username' ) } )" )
 
         if line_number is None or lines_number is None:
             return self.lower_trust_factor( 5, "Invalid line number" ) 
@@ -1093,6 +1123,8 @@ class c_client_handle:
             
             new_lines.append( new_line )
 
+        self.__event_client_log( f"update for line { line_number } in { file_name } completed" )
+
         # Change the command arguments into real values
         command.clear_arguments( )
         command.add_arguments( file.name( ) )
@@ -1120,6 +1152,8 @@ class c_client_handle:
         file_name:      str     = arguments[ 0 ]
         line_number:    int     = math.cast_to_number( arguments[ 1 ] )
 
+        self.__event_client_log( f"request to delete line { line_number } in { file_name }", user=f"client ( { self( 'username' ) } )" )
+
         if line_number is None:
             return self.lower_trust_factor( 5, "Invalid line number" ) 
 
@@ -1139,6 +1173,8 @@ class c_client_handle:
 
         if line_number != self.selected_line( ):
             return self.lower_trust_factor( 5, "Incorrect line index" )
+        
+        self.__event_client_log( f"delete line { line_number } in { file_name } was completed" )
         
         # Change the command arguments into real values
         command.clear_arguments( )
@@ -1164,6 +1200,8 @@ class c_client_handle:
         # Convert the argument into real values
         update_type:    int     = math.cast_to_number( arguments[ 0 ] )
 
+        self.__event_client_log( f"verified change type { update_type }", user=f"client ( { self( 'username' ) } )" )
+
         arguments.pop( 0 )
         self.__get_correct_update_callback( update_type, command )
     
@@ -1184,9 +1222,9 @@ class c_client_handle:
         if not file:
             return
         
-        c_debug.log_information( f"Client ( { self( 'username' ) } ) - changed access level of file { file_name } to { new_level }" )
-
         old_access_level: int = file.access_level( )
+        
+        self.__event_client_log( f"changed access level in file { file_name } to { new_level } from { old_access_level }", user=f"client ( { self( 'username' ) } )" )
 
         if old_access_level == FILE_ACCESS_LEVEL_EDIT and new_level != FILE_ACCESS_LEVEL_EDIT and ( self._selected_file is not None and self._selected_file.name( ) == file.name( ) ) and self._selected_line != 0:
             # Disable line lock
@@ -1435,7 +1473,7 @@ class c_client_handle:
         self._trust_factor = math.clamp( self._trust_factor - value, 0, 100 )
         self._issues.append( reason )
 
-        c_debug.log_error( reason )
+        self.__event_client_log( f"lower trust factor for { reason }", user=f"client ( { self( 'username' ) } )", log_type=ENUM_LOG_ERROR )
 
     
     def check_trust_factor( self ) -> bool:
@@ -1584,24 +1622,22 @@ class c_client_handle:
     # endregion
 
 
-
-
 class c_host_business_logic:
     
     # region : Private Attributes
 
-    _network:       c_network_protocol
-    _files:         c_files_manager_protocol
-    _database:      c_database
+    _network:               c_network_protocol
+    _files:                 c_files_manager_protocol
+    _database:              c_database
 
-    _information:   dict
-    _events:        dict
+    _information:           dict
+    _events:                dict
     
-    _command_pool:  queue.Queue
+    _command_pool:          queue.Queue
 
-    _clients:       list
+    _clients:               list
 
-    _host_client:   c_client_handle     # For the host user should be also client that contains the information about file and line...
+    _host_client:           c_client_handle     # For the host user should be also client that contains the information about file and line...
     # It is easier to control the host user with client handle
 
     # endregion 
@@ -1667,7 +1703,9 @@ class c_host_business_logic:
             "on_line_unlock":           c_event( ),
 
             "on_line_update":           c_event( ),
-            "on_line_delete":           c_event( )
+            "on_line_delete":           c_event( ),
+
+            "on_added_log":             c_event( )
         }
 
 
@@ -2275,7 +2313,7 @@ class c_host_business_logic:
             return
         
         file = self._files.create_new_file( normalized_name, access_level )
-        r = file.create( self._information[ "normal_path" ], f"File created by { self._information[ "username" ] }" )
+        r = file.create( self._information[ "normal_path" ], f"File created by { self._information[ 'username' ] }" )
 
         if r is not None:
             c_debug.log_error( r )
@@ -2296,8 +2334,6 @@ class c_host_business_logic:
                     client_files.copy( v_file )
 
                     client.change_access_level( v_file.name( ), v_file.access_level( ) )
-
-            
 
 
     def __setup_path( self ):
@@ -2627,8 +2663,11 @@ class c_host_business_logic:
         self._clients.append( new_client )
 
         # Set the client events
+        host_log_fn = lambda event: self.log_information( event( "message" ), event( "save_in_app" ), event( "log_type" ), event( "user" ) )
+
         new_client.set_event( "on_client_disconnected", self.__event_client_disconnected,   "Host Client Disconnect" )
         new_client.set_event( "on_client_command",      self.__event_client_command,        "Host Client Command" )
+        new_client.set_event( "on_client_log",          host_log_fn,                        "Host Logging" )
 
         # Load path for database.
         new_client.load_database( self._database )
@@ -2847,6 +2886,18 @@ class c_host_business_logic:
         event.invoke( )
 
 
+    def __event_added_log( self, message: str, log_type: int = ENUM_LOG_INFO, user: str = "system", time: str = "unk_time" ):
+
+        event: c_event = self._events[ "on_added_log" ]
+
+        event.attach( "message",    message )
+        event.attach( "user",       user )
+        event.attach( "time",       time )
+        event.attach( "type",       log_type )
+
+        event.invoke( )
+
+
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
             Add function to be called on specific event.
@@ -2914,8 +2965,21 @@ class c_host_business_logic:
     
 
     def get_host_client( self ) -> c_client_handle:
+
         return self._host_client
     
+
+    def log_information( self, message: str, save_in_app: bool = True, log_type: int = ENUM_LOG_INFO, user: str = "system" ):
+        
+        if save_in_app:
+            self.__event_added_log( message, log_type, user, time.strftime( "%y-%m-%d %H:%M:%S", time.localtime( ) ) )
+
+        if log_type == ENUM_LOG_INFO:
+            return c_debug.log_information( f"{ user } - { message }" )
+        
+        if log_type == ENUM_LOG_ERROR:
+            c_debug.log_error( f"{ user } - { message }" )
+
 
     def __call__( self, index: str ):
         
@@ -2927,4 +2991,5 @@ class c_host_business_logic:
     # endregion
 
     def clients( self ) -> list:
+
         return self._clients

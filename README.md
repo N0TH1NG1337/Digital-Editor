@@ -7,18 +7,18 @@
 
 
 ## Getting Started
-How to install the project.
+1. How to install the project.
+2. How to execute the project.
 
-### Installation
-
-1. Setup Python virtual enviroment. Python 3.7 or higher.
-```sh
-python -m venv virtual_env
-```
-
-2. Clone the files from this reposetory
+### Manual Installation
+1. Clone the files from this reposetory
 ```sh
 git clone https://github.com/N0TH1NG1337/Digital-Editor.git
+```
+
+2. Setup Python virtual enviroment in the folder. Python 3.7 or higher.
+```sh
+python -m venv virtual_env
 ```
 
 3. Enable virtual enviroment
@@ -26,42 +26,39 @@ git clone https://github.com/N0TH1NG1337/Digital-Editor.git
 virtual_env\Scripts\activate
 ```
 
-4. Navigate to the Digital-Editor folder
-```sh
-cd Digital-Editor
-```
-
-5. Install from the requirements file
+4. Install from the requirements file
 ```sh
 pip install -r requirements.txt
 ```
 
-6. Create 2 files. One for Server and 1 for Client, and for each set:
-```python
-# server_execute.py
-from server.graphical_interface import c_server_gui
-
-def main( ):
-    c_server_gui( ).execute( )
-
-if __name__ == "__main__":
-    main( )
-```
-```python
-# client_execute.py
-from client.graphical_interface import c_client_gui
-
-def main( ):
-    c_client_gui( ).execute( )
-
-if __name__ == "__main__":
-    main( )
-```
-
-7. Execute the server or client. Note ! the file execution must be from the Digital-Editor folder.
+### Manually Running the project
+1. Enable virtual enviroment
 ```sh
-python client_execute.py
+virtual_env\Scripts\activate
+```
+
+2. Run the user or host file
+```sh
+python user_execute.py
 ```
 ```sh
-python server_execute.py
+python host_execute.py
+```
+
+### Auto Installation
+1. Run the setup.ps1 script
+```sh
+./setup
+```
+
+### Auto Running the project
+1. Run the execute.ps1 script and follow the instructions there
+```sh
+./execute
+```
+
+### Notes
+If you have any issues with running scripts just type
+```sh
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```

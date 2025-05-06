@@ -438,7 +438,7 @@ class c_user_business_logic:
             if not chunk:
                 return None
             
-            has_next    = chunk[ 0 ].to_bytes( ) == b'1'
+            has_next    = chunk[ :1 ] == b'1'
             chunk       = chunk[ 1: ]
 
             result += chunk
@@ -546,7 +546,7 @@ class c_user_business_logic:
             if not chunk:
                 return
             
-            has_next    = chunk[ 0 ].to_bytes( ) == b'1'
+            has_next    = chunk[ :1 ] == b'1'
             chunk       = chunk[ 1: ]
 
             data += chunk
@@ -781,12 +781,6 @@ class c_user_business_logic:
             Returns :   None
         """
 
-        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
-        #self._network.send_bytes( self._security.complex_protection( key ) )
-
-        #self._security.increase_output_sequence_number( )
-
-        #self._network.send_bytes( self._security.dual_protect( message ) )
         self.__send_quick_bytes( message.encode( ) )
 
     
@@ -799,12 +793,6 @@ class c_user_business_logic:
 
             Returns :   None
         """
-
-        #key: bytes = self._security.generate_key( ENUM_OUTER_LAYER_KEY )
-        
-        #self._network.send_bytes( self._security.complex_protection( key ) )
-        #self._security.increase_output_sequence_number( )
-        #self._network.send_bytes( self._security.dual_protect( data ) )
 
         config = self._network.get_raw_details( len( data ) )
 

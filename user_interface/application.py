@@ -38,6 +38,7 @@ from user_interface.widgets.editor              import *
 from user_interface.widgets.color_picker        import *
 from user_interface.widgets.solution_explorer   import *
 from user_interface.widgets.slider              import *
+from user_interface.widgets.label               import *
 
 
 class application_config_t:

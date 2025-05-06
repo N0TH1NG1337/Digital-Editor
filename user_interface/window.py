@@ -1,14 +1,15 @@
 """
     project     : Digital Editor
 
-    type:       : User Interface
+    type        : User Interface
     file        : Window
 
-    description : Window class
-
-    changes:
-    - 04-01-2025 : 
-        - Added moving option to windows with top bar.
+    description : Represents a top-level window within the application's
+                  user interface. Manages its own state (active, focused,
+                  hovered), rendering, event handling, and layout of child
+                  widgets. Provides methods for attaching and accessing
+                  widgets, handling user input, and interacting with the
+                  parent scene's resources (renderer, animations).
 """
 
 import OpenGL.GL as gl
@@ -29,23 +30,36 @@ from user_interface.animations  import c_animations
 
 
 class window_config_t:
-    speed:              int     = 7
-    roundness:          int     = 10
+    speed:              int     
+    roundness:          int     
 
-    show_bar:           bool    = False
-    bar_title:          str     = ""
-    title_font:         c_font  = None
+    show_bar:           bool    
+    bar_title:          str     
+    title_font:         c_font  
 
-    back_color:         color   = color( 0, 0, 0, 150 )
-    outline_color:      color   = color( 100, 100, 100, 150 )
-    shadow_color:       color   = color( 216, 208, 215, 255 )
+    back_color:         color   
+    outline_color:      color   
+    shadow_color:       color   
 
-    bar_color:          color   = color( )
+    bar_color:          color   
 
-    back_wallpaper:     c_image = None
+    def __init__( self ):
+
+        self.speed:              int     = 7
+        self.roundness:          int     = 10
+
+        self.show_bar:           bool    = False
+        self.bar_title:          str     = ""
+        self.title_font:         c_font  = None
+
+        self.back_color:         color   = color( 0, 0, 0, 150 )
+        self.outline_color:      color   = color( 100, 100, 100, 150 )
+        self.shadow_color:       color   = color( 216, 208, 215, 255 )
+
+        self.bar_color:          color   = color( )
 
 
-# Window class
+
 class c_window:
     
     _parent:            any             # c_scene object
@@ -67,23 +81,27 @@ class c_window:
 
     _active_handle:     int             # Active element handle
 
-    _mouse_position:    vector
-    _move_delta:        vector
-    _is_moving:         bool
+    _mouse_position:    vector          # Mouse position vector
+    _move_delta:        vector          # Moving window padding
+    _is_moving:         bool            # Is moving the window
 
     # region : Initialize window
 
     def __init__( self, parent: any, position: vector, size: vector, config: window_config_t = None ):
         """
-            Default constructor for window object
+        Initializes a new Window object.
 
-            Receives:   
-            - parent            - Scene to attach to
-            - position          - Window position
-            - size              - Window size
-            - config [optional] - Custom window config
+        Receive:
+        - parent (Scene): The Scene object to which this window will be attached.
+        - position (vector): A Vector object representing the initial position (x, y) of the window.
+        - size (vector): A Vector object representing the initial size (width, height) of the window.
+        - config (window_config_t, optional): An optional configuration object
+                                               containing custom settings for the window.
+                                               Defaults to None.
 
-            Returns:    Window object
+        Returns:
+        - Window: A new Window object with the specified parent, position, size,
+                  and configuration.
         """
 
         self._parent    = parent
@@ -105,11 +123,11 @@ class c_window:
 
     def __initialize_default_values( self ) -> None:
         """
-            Set default values to window object
-            
-            Receives:   None
+        Sets the default internal state values for the Window object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._index             = -1
@@ -127,11 +145,11 @@ class c_window:
     
     def __initialize_draw( self ) -> None:
         """
-            Setup draw information
-            
-            Receives:   None
+        Initializes the drawing-related attributes for the Window object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._render        = self._parent.render( )
@@ -142,11 +160,11 @@ class c_window:
 
     def __initialize_events( self ) -> None:
         """
-            Setup scene events
-            
-            Receives:   None
+        Initializes the event handlers for the Window object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._events = { 
@@ -166,11 +184,11 @@ class c_window:
 
     def draw( self ):
         """
-            Render window object in scene
+        Renders the window and its widgets within the scene.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         self._animations.update( )
@@ -202,12 +220,13 @@ class c_window:
 
     def __draw_background( self, fade: float ) -> None:
         """
-            Render windows background.
+        Renders the background of the window with a specified fade factor.
 
-            Receive : 
-            - fade      - Fade factor of the window
+        Receive :
+        - fade (float): A value between 0.0 and 1.0 representing the fade
+                        amount of the background color.
 
-            Returns :   None
+        Returns : None
         """
 
         remove_height: int = 0
@@ -217,10 +236,7 @@ class c_window:
             remove_height = - 30
 
         # TODO ! REWORK THE BACKGROUND DRAWING
-        # can add layer of blue or something and on top add transparent black.
-
-        back_wallpaper: c_image = self._config.back_wallpaper
-        pad:            int     = self._config.roundness
+        # can add layer of blur or something and on top add transparent black.
 
         self._render.rect(
             vector( 0, remove_height ), 
@@ -257,11 +273,11 @@ class c_window:
 
     def __event_draw( self ) -> None:
         """
-            Scene draw event
+        Handles the drawing-related events for the window.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "draw" ]
@@ -273,16 +289,17 @@ class c_window:
 
     def event_keyboard_input( self, window, key, scancode, action, mods ) -> None:
         """
-            Keyboard input callback.
+        Keyboard input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - key         - GLFW Key
-            - scancode    - GLFW Scan code
-            - action      - GLFW Action
-            - mods        - To be honest I have no idea what is this for
+        Receive:
+        - window: GLFW Window object that received the event.
+        - key (int): The keyboard key that was pressed or released (GLFW key code).
+        - scancode (int): The system-specific scancode of the key.
+        - action (int): GLFW action code indicating the state change (e.g., press, release, repeat).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt, Super)
+                      were held down.
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "keyboard_input" ]
@@ -298,13 +315,13 @@ class c_window:
 
     def event_char_input( self, window, char ) -> None:
         """
-            Char input callback.
+        Character input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - char        - char code
+        Receive:
+        - window: GLFW Window object that received the event.
+        - char (int): The Unicode code point of the character.
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "char_input" ]
@@ -317,14 +334,14 @@ class c_window:
 
     def event_mouse_position( self, window, x, y ) -> None:
         """
-            Mouse position change callback.
+        Mouse position change callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x           - x-axis of mouse position
-            - y           - y-axis of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x (float): The new x-coordinate of the mouse cursor.
+        - y (float): The new y-coordinate of the mouse cursor.
 
-            Returns:    None
+        Returns: None
         """
         
         self._mouse_position.x = x
@@ -345,15 +362,16 @@ class c_window:
 
     def event_mouse_input( self, window, button, action, mods ) -> None:
         """
-            Mouse buttons input callback
+        Mouse button input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - button      - Mouse button
-            - action      - Button action
-            - mods        - no idea of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - button (int): The mouse button that was pressed or released (GLFW mouse button code).
+        - action (int): GLFW action code indicating the state change (GLFW.PRESS or GLFW.RELEASE).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt, Super)
+                      were held down when the mouse event occurred.
 
-            Returns:    None
+        Returns: None
         """
 
         if self._config.show_bar and self._active_handle == -1:
@@ -384,16 +402,15 @@ class c_window:
 
     def event_mouse_scroll( self, window, x_offset, y_offset ) -> None:
         """
-            Mouse scroll input callback
+        Mouse scroll wheel input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x_offset    - x-axis of mouse wheel change (?)
-            - y_offset    - y-axis of mouse wheel change (?)
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x_offset (float): The amount of horizontal scrolling.
+        - y_offset (float): The amount of vertical scrolling.
 
-            Returns:    None
+        Returns: None
         """
-
         event: c_event = self._events[ "mouse_scroll" ]
 
         event.attach( "window",      window )
@@ -403,17 +420,20 @@ class c_window:
         event.invoke( )
 
 
-    def set_event( self, event_index: str, function: any, function_name: str, allow_arguments: bool = True  ) -> None:
+    def set_event( self, event_index: str, function: any, function_name: str, allow_arguments: bool = True ) -> None:
         """
-            Registers functions to a event
+        Registers a function to a specific window event.
 
-            Receives:   
-            - event_index                   - event type index
-            - function                      - function pointer
-            - function_name                 - function name
-            - allow_arguments [optional]    - Allow function to get arguments
+        Receive:
+        - event_index (str): The name or identifier of the event to attach to
+                             (e.g., "on_mouse_click", "on_key_press").
+        - function (callable): The function to be called when the event occurs.
+        - function_name (str): A name or identifier for the registered function.
+        - allow_arguments (bool, optional): If True, the registered function will
+                                             receive event-specific arguments when invoked.
+                                             Defaults to True.
 
-            Returns:    None
+        Returns: None
         """
 
         if not event_index in self._events:
@@ -429,12 +449,12 @@ class c_window:
 
     def attach_element( self, item: any ) -> int:
         """
-            Attach new element to this scene
+        Attaches a new element (widget) to this window.
 
-            Receive :   
-            - item - item object
+        Receive :
+        - item (any): The widget object to be added to the window.
 
-            Returns : Item index
+        Returns : int: The index of the newly attached element within the window's widget list.
         """
 
         self._elements.append( item )
@@ -447,13 +467,15 @@ class c_window:
 
     def try_to_get_handle( self, index: int ) -> bool:
         """
-            Tries to a get handle for specific item.
-            Used to process 1 input at a time.
-            
-            Receives:   
-            - index - Element index
+        Attempts to acquire input handling focus for a specific element.
+        This can be used to ensure only one element processes input at a time.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element (widget) to try and get the handle for.
+
+        Returns:
+        - bool: True if the element successfully acquired the input handle;
+                False otherwise (e.g., if another element already has the handle).
         """
 
         if self._active_handle != -1 and index != self._active_handle:
@@ -466,13 +488,13 @@ class c_window:
 
     def release_handle( self, index: int ) -> None:
         """
-            If a specific index called it and active_handle is set.
-            It will release it.
-            
-            Receives:   
-            - index - Element index
+        Releases the input handling focus if the provided index matches the
+        element that currently holds the handle.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element that is potentially releasing the handle.
+
+        Returns: None
         """
 
         if self._active_handle != -1 and self._active_handle == index:
@@ -481,12 +503,14 @@ class c_window:
 
     def is_this_active( self, index: int ) -> bool:
         """
-            Gets if this index is active handle
-            
-            Receives:   
-            - index - Element index
+        Checks if the element at the given index currently holds the active input handle.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element to check.
+
+        Returns:
+        - bool: True if the element at the specified index has the active input
+                handle; False otherwise.
         """
 
         return self._active_handle == index
@@ -497,12 +521,16 @@ class c_window:
 
     def index( self, new_value: int = None ) -> int:
         """
-            Returns / Sets the current window index in the queue
-            
-            Receives:   
-            - new_value [optional] - new window index value
+        Returns the current window index in the rendering queue.
+        Optionally sets a new index value.
 
-            Returns:    window index value
+        Receive:
+        - new_value (int, optional): The new index value to set for the window.
+                                     If None, the current index is returned.
+                                     Defaults to None.
+
+        Returns:
+        - int: The current window index in the queue.
         """
 
         if new_value is None:
@@ -513,12 +541,17 @@ class c_window:
     
     def show( self, new_value: bool = None ) -> bool:
         """
-            Return / Sets if the window should show
-            
-            Receives:   
-            - new_value [optional] - new value if should show window
+        Returns whether the window is currently set to show.
+        Optionally sets a new value for whether the window should be shown.
 
-            Returns:    Should show window
+        Receive:
+        - new_value (bool, optional): The new value indicating whether the
+                                      window should be shown. If None, the
+                                      current visibility state is returned.
+                                      Defaults to None.
+
+        Returns:
+        - bool: True if the window is set to show; False otherwise.
         """
 
         if new_value is None:
@@ -530,11 +563,12 @@ class c_window:
     
     def parent( self ) -> any:
         """
-            Returns current window parent
-            
-            Receives:   None
+        Returns the parent object of the current window.
 
-            Returns:    Application object
+        Receive: None
+
+        Returns: any: The parent object to which this window is attached.
+                     Typically this would be a Scene or Application object.
         """
 
         return self._parent
@@ -542,11 +576,11 @@ class c_window:
 
     def render( self ) -> c_renderer:
         """
-            Access render object
-            
-            Receives:   None
+        Provides access to the renderer object associated with the parent scene.
 
-            Returns:    Render object
+        Receive: None
+
+        Returns: c_renderer: The renderer object used for drawing within the scene.
         """
 
         return self._render
@@ -554,11 +588,11 @@ class c_window:
 
     def animations( self ) -> c_animations:
         """
-            Access animations object
-            
-            Receives:   None
+        Provides access to the animations manager object associated with the parent scene.
 
-            Returns:    Animations object
+        Receive: None
+
+        Returns: c_animations: The animations manager object used for handling animations within the scene.
         """
 
         return self._animations
@@ -566,12 +600,12 @@ class c_window:
 
     def element( self, index: int ) -> any:
         """
-            Search and find specific Element that were attached.
+        Retrieves a specific attached element (widget) by its index.
 
-            Receive :  
-            - index - Element index in list
+        Receive :
+        - index (int): The index of the element in the window's internal list of widgets.
 
-            Returns : Any type of element
+        Returns : any: The element object at the specified index, or None if the index is out of bounds.
         """
 
         if index in self._elements:
@@ -582,11 +616,12 @@ class c_window:
 
     def relative_position( self ) -> vector:
         """
-            Returns relative position on the screen size.
+        Returns the window's position relative to the parent scene's dimensions.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   Vector object
+        Returns : vector: A Vector object representing the window's position
+                         as a fraction of the parent scene's width and height.
         """
 
         return self._position.copy( )
@@ -597,11 +632,12 @@ class c_window:
 
     def __unload_window( self ):
         """
-            Unloads window from the scene.
+        Unloads the window from its parent scene, effectively removing it
+        from the rendering and event handling pipeline.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         fade: float = self._animations.value( "Fade" )

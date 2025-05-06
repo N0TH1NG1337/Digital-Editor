@@ -12,6 +12,8 @@ from user_interface.application import *
 from utilities.paths            import *
 from utilities.debug            import *
 
+import queue
+
 LOADING_MIN_TIME = 1
 
 DEFAULT_ICON_SIZE: vector = vector( 30, 30 )
@@ -64,6 +66,8 @@ class c_host_gui:
 
     _general_font:              c_font
 
+    _logs:                      queue.Queue
+
     # endregion
 
     # region : Initialization
@@ -83,6 +87,7 @@ class c_host_gui:
 
         self._temp          = { }
         self._opened_what   = 0
+        self._logs          = queue.Queue( )
 
         self.__initialize_application( )
         self.__initialize_logic( )
@@ -145,6 +150,7 @@ class c_host_gui:
         self._logic.set_event( "on_line_unlock",    self.__event_unlock_line,       "gui_editor_line_unlock",   True )
         self._logic.set_event( "on_line_update",    self.__event_change_lines,      "gui_editor_line_update",   True )
         self._logic.set_event( "on_line_delete",    self.__event_remove_line,       "gui_editor_line_remove",   True )
+        self._logic.set_event( "on_added_log",      self.__event_add_log,           "gui_add_log",              True )
 
     
     def __initialize_resources( self ):
@@ -902,6 +908,9 @@ class c_host_gui:
             Returns : None
         """
 
+        self._editor.discard_action( )
+        self._editor.clear( )
+
         self._logic.terminate( )
 
         self._button_next_setup.visible( True )
@@ -910,9 +919,7 @@ class c_host_gui:
 
         self._temp[ "setup_process" ] = 0
         self.__scene_setup_update( )
-
-        self._editor.clear( )
-        self._editor.discard_action( )
+        
         self._solution_explorer.clear( )
 
 
@@ -958,22 +965,23 @@ class c_host_gui:
 
         window_config = window_config_t( )
         window_config.show_bar      = True
-        window_config.back_wallpaper = self._application.image( "wallpaper" )
+        window_config.bar_title     = "Connected clients"
+        window_config.title_font    = self._general_font
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 320, 340 ), window_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 420, 380 ), window_config )
 
         list_config = list_config_t( )
-        list_config.slots_count = 8
+        list_config.slots_count = 6
         list_config.back_color = list_config.back_color * 0
 
-        clients_list: c_list = c_list( new_window, vector( 10, 10 ), 300, self._general_font, list_config )
+        clients_list: c_list = c_list( new_window, vector( 10, 10 ), 400, self._general_font, list_config )
 
         clients: list = self._logic.clients( )
 
         for client in clients:
             client: c_client_handle = client
 
-            clients_list.add_item( client( "username" ), self._application.image( "icon_users" ), self.__callback_on_client_click( ) )
+            clients_list.add_item( client( "username" ), self._application.image( "icon_username" ), self.__callback_on_client_click( ) )
 
 
     def __callback_on_client_click( self ):
@@ -1022,7 +1030,7 @@ class c_host_gui:
             c_button( client_info_window, vector( 10, 170 ), 40, self._general_font, icon, "Disconnect", kick_user )
 
             files_list_config = list_config_t( )
-            files_list_config.slots_count   = 6
+            files_list_config.slots_count   = 7
             files_list_config.back_color    = files_list_config.back_color * 0
 
             files_list: c_list = c_list( client_info_window, vector( 400, 10 ), 380, self._general_font, files_list_config)
@@ -1033,10 +1041,10 @@ class c_host_gui:
 
             def draw_client( ):
                 fade = animations.value( "Fade" )
-                render.text( self._general_font, vector( 10, 10 ), color( ) * fade,   f"user  | \t{ username }" )
-                render.text( self._general_font, vector( 10, 40 ), color( ) * fade,   f"file  | \t{ client.selected_file( ) }" )
-                render.text( self._general_font, vector( 10, 70 ), color( ) * fade,  f"line  | \t{ client.selected_line( ) }" )
-                render.text( self._general_font, vector( 10, 100 ), color( ) * fade,   f"trust | \t{ client.trust_factor( ) }" )
+                render.text( self._general_font, vector( 10, 10 ), color( ) * fade,     f"user  | \t{ username }" )
+                render.text( self._general_font, vector( 10, 40 ), color( ) * fade,     f"file  | \t{ client.selected_file( ) }" )
+                render.text( self._general_font, vector( 10, 70 ), color( ) * fade,     f"line  | \t{ client.selected_line( ) }" )
+                render.text( self._general_font, vector( 10, 100 ), color( ) * fade,    f"trust | " )
 
             client_info_window.set_event( "draw", draw_client, "render", False )
 
@@ -1103,10 +1111,13 @@ class c_host_gui:
 
         window_config = window_config_t( )
         window_config.show_bar      = True
+        window_config.bar_title     = "System logs"
+        window_config.title_font    = self._general_font
+        
+        window_size: vector = vector( 1200, 800 )
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 700, 600 ), window_config )
-
-        # TODO ֱֱֱֱֱֱֱֱ! Add logs.
+        new_window = self._scene_project.create_window( vector( 300, 160 ), window_size, window_config )
+        c_multiline_label( new_window, vector( 0, 0 ), window_size, self._general_font, self._logs )
 
 
     def __callback_on_press_refresh_path( self ):
@@ -1456,6 +1467,25 @@ class c_host_gui:
 
         self._logic.delete_line( file, line )
     
+    
+    @safe_call( None )
+    def __event_add_log( self, event ):
+
+        message:    str = event( "message" )
+        user:       str = event( "user" )
+        time:       str = event( "time" )
+        log_type:   int = event( "type" )
+
+        result: str = f"- { time } "
+        if log_type == ENUM_LOG_ERROR:
+            result += "- error "
+        else:
+            result += "- info  "
+
+        result += f" - { user } - { message }"
+
+        self._logs.put_nowait( result )
+
     # endregion
 
     # region : Utilities

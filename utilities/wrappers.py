@@ -1,10 +1,12 @@
 """
     project     : Digital Editor
 
-    type:       : Utility
+    type        : Utility
     file        : Wrappers
 
-    description : Wrappers for functions
+    description : Provides decorator functions to modify or enhance the behavior
+                  of other functions, such as adding error handling, background
+                  execution, or static arguments.
 """
 
 from functools import   wraps
@@ -12,14 +14,25 @@ import                  threading
 
 def safe_call( call_on_fail: any = None, ignore_errors: list = [ ] ):
     """
-        Protected call wrap function
+    A decorator for wrapping function calls in a try-except block for safety.
 
-        Receive :   
-        - call_on_fail [optional]   - execute function on fail
-        - ignore_errors [optional]  - ignore specific errors
-        - function                  - function to protect
+    This decorator allows you to execute a specified function and gracefully
+    handle any exceptions that might occur during its execution. You can
+    optionally provide a function to be called when an error occurs and a list
+    of specific error messages to ignore.
 
-        Returns :   Wrap function
+    Receive:
+    - call_on_fail (any, optional): A callable (function or method) to be
+                                     executed if an exception occurs within the
+                                     decorated function. (no function called on failure).
+    - ignore_errors (list, optional): A list of strings. If the string
+                                       representation of an exception contains
+                                       any of these strings, the exception will
+                                       be silently ignored. Defaults to
+                                       an empty list (no errors ignored).
+
+    Returns:
+    - Wrap function: A decorator that can be applied to other functions.
     """
 
     def decorator( function ):
@@ -62,13 +75,19 @@ def safe_call( call_on_fail: any = None, ignore_errors: list = [ ] ):
 
 def standalone_execute( function ):
     """
-        Standalone call wrap function.
-        Can execute functions without messing up the program flow.
+    A decorator to execute a function in a separate thread.
 
-        Receive :   
-        - function - function to protect
+    This decorator allows you to run a given function in a background thread,
+    preventing it from blocking the main program flow. Any exceptions raised
+    within the threaded function will not directly interrupt the main program.
 
-        Returns :   Wrap function
+    Receive:
+    - function (callable): The function to be executed in a separate thread.
+
+    Returns:
+    - Wrap function: A decorator that, when applied to a function, will cause
+                     invocations of that function to run in a new thread. The
+                     decorator returns the Thread object created.
     """
 
     @wraps( function )
@@ -84,14 +103,21 @@ def standalone_execute( function ):
 
 def static_arguments( function ):
     """
-        A function wrapper that receives static arguments.
-        This allows to set once the arguments, and call the function with same
-        arguments.
+    A decorator that allows a function to be called repeatedly with the same initial arguments.
 
-        Receive :
-        - function - Function to wrap
+    This decorator captures the arguments provided during the first call and
+    returns a new function that, when called subsequently,
+    will execute the original function using these captured arguments. This is
+    useful for creating callable objects with pre-set parameters.
 
-        Returns :   Wrap function
+    Receive:
+    - function (callable): The function to be wrapped.
+
+    Returns:
+    - Wrap function: A decorator that, when applied to a function, returns a
+                     new function that always calls the original
+                     function with the arguments provided during the initial
+                     call to the decorated function.
     """
 
     @wraps( function )
