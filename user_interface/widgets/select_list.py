@@ -40,6 +40,7 @@ class list_config_t:
     check_mark:         c_image
 
     def __init__( self ):
+
         self.speed:              int         = 7
         self.pad:                int         = 10
         self.separate:           int         = 4
@@ -74,6 +75,7 @@ class c_list_item:
     callback:       any
 
     def __init__( self ):
+
         self.text:           str         = ""
         self.icon:           c_image     = None
 
@@ -116,7 +118,20 @@ class c_list:
     # region : Initialize
 
     def __init__( self, parent: any, position: vector, width: int, font: c_font, config: list_config_t = None ):
-        
+        """
+        Default constructor for the list.
+
+        Receives:
+        - parent (any): The parent object or container for this list.
+        - position (vector): The initial position (x, y) of the list.
+        - width (int): The width of the list.
+        - font (c_font): The font object to use for rendering text.
+        - config (list_config_t, optional): Configuration settings for the list. Defaults to None.
+
+        Returns:
+        - c_list: The newly created c_list object.
+        """
+
         self._config = config is None and None or config
 
         self.__initialize_parent( parent )
@@ -133,6 +148,17 @@ class c_list:
 
         
     def __initialize_parent( self, parent: any ):
+        """
+        Initializes the parent and attaches the list to it.
+
+        Sets the parent object, retrieves the renderer, attaches the list as an element to the parent, 
+        and registers event handlers for mouse position, input, and scroll.
+
+        Receives:
+        - parent (any): The parent object.
+
+        Returns: None
+        """
         
         self._parent = parent
 
@@ -147,6 +173,15 @@ class c_list:
 
 
     def __initialize_animations( self ):
+        """
+        Initializes the animations for the list.
+
+        Sets up the animation manager and prepares animations for fade, scroll, and an 'add_on_enable' effect.
+
+        Receives: None
+
+        Returns: None
+        """
         
         self._animations = c_animations( )
 
@@ -156,6 +191,13 @@ class c_list:
 
 
     def __initialize_values( self ):
+        """
+        Initializes the core values for the list.
+
+        Receives: None
+
+        Returns: None
+        """
         
         self._relative_position = self._position.copy( )
         self._mouse_position    = vector( )
@@ -171,6 +213,17 @@ class c_list:
     # region : Draw
 
     def draw( self, fade: float ):
+        """
+        Draws the list.
+
+        Performs pre-drawing calculations and animations, 
+        then draws the background, items, and scrollbar.
+
+        Receives:
+        - fade (float): The fade value to apply during drawing.
+
+        Returns: None
+        """
         
         self.__perform_calculations( )
         self.__perform_animations( )
@@ -185,6 +238,13 @@ class c_list:
     
 
     def __perform_calculations( self ):
+        """
+        Performs calculations needed before drawing the list.
+
+        Receives: None
+
+        Returns: None
+        """
 
         count:      int = len( self._items )
         count_max:  int = self._config.slots_count
@@ -207,6 +267,13 @@ class c_list:
 
 
     def __perform_animations( self ):
+        """
+        Updates and performs animations for the list.
+
+        Receives: None
+
+        Returns: None
+        """
         
         self._animations.update( )
 
@@ -226,6 +293,14 @@ class c_list:
 
     
     def __draw_background( self, fade: float ):
+        """
+        Draws the background of the list.
+
+        Receives:
+        - fade (float): The fade value to apply to the background color and shadow.
+
+        Returns: None
+        """
 
         roundness:          int = self._config.roundness
         background_color:   color = self._config.back_color
@@ -235,6 +310,17 @@ class c_list:
 
 
     def __draw_items( self, fade: float ):
+        """
+        Draws the items within the list.
+
+        Iterates through the items, calculates their positions based on scrolling and padding, 
+        and renders their icons and text with hover and enable animations.
+
+        Receives:
+        - fade (float): The fade value to apply during drawing.
+
+        Returns: None
+        """
         
         speed:  int = self._config.speed
         pad:    int = self._config.pad
@@ -281,19 +367,31 @@ class c_list:
 
     
     def __draw_scrollbar( self, fade: float ):
+        """
+        Draws the vertical scrollbar for the list.
+
+        Calculates the position and size of the scrollbar based on the content size and the visible window, 
+        and renders it with a shadow effect.
+
+        Receives:
+        - fade (float): The fade value to apply to the scrollbar color and shadow.
+
+        Returns: None
+        """
 
         pad:            int     = self._config.pad
+        roundness:      int     = self._config.roundness
         separate:       int     = self._config.separate
         separate_color: color   = self._config.separate_color
         slot_height:    int     = self._config.slot_height
 
-        window_delta:   float   = self._size.y
+        window_delta:   float   = self._size.y - roundness
         drop                    = len( self._items ) * ( slot_height + pad ) + pad
 
         if drop == 0:
             return
         
-        if drop <= window_delta:
+        if drop - roundness <= window_delta:
             return
         
         scroll_y        = self._animations.value( "scroll" )
@@ -302,7 +400,7 @@ class c_list:
         fixed           = window_delta * scroll_delta
         value           = abs( scroll_y ) * scroll_delta
 
-        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y )
+        position:       vector  = vector( self._position.x + self._size.x - separate, self._position.y + roundness )
         start_position: vector  = vector( position.x, position.y + value )
         end_position:   vector  = vector( position.x + separate, start_position.y + fixed )
 
@@ -314,6 +412,14 @@ class c_list:
     # region : Input
 
     def __event_mouse_position( self, event ):
+        """
+        Handles mouse position change events.
+
+        Receives:
+        - event (callable): Event information.
+
+        Returns: None
+        """
 
         if not self._is_visible:
             if self._parent.is_this_active( self._index ):
@@ -342,6 +448,14 @@ class c_list:
 
     
     def __event_mouse_input( self, event ):
+        """
+        Handles mouse button input events.
+
+        Receives:
+        - event (callable): Event information.
+
+        Returns: None
+        """
 
         if not self._is_hovered or not self._is_visible:
             return
@@ -356,6 +470,14 @@ class c_list:
 
     
     def __event_mouse_scroll( self, event ):
+        """
+        Handles mouse scroll events.
+
+        Receives:
+        - event (callable): Event information.
+
+        Returns: None
+        """
 
         if not self._is_hovered or not self._is_visible:
             return
@@ -366,6 +488,13 @@ class c_list:
 
 
     def __hover_items( self ):
+        """
+        Checks and updates the hover state of each item in the list.
+
+        Receives: None
+
+        Returns: None
+        """
 
         for item in self._items:
             item: c_list_item = item
@@ -379,6 +508,17 @@ class c_list:
 
     
     def __handle_items( self ):
+        """
+        Handles clicks on items within the list.
+
+        Toggles the enabled state of the clicked item based on whether multi-select is enabled.
+        If single-select is enabled, it disables other items when one is clicked.
+        Invokes the callback function associated with the clicked item, if any.
+
+        Receives: None
+
+        Returns: None
+        """
         
         is_multiselect: bool = self._config.is_multiselect
 
@@ -406,6 +546,15 @@ class c_list:
     # region : Utilities
 
     def __set_values( self, new_value: bool, exception: c_list_item = None ):
+        """
+        Sets the enabled state of all items in the list, optionally excluding one.
+
+        Receives:
+        - new_value (bool): The new enabled state to set.
+        - exception (c_list_item, optional): An item to exclude from the state change. Defaults to None.
+
+        Returns: None
+        """
 
         for item in self._items:
             item: c_list_item = item
@@ -414,7 +563,17 @@ class c_list:
                 item.is_enable = new_value
 
 
-    def position( self, new_value: vector = None ) -> any:
+    def position( self, new_value: vector = None ) -> vector:
+        """
+        Access or update the position of the list.
+
+        Receives:
+        - new_value (vector, optional): The new position (x, y). 
+                                        If None, returns the current position. Defaults to None.
+
+        Returns:
+        - vector: The current position.
+        """
 
         if new_value is None:
             return self._position
@@ -426,6 +585,16 @@ class c_list:
     
 
     def set_value( self, item_name: str, value: bool = None ):
+        """
+        Sets the enabled state of a specific item in the list.
+
+        Receives:
+        - item_name (str): The text of the item to update.
+        - value (bool, optional): The new enabled state. Only applicable in multi-select mode. 
+                                  In single-select, setting a value to True will disable other items. Defaults to None.
+
+        Returns: None
+        """
 
         is_multiselect: bool = self._config.is_multiselect
 
@@ -448,6 +617,17 @@ class c_list:
 
     
     def get( self, index: str = None ) -> any:
+        """
+        Retrieves the enabled state of an item (in multi-select) or the text of the enabled item (in single-select).
+
+        Receives:
+        - index (str, optional): The text of the item to retrieve the state for (only in multi-select). Defaults to None.
+
+        Returns:
+        - any: If multi-select is enabled, returns the boolean enabled state of the item with the given index, 
+               or False if not found. If single-select is enabled, returns the text of the enabled item, 
+               or False if no item is enabled.
+        """
 
         is_multiselect: bool = self._config.is_multiselect
 
@@ -466,10 +646,28 @@ class c_list:
 
 
     def clear( self ):
+        """
+        Removes all items from the list.
+
+        Receives: None
+
+        Returns: None
+        """
+
         self._items.clear( )
 
 
     def add_item( self, index: str, icon: c_image, callback: any = None ):
+        """
+        Adds a new item to the list.
+
+        Receives:
+        - index (str): The text to display for the new item.
+        - icon (c_image): The icon to display for the new item.
+        - callback (any, optional): A function to call when the item is clicked. Defaults to None.
+
+        Returns: None
+        """
         
         new_item = c_list_item( )
 
@@ -490,6 +688,15 @@ class c_list:
 
     
     def visible( self, new_value: bool = None ) -> bool:
+        """
+        Access or update the visibility of the list.
+
+        Receives:
+        - new_value (bool, optional): The new visibility. If None, returns the current visibility. Defaults to None.
+
+        Returns:
+        - bool: The current visibility.
+        """
 
         if new_value is None:
             return self._is_visible
@@ -504,10 +711,10 @@ class c_list:
 class c_side_list:
 
     _parent:                any     # c_scene / c_window
-    _index:                 int     # Button index
+    _index:                 int     
 
-    _position:              vector  # Position in parent
-    _relative_position:     vector  # Relative position on screen
+    _position:              vector
+    _relative_position:     vector
     _width:                 int
 
     _font:                  c_font
@@ -531,17 +738,17 @@ class c_side_list:
 
     def __init__( self, parent: any, position: vector, width: int, font: c_font, config: list_config_t = None ):
         """
-            Default constructor for list object.
+        Default constructor for the side list.
 
-            Receive : 
-            - parent            - List Box Parent
-            - position          - Position in the parent
-            - width             - List Box width
-            - font              - Default font
-            - items             - List items
-            - config [optional] - Config for List Box
+        Receives:
+        - parent (any): The parent object or container for this side list.
+        - position (vector): The initial position (x, y) of the side list.
+        - width (int): The width of the side list.
+        - font (c_font): The font object to use for rendering text.
+        - config (list_config_t, optional): Configuration settings for the side list. Defaults to None.
 
-            Returns :   List object
+        Returns:
+        - c_side_list: The newly created c_side_list object.
         """
 
         self._config = config is None and list_config_t( ) or config
@@ -560,12 +767,12 @@ class c_side_list:
 
     def __initialize_parent( self, parent: any ):
         """
-            Initialize parent attach.
+        Initializes the attachment of the side list to its parent.
 
-            Receive : 
-            - parent - Parent object to attach to.
+        Receives:
+        - parent (any): The parent object to attach to.
 
-            Returns :   None
+        Returns: None
         """
 
         self._parent = parent
@@ -581,11 +788,11 @@ class c_side_list:
 
     def __initialize_animations( self ):
         """
-            Initialize button animations values
+        Initializes the animation values for the side list.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._animations = c_animations( )
@@ -595,11 +802,11 @@ class c_side_list:
 
     def __initialize_values( self ):
         """
-            Initialize defaule button values
+        Initializes the default values for the side list.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._mouse_position        = vector( )
@@ -612,14 +819,14 @@ class c_side_list:
     
     def add_item( self, index: str, icon: c_image, callback: any = None ):
         """
-            Add new item for list.
+        Adds a new item to the side list.
 
-            Receive :
-            - index                 - Value index
-            - icon                  - Index icon
-            - callback [optional]   - Callback to be called on item press
+        Receives:
+        - index (str): The text index for the new item.
+        - icon (c_image): The icon for the new item.
+        - callback (any, optional): A function to call when the item is pressed. Defaults to None.
 
-            Returns :   None
+        Returns: None
         """
 
         new_item = c_list_item( )
@@ -646,12 +853,12 @@ class c_side_list:
 
     def draw( self, fade: float ):
         """
-            Draw function.
+        Draws the side list.
 
-            Receive : 
-            - fade - Parent fade factor
+        Receives:
+        - fade (float): The parent fade factor.
 
-            Returns :   None
+        Returns: None
         """
 
         self.__preform( )
@@ -667,11 +874,11 @@ class c_side_list:
     
     def __preform( self ):
         """
-            Preforms all the behind the scenes small calculations.
+        Performs background calculations for the side list.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         pad:                int     = self._config.pad
@@ -688,11 +895,11 @@ class c_side_list:
 
     def __animate( self ):
         """
-            Preform animations of the list.
+        Updates and performs animations for the side list and its items.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._animations.update( )
@@ -704,12 +911,12 @@ class c_side_list:
     
     def __draw_back( self, fade: float ):
         """
-            Draw background for side list.
+        Draws the background for each item in the side list.
 
-            Receive :
-            - fade - Fade factor
+        Receives:
+        - fade (float): The fade factor.
 
-            Returns :   None
+        Returns: None
         """
 
         slot_height:    int     = self._config.slot_height
@@ -737,14 +944,13 @@ class c_side_list:
     
     def __draw_items( self, fade: float ):
         """
-            Draw the items for side list.
+        Draws each item within the side list.
 
-            Receive :
-            - fade - Fade factor
+        Receives:
+        - fade (float): The fade factor.
 
-            Returns :   None
+        Returns: None
         """
-
         speed:          int = self._config.speed
         pad:            int = self._config.pad
         height:         int = self._config.slot_height
@@ -798,12 +1004,12 @@ class c_side_list:
 
     def __event_mouse_position( self, event ) -> None:
         """
-            Mouse position change callback.
+        Handles mouse position change events for the side list.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information containing mouse coordinates.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -812,7 +1018,6 @@ class c_side_list:
         self._mouse_position.x  = event( "x" )
         self._mouse_position.y  = event( "y" )
         
-
         if self._mouse_position.is_in_bounds( self._relative_position, self._width, self._config.slot_height ):
             
             # Check if we hovered and can have the handle. Also register self object
@@ -832,12 +1037,12 @@ class c_side_list:
     
     def __event_mouse_input( self, event ) -> None:
         """
-            Mouse buttons input callback.
+        Handles mouse button input events for the side list.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information containing button and action.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -857,11 +1062,11 @@ class c_side_list:
 
     def __hover_items( self ):
         """
-            Handle if the user hover one of the items.
+        Checks and updates the hover state of each item in the side list.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         for item in self._items:
@@ -877,11 +1082,15 @@ class c_side_list:
     
     def __handle_items( self ):
         """
-            Handle the press on the items. 
+        Handles the press action on items within the side list.
 
-            Receive :   None
+        Toggles or sets the enabled state of the clicked item based on multi-select and disable-pressed configurations.
+        If single-select is enabled, it ensures only the clicked item is enabled.
+        Invokes the callback function associated with the clicked item, if any.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         is_multi:           bool = self._config.is_multiselect
@@ -917,13 +1126,13 @@ class c_side_list:
 
     def __new_values( self, new_value: bool, exception: c_list_item = None ):
         """
-            Set all the items a new value.
+        Sets a new enabled value for all items in the side list, optionally excluding one.
 
-            Receive : 
-            - new_value             - New bool value for every item
-            - exception [optional]  - Exception item that should not include
+        Receives:
+        - new_value (bool): The new boolean value to set for each item's enabled state.
+        - exception (c_list_item, optional): An item to exclude from having its enabled state changed. Defaults to None.
 
-            Returns :   None
+        Returns: None
         """
 
         for item in self._items:
@@ -935,13 +1144,14 @@ class c_side_list:
 
     def set_value( self, item_name: str, value: bool = None ):
         """
-            Set a new value for specific item.
+        Sets the enabled state of a specific item in the side list.
 
-            Receive : 
-            - item_name         - Item text
-            - value [optional]  - New value for multi select
+        Receives:
+        - item_name (str): The text of the item to update.
+        - value (bool, optional): The new enabled state. Only applicable in multi-select mode.
+                                 In single-select, setting a value to True will disable other items. Defaults to None.
 
-            Returns :   None
+        Returns: None
         """
 
         is_multi: bool = self._config.is_multiselect
@@ -964,14 +1174,15 @@ class c_side_list:
                 return
             
     
-    def position( self, new_value: vector = None ) -> any: #vector | None:
+    def position( self, new_value: vector = None ) -> vector:
         """
-            Access / Update list position.
+        Access or update the position of the side list.
 
-            Receive :
-            - new_value - New position in the parent
+        Receives:
+        - new_value (vector, optional): The new position (x, y). If None, returns the current position. Defaults to None.
 
-            Returns : Vector or None
+        Returns:
+        - vector: The current position.
         """
 
         if new_value is None:
@@ -985,12 +1196,13 @@ class c_side_list:
 
     def width( self, new_value: int = None ) -> int:
         """
-            Access / Update the width of the list.
+        Access or update the width of the side list.
 
-            Receive :
-            - new_value - New width
+        Receives:
+        - new_value (int, optional): The new width. If None, returns the current width. Defaults to None.
 
-            Returns : Vector or None
+        Returns:
+        - int: The current width.
         """
 
         if new_value is None:
@@ -1001,16 +1213,18 @@ class c_side_list:
         return new_value
 
 
-    def get( self, index: str = None ) -> any: #str | bool:
+    def get( self, index: str = None ) -> any:
         """
-            Get value from list.
+        Retrieves the enabled state of an item (in multi-select) or the text of the enabled item (in single-select).
 
-            Receive :
-            - index [optional] - Index in multi select
+        Receives:
+        - index (str, optional): The text of the item to retrieve the state for (only in multi-select). Defaults to None.
 
-            Returns :   String index or Boolean
+        Returns:
+        - any: If multi-select is enabled, returns the boolean enabled state of the item with the given index,
+               or False if not found. If single-select is enabled, returns the text of the enabled item,
+               or False if no item is enabled.
         """
-
         is_multiselect = self._config.is_multiselect
 
         for item in self._items:
@@ -1031,11 +1245,11 @@ class c_side_list:
 
     def clear( self ) -> None:
         """
-            Clears list items.
+        Clears all items from the side list and removes their associated animations.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         for item in self._items:
@@ -1050,12 +1264,13 @@ class c_side_list:
 
     def visible( self, new_value: bool = None ) -> bool:
         """
-            Access / Update text input visibility.
+        Access or update the visibility of the side list.
 
-            Receive :   
-            - new_value [optional] - New visibility value
+        Receives:
+        - new_value (bool, optional): The new visibility. If None, returns the current visibility. Defaults to None.
 
-            Returns :   Result
+        Returns:
+        - bool: The current visibility.
         """
 
         if new_value is None:
@@ -1063,6 +1278,6 @@ class c_side_list:
         
         self._is_visible = new_value
 
-        return self._is_visible
+        return new_value
     
     # endregion

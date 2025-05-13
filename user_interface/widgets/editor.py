@@ -201,6 +201,7 @@ class c_editor:
     _is_typing:             bool
     _is_hovered:            bool
     _is_ctrl:               bool
+    _is_alt:                bool
 
     _is_hovered_discard:    bool
     _is_hovered_update:     bool
@@ -308,6 +309,7 @@ class c_editor:
         self._is_typing             = False
 
         self._is_ctrl               = False
+        self._is_alt                = False
 
         self._is_hovered_discard    = False
         self._is_hovered_update     = False
@@ -873,13 +875,14 @@ class c_editor:
 
     def __draw_y_axis_scrollbar( self, fade: float ):
         
+        pad:            int     = self._config.pad
         separate:       int     = self._config.separate
         roundness:      int     = self._config.roundness
         color_theme:    color   = self._config.color_theme
 
-        bar_height:     int     = self._bar_height + self._config.pad
+        bar_height:     int     = self._bar_height + pad * 2
 
-        window_delta:   float   = self._size.y - bar_height
+        window_delta:   float   = self._size.y - bar_height - roundness
         drop                    = len( self._lines ) * self._line_height
 
         if drop == 0:
@@ -1014,8 +1017,15 @@ class c_editor:
 
         # We update here
         # But clamp it in the __perform_calculations function
-        self._offset.y = self._offset.y + y_offset * 20
-        self._offset.x = self._offset.x + x_offset * 30
+
+        speed = self._is_ctrl and 50 or 30
+
+        if self._is_alt:
+            self._offset.x = self._offset.x + y_offset * speed
+        else:
+            self._offset.y = self._offset.y + y_offset * speed
+
+        self._offset.x = self._offset.x + x_offset * speed
 
 
     def __event_char_input( self, event ) -> None:
@@ -1033,6 +1043,7 @@ class c_editor:
         action: int = event( "action" )
 
         self.__handle_ctrl( key, action )
+        self.__handle_alt( key, action )
 
         self.__handle_selection_actions( key, action )
 
@@ -1169,6 +1180,18 @@ class c_editor:
 
         if action == glfw.RELEASE:
             self._is_ctrl = False 
+
+
+    def __handle_alt( self, key: int, action: int ):
+        
+        if key != glfw.KEY_LEFT_ALT and key != glfw.KEY_RIGHT_ALT:
+            return
+        
+        if action == glfw.PRESS:
+            self._is_alt = True
+
+        if action == glfw.RELEASE:
+            self._is_alt = False
 
 
     def __handle_selection_actions( self, key: int, action: int ):
@@ -1310,6 +1333,8 @@ class c_editor:
                 
                 result = True
 
+        first = lines.pop( 0 )
+
         if length > 1:
             for index, detail in enumerate( reversed( lines ) ):
 
@@ -1325,8 +1350,8 @@ class c_editor:
         if result:
 
             if first_line is not None:
-                self._cursor.y = math.clamp( lines[ 0 ].z, self._chosen_line, self._chosen_line + self._chosen_amount - 1 )
-                self._cursor.x = lines[ 0 ].x
+                self._cursor.y = math.clamp( first.z, self._chosen_line, self._chosen_line + self._chosen_amount - 1 )
+                self._cursor.x = first.x
 
                 self.__clamp_cursor( )
 

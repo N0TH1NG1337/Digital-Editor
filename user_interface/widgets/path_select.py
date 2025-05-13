@@ -35,13 +35,14 @@ class c_base_file:
 
     def __init__( self, path: str, name: str ):
         """
-            Default constructor for base file object.
+        Default constructor for the base file object.
 
-            Receive : 
-            - path - Path to the file
-            - name - Name of the file (including .type)
+        Receives:
+        - path (str): The full path to the file.
+        - name (str): The name of the file, including its extension.
 
-            Returns :   Base file object
+        Returns:
+        - c_base_file: The newly created c_base_file object.
         """
 
         self._path = path
@@ -50,11 +51,12 @@ class c_base_file:
 
     def name( self ) -> str:
         """
-            Get file full name.
+        Returns the full name of the file (including the extension).
 
-            Receive :   None
+        Receives: None
 
-            Returns :   String value
+        Returns:
+        - str: The file's name.
         """
 
         return self._name
@@ -62,11 +64,12 @@ class c_base_file:
 
     def path( self ) -> str:
         """
-            Get file path.
+        Returns the full path to the file.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   String value
+        Returns:
+        - str: The file's path.
         """
 
         return self._path
@@ -74,11 +77,12 @@ class c_base_file:
 
     def file_path( self ) -> str:
         """
-            Get file full path, including its name.
+        Returns the complete file path, including the directory and the file name.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   String value
+        Returns:
+        - str: The full file path.
         """
 
         return self._path + "\\" + self._name
@@ -86,11 +90,13 @@ class c_base_file:
 
     def information( self ) -> tuple:
         """
-            Get file type and name.
+        Extracts and returns the file name (without extension) and its type (extension).
 
-            Receive :   None
-            
-            Returns :   Tuple value ( name, type )
+        Receives: None
+
+        Returns:
+        - tuple: A tuple containing the file name (str) and the file type (str). 
+                 Returns (None, None) if the file name does not contain an extension.
         """
 
         try:
@@ -100,19 +106,6 @@ class c_base_file:
 
         except Exception as e:
             return None, None
-        
-
-    #def get_file_content( self ) -> list:
-    #    lines = [ ]
-    #    with open( self.file_path( ), "r" ) as file:
-    #        for line in file:
-    #            lines.append( line )
-    #    return lines
-    
-
-    #def get_file_bytes( self ) -> bytes:
-    #    with open( self.file_path( ), "rb" ) as file:
-    #        return file.read( ) 
     
 
 class c_base_folder:
@@ -128,13 +121,14 @@ class c_base_folder:
 
     def __init__( self, prev: any, name: str ):
         """
-            Default constructor for base folder object.
+        Default constructor for the base folder object.
 
-            Receive :   
-            - prev - Previous folder
-            - name - Name of the folder
+        Receives:
+        - prev (any): The parent folder object.
+        - name (str): The name of the current folder.
 
-            Returns :   Base folder object
+        Returns:
+        - c_base_folder: The newly created c_base_folder object.
         """
         
         self._prev = prev
@@ -146,11 +140,12 @@ class c_base_folder:
 
     def previous( self ) -> any:
         """
-            Get previous folder.
+        Returns the parent folder object.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   Base folder object
+        Returns:
+        - any: The parent c_base_folder object.
         """
 
         return self._prev
@@ -158,11 +153,12 @@ class c_base_folder:
 
     def name( self ) -> str:
         """
-            Get folder name.
+        Returns the name of the current folder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   String value
+        Returns:
+        - str: The folder's name.
         """
 
         return self._name
@@ -170,11 +166,12 @@ class c_base_folder:
 
     def folders( self ) -> list:
         """
-            Get all the folders inside this folder.
+        Returns a list of all sub-folders within the current folder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   List of base folder objects
+        Returns:
+        - list: A list containing c_base_folder objects representing the sub-folders.
         """
 
         return self._folders
@@ -182,11 +179,12 @@ class c_base_folder:
     
     def files( self ) -> list:
         """
-            Get all the files inside this folder.
+        Returns a list of all files within the current folder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   List of base file objects
+        Returns:
+        - list: A list containing c_base_file objects representing the files.
         """
 
         return self._files
@@ -194,11 +192,15 @@ class c_base_folder:
 
     def absolute_path( self ) -> str:
         """
-            Get absolute path of this folder.
+        Constructs and returns the absolute path of the current folder.
 
-            Receive :   None
+        It traverses up the folder hierarchy using the `_prev` attribute until it reaches the root, 
+        concatenating the names of the folders along the way.
 
-            Returns :   String value
+        Receives: None
+
+        Returns:
+        - str: The absolute path of the folder.
         """
 
         result = self.name( )
@@ -215,11 +217,14 @@ class c_base_folder:
     @safe_call( None )
     def dump( self ) -> bool:
         """
-            Scans current folder for files and other folders.
+        Scans the current folder for files and sub-folders and populates the internal lists.
 
-            Receive :   None
+        It uses `os.scandir` for efficient directory traversal. For each entry, it creates
+        either a `c_base_file` object and adds it to the `_files` list, or a `c_base_folder`
+        object (with the current folder as its parent) and adds it to the `_folders` list.
 
-            Returns :   Result
+        Returns:
+        - bool: True if the scan was successful.
         """
 
         full_path = self.absolute_path( )
@@ -247,11 +252,14 @@ class c_base_folder:
 
     def clear( self ) -> None:
         """
-            Clear this folder content.
+        Removes all files and sub-folders from the current folder's internal lists.
 
-            Receive :   None
+        This method does not affect the actual file system; it only clears the
+        references held by this `c_base_folder` object.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         self._folders.clear( )
@@ -319,17 +327,18 @@ class c_path_select:
 
     def __init__( self, parent: any, font: c_font, position: vector, size: vector, images: dict, config: path_select_config_t = None ):
         """
-            Default constructor for path select object.
+        Default constructor for the path select object.
 
-            Receive : 
-            - parent                - Parent object to attach
-            - font                  - Font for text
-            - position              - Position in the parent
-            - size                  - Size of the whole path selector
-            - images                - 3 Images. { back_icon, folder_icon, file_icon }
-            - config [ optinal ]    - Config for path selector
+        Receives:
+        - parent (any): The parent object to which this path selector will be attached.
+        - font (c_font): The font object used for displaying text.
+        - position (vector): The initial position (x, y) of the path selector within its parent.
+        - size (vector): The dimensions (width, height) of the path selector.
+        - images (dict): A dictionary containing three `c_image` objects with keys: "back_icon", "folder_icon", and "file_icon".
+        - config (path_select_config_t, optional): Configuration settings for the path selector. Defaults to None.
 
-            Returns :   Path select object
+        Returns:
+        - c_path_select: The newly created c_path_select object.
         """
 
         self._parent    = parent
@@ -353,11 +362,11 @@ class c_path_select:
     
     def __initialize_parent( self ):
         """
-            Initialize parent attach.
+        Initializes the attachment of the path selector to its parent and registers event handlers.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
         
         self._render = self._parent.render( )
@@ -374,11 +383,11 @@ class c_path_select:
     
     def __initialize_path_input( self ):
         """
-            Initialize the input field it self.
+        Initializes the single-line text input field for displaying and editing the path.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         pad:            int     = self._config.pad
@@ -398,11 +407,11 @@ class c_path_select:
 
     def __initialize_animations( self ):
         """
-            Initialize animations.
+        Initializes the animation values for the path selector.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._animations = c_animations( )
@@ -414,11 +423,11 @@ class c_path_select:
     
     def __initialize_values( self ):
         """
-            Initialize default values.
+        Initializes the default state and values for the path selector.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._active_folder     = None
@@ -443,13 +452,13 @@ class c_path_select:
 
     def draw( self, fade: float ):
         """
-            Draw the path selector.
+        Draws the path selector and its components.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
-        """ 
+        Returns: None
+        """
 
         self.__preform( )
         self.__animate( )
@@ -466,11 +475,15 @@ class c_path_select:
 
     def __preform( self ):
         """
-            Preforms all the behind the scenes small calculations.
+        Performs background calculations for the path selector.
 
-            Receive :   None
+        Calculates the available size for the content area based on the total size and the input field's height.
+        Updates the absolute screen position of the path selector.
+        Adjusts the position and size of the internal path input field.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         pad:                        int     = self._config.pad
@@ -490,11 +503,11 @@ class c_path_select:
 
     def __animate( self ):
         """
-            Animate the animations.
+        Updates and performs animations for the path selector.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._animations.update( )
@@ -511,12 +524,12 @@ class c_path_select:
 
     def __draw_back( self, fade: float ):
         """
-            Draw the backgorund
+        Draws the background of the path selector.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
+        Returns: None
         """
 
         roundness:  int     = self._config.roundness
@@ -544,13 +557,12 @@ class c_path_select:
 
     def __draw_top_bar( self, fade: float ):
         """
-            Draw the top bar of the path select. 
-            Including back button, path and more.
+        Draws the top bar of the path selector, including the back button, separator, and the path input field.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
+        Returns: None
         """
         
         pad:                int     = self._config.pad
@@ -571,12 +583,12 @@ class c_path_select:
     
     def __draw_content( self, fade: float ):
         """
-            Draw the content of the active folder.
+        Draws the list of folders and files within the currently active folder.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
+        Returns: None
         """
 
         speed:          int     = self._config.speed
@@ -659,12 +671,12 @@ class c_path_select:
 
     def __draw_scrollbar( self, fade: float ):
         """
-            Draw scroll bar.
+        Draws the vertical scrollbar for the content area, if necessary.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
+        Returns: None
         """
 
         seperate:       int     = self._config.separate
@@ -698,12 +710,12 @@ class c_path_select:
 
     def __event_mouse_position( self, event ) -> None:
         """
-            Mouse position change callback.
+        Handles mouse position change events for the path selector.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information containing mouse coordinates.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -720,14 +732,15 @@ class c_path_select:
 
         self.__hover_folders( )
 
+
     def __event_mouse_input( self, event ) -> None:
         """
-            Mouse buttons input callback.
+        Handles mouse button input events for the path selector.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information containing button and action.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -747,12 +760,15 @@ class c_path_select:
     
     def __event_mouse_scroll( self, event ) -> None:
         """
-            Mouse scroll input callback.
+        Handles mouse scroll input events for the path selector's content area.
 
-            Receive :   
-            - event - Event information
+        If the mouse is hovering over the path selector and the content overflows the visible area,
+        it updates the vertical scroll offset based on the scroll direction.
 
-            Returns :   None
+        Receives:
+        - event (callable): Event information containing the vertical scroll offset.
+
+        Returns: None
         """
 
         if not self._is_visible:
@@ -786,13 +802,14 @@ class c_path_select:
 
     def __hover_back_button( self ):
         """
-            Handle if the user hover the back button.
+        Checks if the mouse cursor is currently hovering over the back button area.
 
-            Receive :   None
+        Updates the `_is_hovered_back` flag accordingly.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
-
         position = self._relative_position + vector( self._config.pad, self._config.pad )
         size = self._back_icon.size( )
 
@@ -801,11 +818,15 @@ class c_path_select:
 
     def __handle_back_button( self ) -> bool:
         """
-            Handle back button action.
+        Handles the action when the back button is clicked.
 
-            Receive :   None
+        If the back button is hovered and there is a previous folder, it clears the current folder's content and animations,
+        moves to the previous folder, re-scans its content, prepares new animations, and updates the displayed path.
 
-            Returns :   Should stop other actions
+        Receives: None
+
+        Returns:
+        - bool: True if the back button action was handled, False otherwise.
         """
 
         if not self._is_hovered_back:
@@ -829,11 +850,14 @@ class c_path_select:
 
     def __hover_folders( self ):
         """
-            Handle if the user hover one of the folders.
+        Checks if the mouse cursor is currently hovering over any of the displayed folders or files.
 
-            Receive :   None
+        It iterates through the `_files_information` dictionary, which stores the position and size of each item,
+        and updates the "is_hovered" status accordingly.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         if self._active_folder is None:
@@ -850,11 +874,15 @@ class c_path_select:
     
     def __handle_folders( self ):
         """
-            Handle folder press actions.
+        Handles the action when a folder within the content area is clicked.
 
-            Receive :   None
+        It checks if the click occurred within the visible content area. If so, it iterates through the displayed folders
+        and, if a hovered folder is found, it clears the current folder's content and animations, sets the clicked folder
+        as the new active folder, scans its content, prepares new animations, and updates the displayed path.
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         if self._active_folder is None:
@@ -893,13 +921,14 @@ class c_path_select:
 
     def parse_path( self, path: str ) -> c_base_folder:
         """
-            Get absolute path to a specific folder.
-            Create folders chain.
+        Parses a given path string, creates a chain of `c_base_folder` objects representing the directory structure,
+        and sets the last folder in the chain as the active folder.
 
-            Receive : 
-            - path - Path value
+        Receives:
+        - path (str): The absolute or relative path to parse.
 
-            Returns :   Active folder
+        Returns:
+        - c_base_folder: The last folder in the created chain, representing the target directory.
         """
 
         data:           list    = path.split( os.sep )
@@ -925,12 +954,12 @@ class c_path_select:
 
     def __set_new_folder( self, new_folder: c_base_folder ):
         """
-            Set new active folder, and reset some other things.
+        Sets a new active folder, updates the path input field, and resets the scroll offset.
 
-            Receive : 
-            - new_folder - New base folder object
+        Receives:
+        - new_folder (c_base_folder): The new folder to set as active.
 
-            Returns :   None
+        Returns: None
         """
 
         self._input_path.value( new_folder.absolute_path( ) )
@@ -941,11 +970,14 @@ class c_path_select:
     
     def __prepare_animations( self ):
         """
-            Prepare animations for active folder content. 
+        Prepares animation values for each folder within the currently active folder.
 
-            Receive :   None
+        For each folder, it creates animation tracks for its appearance ("_show"), a separator line ("_seperate"),
+        and a hover effect ("_hover").
 
-            Returns :   None
+        Receives: None
+
+        Returns: None
         """
 
         if self._active_folder is None:
@@ -964,12 +996,13 @@ class c_path_select:
 
     def position( self, new_value: vector = None ) -> vector:
         """
-            Access / Update position.
+        Accesses or updates the position of the path selector.
 
-            Receive :
-            - new_value - New position in the parent
+        Receives:
+        - new_value (vector, optional): The new position (x, y). If None, returns the current position. Defaults to None.
 
-            Returns : Vector
+        Returns:
+        - vector: The current position.
         """
 
         if new_value is None:
@@ -983,12 +1016,13 @@ class c_path_select:
 
     def size( self, new_value: vector = None ) -> vector:
         """
-            Access / Update size.
+        Accesses or updates the size of the path selector.
 
-            Receive :
-            - new_value - New size
+        Receives:
+        - new_value (vector, optional): The new size (width, height). If None, returns the current size. Defaults to None.
 
-            Returns : Vector or None
+        Returns:
+        - vector: The current size.
         """
 
         if new_value is None:
@@ -1002,12 +1036,14 @@ class c_path_select:
 
     def visible( self, new_value: bool = None ) -> bool:
         """
-            Access / Update text input visibility.
+        Access or update the visibility state of a text input.
 
-            Receive :   
-            - new_value [optional] - New visibility value
+        Receives:
+        - new_value (bool, optional): The new visibility value to set. 
+                                      If None, the current visibility state is returned. Defaults to None.
 
-            Returns :   Result
+        Returns:
+        - bool: The current visibility.
         """
 
         if new_value is None:
@@ -1015,16 +1051,17 @@ class c_path_select:
         
         self._is_visible = new_value
 
-        return self._is_visible
+        return new_value
 
     
     def get_path( self ) -> str:
         """
-            Get selected path.
+        Get the absolute path of the selected folder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   String value
+        Returns:
+        - str: The absolute path of the active folder as a string.
         """
         
         return self._active_folder.absolute_path( )

@@ -57,11 +57,13 @@ class c_item:
 
     def __init__( self, name: str = "" ):
         """
-            Default constructor for item.
+        Initializes a new c_item instance.
 
-            Receive :   None
+        Receives:
+        - name (str, optional): The name of the item. Defaults to "".
 
-            Returns :   None
+        Returns:
+        - c_item - Item in solution explorer.
         """
 
         self.name = name
@@ -95,11 +97,13 @@ class c_holder:
 
     def __init__( self, name: str = "" ):
         """
-            Default constructor for holder.
+        Initializes a new c_holder instance.
 
-            Receive :   None
+        Receives:
+        - name (str, optional): The name of the holder. Defaults to "".
 
-            Returns :   None
+        Returns: 
+        - c_holder - Holder object. Like a folder.
         """
 
         self.name           = name
@@ -118,12 +122,12 @@ class c_holder:
     
     def add_item( self, item: c_item ):
         """
-            Add item to holder.
+        Adds an item to this holder's list of items.
 
-            Receive :   
-            - item - Item to add
+        Receives:
+        - item (c_item): The item to be added to the holder.
 
-            Returns :   None
+        Returns: None
         """
 
         self._items.append( item )
@@ -131,11 +135,12 @@ class c_holder:
     
     def get_items( self ) -> list:
         """
-            Get items in holder.
+        Retrieves the list of items currently held by this holder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   List of items
+        Returns:
+        - list: A list containing the c_item objects within this holder.
         """
 
         return self._items
@@ -143,12 +148,12 @@ class c_holder:
     
     def add_holder( self, holder: any ):
         """
-            Add holder to holder.
+        Add holder to holder.
 
-            Receive :   
-            - holder - Holder to add
+        Receives:
+        - holder (c_holder): Holder to add
 
-            Returns :   None
+        Returns: None
         """
 
         self._other_holders.append( holder )
@@ -156,11 +161,12 @@ class c_holder:
     
     def get_holders( self ) -> list:
         """
-            Get holders in holder.
+        Get holders in holder.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   List of holders
+        Returns:
+        - list: List of holders
         """
 
         return self._other_holders
@@ -196,11 +202,17 @@ class c_solution_explorer:
 
     def __init__( self, parent: any, position: vector, size: vector, font: c_font, config: solution_explorer_config_t = None ):
         """
-            Default constructor for solution explorer.
+        Default constructor for solution explorer.
 
-            Receive :   None
+        Receives:
+        - parent (any): The parent object or container for this solution explorer.
+        - position (vector): The initial position (x, y) of the solution explorer.
+        - size (vector): The initial size (width, height) of the solution explorer.
+        - font (c_font): The font object to use for rendering text.
+        - config (solution_explorer_config_t, optional): Configuration settings for the solution explorer. Defaults to None.
 
-            Returns :   None
+        Returns:
+        - c_solution_explorer: The newly created c_solution_explorer object.
         """
 
         self._config = config is None and solution_explorer_config_t( ) or config
@@ -218,12 +230,12 @@ class c_solution_explorer:
 
     def __initialize_parent( self, parent: any ):
         """
-            Initialize parent for solution explorer.
+        Initialize the parent object for the solution explorer.
 
-            Receive :   
-            - parent - Parent object
+        Receives:
+        - parent (any): The parent object to which the solution explorer belongs.
 
-            Returns :   None
+        Returns: None
         """
 
         self._parent    = parent
@@ -240,11 +252,11 @@ class c_solution_explorer:
 
     def __initialize_animations( self ):
         """
-            Initialize animations for solution explorer.
+        Sets up the animation manager and pre-configures fade and scroll animations.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._animations = c_animations( )
@@ -256,11 +268,11 @@ class c_solution_explorer:
     
     def __initialize_values( self ):
         """
-            Initialize values for solution explorer.
+        Initialize values for the solution explorer.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._mouse_position    = vector( )
@@ -279,12 +291,12 @@ class c_solution_explorer:
 
     def draw( self, fade: float ):
         """
-            Draw solution explorer.
+        Draw the solution explorer.
 
-            Receive :   
-            - fade - Fade value
+        Receives:
+        - fade (float): The fade value to apply during drawing.
 
-            Returns :   None
+        Returns: None
         """
 
         self.__preform( )
@@ -300,11 +312,11 @@ class c_solution_explorer:
 
     def __preform( self ):
         """
-            Preforms all the behind the scenes small calculations.
+        Performs behind-the-scenes calculations.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         pad:                int     = self._config.pad
@@ -316,11 +328,12 @@ class c_solution_explorer:
     
     def __animate( self, fade: float ):
         """
-            Animate solution explorer.
+        Animates the solution explorer.
 
-            Receive :   None
+        Receives:
+        - fade (float): The current fade value used to control content animation.
 
-            Returns :   None
+        Returns: None
         """
 
         speed:      int     = self._config.speed
@@ -334,12 +347,12 @@ class c_solution_explorer:
     
     def __draw_back( self, fade: float ):
         """
-            Draw back of solution explorer.
+        Draws the background of the solution explorer.
 
-            Receive :   
-            - fade - Fade value
+        Receives:
+        - fade (float): The fade value to apply to the background color.
 
-            Returns :   None
+        Returns: None
         """
 
         roundness:  int     = self._config.roundness
@@ -364,12 +377,12 @@ class c_solution_explorer:
 
     def __draw_content( self, fade: float ):
         """
-            Draw folder of solution explorer.
+        Draws the content folder of the solution explorer.
 
-            Receive :   
-            - fade - Fade value
+        Receives:
+        - fade (float): The fade value to apply to the content.
 
-            Returns :   None
+        Returns: None
         """
 
         pad: int = self._config.pad
@@ -386,13 +399,14 @@ class c_solution_explorer:
     
     def __draw_folder( self, fade: float, folder: c_holder, add_to_x: int ):
         """
-            Draw folder of solution explorer.
+        Draws a folder and its contents recursively.
 
-            Receive :   
-            - fade - Fade value
-            - folder - Folder to draw
+        Receives:
+        - fade (float): The fade value to apply to the folder and its items.
+        - folder (c_holder): The folder object to draw.
+        - add_to_x (int): An additional horizontal offset for the folder's position.
 
-            Returns :   None
+        Returns: None
         """
 
         if fade == 0:
@@ -483,25 +497,24 @@ class c_solution_explorer:
                 seperate / 2
             )
 
-            
-
     
     def __draw_scrollbar( self, fade: float ):
         """
-            Draw scroll bar.
+        Draws the vertical scroll bar.
 
-            Receive : 
-            - fade - Fade factor of the parent
+        Receives:
+        - fade (float): The fade factor inherited from the parent.
 
-            Returns :   None
+        Returns: None
         """
 
         seperate:       int     = self._config.seperate
+        roundness:      int     = self._config.roundness
         seperate_color: color   = self._config.seperate_color
         
-        start_position: vector  = vector( self._position.x + self._size.x - seperate, self._position.y )
+        start_position: vector  = vector( self._position.x + self._size.x - seperate, self._position.y + roundness )
         
-        window_delta    = self._size.y
+        window_delta    = self._size.y - roundness
 
         if self._drop == 0:
             return
@@ -528,12 +541,12 @@ class c_solution_explorer:
 
     def __event_mouse_position( self, event ) -> None:
         """
-            Mouse position change callback.
+        Handles mouse position change events.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -560,12 +573,12 @@ class c_solution_explorer:
 
     def __event_mouse_input( self, event ) -> None:
         """
-            Mouse buttons input callback.
+        Handles mouse button input events.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -585,12 +598,12 @@ class c_solution_explorer:
 
     def __event_mouse_scroll( self, event ) -> None:
         """
-            Mouse scroll input callback.
+        Handles mouse scroll input events.
 
-            Receive :   
-            - event - Event information
+        Receives:
+        - event (callable): Event information.
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._is_visible:
@@ -612,11 +625,12 @@ class c_solution_explorer:
 
     def __hover_items( self, folder: c_holder ):
         """
-            Handle if the user hover one of the items.
+        Checks and handles hover events for items within a folder.
 
-            Receive :   None
+        Receives:
+        - folder (c_holder): The folder to check for hovered items.
 
-            Returns :   None
+        Returns: None
         """
 
         slot_height: int = self._config.slot_height
@@ -648,13 +662,15 @@ class c_solution_explorer:
                 item.is_hovered = False
 
     
-    def __handle_items( self, folder: c_holder, button: any ):
+    def __handle_items( self, folder: c_holder, button: int ):
         """
-            Handle if the user click one of the items.
+        Handles click events for items within a folder and its subfolders.
 
-            Receive :   None
+        Receives:
+        - folder (c_holder): The folder to check for clicked items.
+        - button (int): The mouse button that was pressed.
 
-            Returns :   None
+        Returns: None
         """
 
         folders: list = folder.get_holders( )
@@ -691,12 +707,17 @@ class c_solution_explorer:
 
     def add_item( self, value: str, left_click_callback: any = None, right_click_callback: any = None ):
         """
-            Add item to solution explorer.
+        Adds a new item to the solution explorer.
 
-            Receive :   
-            - value - Value to add
+        Receives:
+        - value (str): The path-like string representing the item to add. 
+                       Folders are created based on path components.
+        - left_click_callback (any, optional): A callback function to execute on left-click. 
+                                               Defaults to None.
+        - right_click_callback (any, optional): A callback function to execute on right-click. 
+                                                Defaults to None.
 
-            Returns :   None
+        Returns: None
         """
 
         parse_item = value.split( os.sep )
@@ -730,12 +751,13 @@ class c_solution_explorer:
     
     def remove_item( self, item_name: str ):
         """
-            Remove item from solution explorer.
+        Removes an item from the solution explorer.
 
-            Receive :   
-            - item_name - Name of the item to remove
+        Receives:
+        - item_name (str): The path-like string representing the item to remove. 
+                          Folders in the path must exist for the item to be found.
 
-            Returns :   None
+        Returns: None
         """
 
         parse_item = item_name.split( os.sep )
@@ -767,12 +789,14 @@ class c_solution_explorer:
 
     def has_item( self, file_name: str ):
         """
-            Check if item exists in solution explorer.
+        Checks if an item exists in the solution explorer.
 
-            Receive :   
-            - file_name - Name of the file
+        Receives:
+        - file_name (str): The path-like string representing the item to check for.
+                           Folders in the path must exist for the item to be found.
 
-            Returns :   Bool
+        Returns:
+        - bool: True if the item exists, False otherwise.
         """
 
         parse_item = file_name.split( os.sep )
@@ -805,11 +829,11 @@ class c_solution_explorer:
 
     def clear( self ):
         """
-            Clear solution explorer.
+        Clears all items and folders from the solution explorer.
 
-            Receive :   None
+        Receives: None
 
-            Returns :   None
+        Returns: None
         """
 
         del self._folder
@@ -818,15 +842,16 @@ class c_solution_explorer:
         self._offset = 0
 
 
-
     def visible( self, new_value: bool = None ) -> bool:
         """
-            Access / Update buttons visibility.
+        Access or update the visibility of the solution explorer.
 
-            Receive :
-            - new_value - New button visibility
+        Receives:
+        - new_value (bool, optional): The new visibility value to set. 
+                                      If None, the current visibility is returned. Defaults to None.
 
-            Returns : Bool or None
+        Returns:
+        - bool: Returns the current visibility.
         """
 
         if new_value is None:
@@ -838,12 +863,14 @@ class c_solution_explorer:
 
     def position( self, new_value: vector = None ) -> vector:
         """
-            Access / Update position.
+        Access or update the position of the solution explorer.
 
-            Receive :
-            - new_value - New position in the parent
+        Receives:
+        - new_value (vector, optional): The new position (x, y) relative to the parent. 
+                                      If None, the current position is returned. Defaults to None.
 
-            Returns : Vector or None
+        Returns:
+        - vector: Returns the current position.
         """
 
         if new_value is None:
@@ -856,12 +883,14 @@ class c_solution_explorer:
 
     def size( self, new_value: vector = None ) -> vector:
         """
-            Access / Update size.
+        Access or update the size of the solution explorer.
 
-            Receive :
-            - new_value - New size
+        Receives:
+        - new_value (vector, optional): The new size (width, height). 
+                                        If None, the current size is returned. Defaults to None.
 
-            Returns : Vector or None
+        Returns:
+        - vector: The current size.
         """
 
         if new_value is None:

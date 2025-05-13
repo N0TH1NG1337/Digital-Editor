@@ -1,21 +1,16 @@
 """
     project     : Digital Editor
 
-    type:       : User Interface
+    type        : User Interface
     file        : Scene
 
-    description : Scene class
-
-    changes :
-    - Fixes performance issues.
-    - Fixes stars movement.
-    - Fixes stars position on window resize.
-    - Removed slide animation on enter / exit since it caused crashes.
+    description : Represents a self-contained visual and interactive area
+                  within the application. Manages a collection of windows
+                  and elements, handles events, performs drawing operations,
+                  and orchestrates animations. Scenes can be stacked or
+                  switched to create different application states or views.
 """
 
-import OpenGL.GL as gl
-import glfw
-import imgui
 import random
 
 # Import utilities
@@ -34,19 +29,35 @@ from user_interface.window      import c_window, window_config_t
 
 
 class scene_config_t:
-    speed:              int     = 8
+    speed:              int
 
-    animate_movement:   bool    = False
+    animate_movement:   bool
 
-    enable_stars:       bool    = True
-    stars_speed:        int     = 10
-    stars_count:        int     = 140
+    enable_stars:       bool
+    stars_speed:        int
+    stars_count:        int
 
-    background_image:   c_image = None
-    background_descale: float   = 1.2
-    background_color:   color   = color( 21, 21, 25 )
+    background_image:   c_image
+    background_descale: float
+    background_color:   color
 
-    movement_factor:    int     = 0.1
+    movement_factor:    int
+
+    def __init__( self ):
+
+        self.speed:              int     = 8
+
+        self.animate_movement:   bool    = False
+
+        self.enable_stars:       bool    = True
+        self.stars_speed:        int     = 10
+        self.stars_count:        int     = 140
+
+        self.background_image:   c_image = None
+        self.background_descale: float   = 1.2
+        self.background_color:   color   = color( 21, 21, 25 )
+
+        self.movement_factor:    int     = 0.1
 
 
 # Scene class
@@ -75,13 +86,16 @@ class c_scene:
 
     def __init__( self, parent: any, config: scene_config_t = None ):
         """
-            Default constructor for scene object
+        Initializes a new Scene object.
 
-            Receives:   
-            - parent            - Application to attach to
-            - config [optional] - Custom scene config
+        Receive:
+        - parent (Application): The Application object to which this scene will be attached.
+        - config (scene_config_t, optional): An optional configuration object
+                                               containing custom settings for the scene.
+                                               Defaults to None.
 
-            Returns:    Scene object
+        Returns:
+        - Scene: A new Scene object associated with the given application and configuration.
         """
 
         # Save early information
@@ -104,11 +118,11 @@ class c_scene:
 
     def __initialize_default_values( self ) -> None:
         """
-            Set default values to scene object
-            
-            Receives:   None
+        Sets the default internal state values for the Scene object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._index         = -1
@@ -124,11 +138,11 @@ class c_scene:
     
     def __initialize_draw( self ) -> None:
         """
-            Setup draw information
-            
-            Receives:   None
+        Sets up the drawing-related resources for the Scene object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._render        = self._parent.render( )
@@ -144,31 +158,31 @@ class c_scene:
 
     def __initialize_events( self ) -> None:
         """
-            Setup scene events
-            
-            Receives:   None
+        Initializes the event dictionary for the Scene object.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
-        self._events = { }
+        self._events = {
+            "draw":             c_event( ),
 
-        self._events[ "draw" ]              = c_event( )
-
-        self._events[ "keyboard_input" ]    = c_event( )
-        self._events[ "char_input" ]        = c_event( )
-        self._events[ "mouse_position" ]    = c_event( )
-        self._events[ "mouse_input" ]       = c_event( )
-        self._events[ "mouse_scroll" ]      = c_event( )
+            "keyboard_input":   c_event( ),
+            "char_input":       c_event( ),
+            "mouse_position":   c_event( ),
+            "mouse_input":      c_event( ),
+            "mouse_scroll":     c_event( )
+        }
     
 
     def __initialize_stars( self ) -> None:
         """
-            Setup stars for the scene
-            
-            Receives:   None
+        Sets up the starfield effect for the scene.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self._stars.clear( )
@@ -201,11 +215,11 @@ class c_scene:
 
     def __event_draw( self ) -> None:
         """
-            Scene draw event
+        Handles the drawing of the scene and its elements.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "draw" ]
@@ -217,21 +231,22 @@ class c_scene:
 
     def event_keyboard_input( self, window, key, scancode, action, mods ) -> None:
         """
-            Keyboard input callback.
+        Keyboard input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - key         - GLFW Key
-            - scancode    - GLFW Scan code
-            - action      - GLFW Action
-            - mods        - To be honest I have no idea what is this for
+        Receive:
+        - window: GLFW Window object that received the event.
+        - key (int): The keyboard key that was pressed or released (GLFW key code).
+        - scancode (int): The system-specific scancode of the key.
+        - action (int): GLFW action code indicating the state change (GLFW.PRESS,
+                        GLFW.RELEASE, GLFW.REPEAT).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt,
+                      Super) were held down.
 
-            Returns:    None
+        Returns: None
         """
 
         if self.is_any_window_active( ):
             return self.last_window( ).event_keyboard_input( window, key, scancode, action, mods )
-        
 
         event: c_event = self._events[ "keyboard_input" ]
 
@@ -246,13 +261,13 @@ class c_scene:
 
     def event_char_input( self, window, char ) -> None:
         """
-            Char input callback.
+        Character input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - char        - char code
+        Receive:
+        - window: GLFW Window object that received the event.
+        - char (int): The Unicode code point of the character.
 
-            Returns:    None
+        Returns: None
         """
 
         if self.is_any_window_active( ):
@@ -268,14 +283,14 @@ class c_scene:
 
     def event_mouse_position( self, window, x, y ) -> None:
         """
-            Mouse position change callback.
+        Mouse position change callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x           - x-axis of mouse position
-            - y           - y-axis of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x (float): The new x-coordinate of the mouse cursor.
+        - y (float): The new y-coordinate of the mouse cursor.
 
-            Returns:    None
+        Returns: None
         """
 
         if self.is_any_window_active( ):
@@ -295,15 +310,16 @@ class c_scene:
 
     def event_mouse_input( self, window, button, action, mods ) -> None:
         """
-            Mouse buttons input callback
+        Mouse button input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - button      - Mouse button
-            - action      - Button action
-            - mods        - no idea of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - button (int): The mouse button that was pressed or released (GLFW mouse button code).
+        - action (int): GLFW action code indicating the state change (GLFW.PRESS or GLFW.RELEASE).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt, Super)
+                      were held down when the mouse event occurred.
 
-            Returns:    None
+        Returns: None
         """
 
         if self.is_any_window_active( ):
@@ -321,14 +337,14 @@ class c_scene:
 
     def event_mouse_scroll( self, window, x_offset, y_offset ) -> None:
         """
-            Mouse scroll input callback
+        Mouse scroll wheel input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x_offset    - x-axis of mouse wheel change (?)
-            - y_offset    - y-axis of mouse wheel change (?)
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x_offset (float): The amount of horizontal scrolling.
+        - y_offset (float): The amount of vertical scrolling.
 
-            Returns:    None
+        Returns: None
         """
 
         if self.is_any_window_active( ):
@@ -345,14 +361,11 @@ class c_scene:
     
     def event_window_resize( self ) -> None:
         """
-            Window resize callback
+        Window resize callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - width       - New window width
-            - height      - New window height
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         if self._config.enable_stars:
@@ -361,19 +374,22 @@ class c_scene:
 
     def set_event( self, event_index: str, function: any, function_name: str, get_arguments: bool = True ) -> None:
         """
-            Registers functions to a event
+        Registers a function to a specific scene event.
 
-            Receives:   
-            - event_index       - event type index
-            - function          - function pointer
-            - function_name     - function name
+        Receive:
+        - event_index (str): The name or identifier of the event to attach to
+                             (e.g., "draw", "keyboard_input").
+        - function (callable): The function to be called when the event occurs.
+        - function_name (str): A name or identifier for the registered function.
+        - get_arguments (bool, optional): If True, the registered function will
+                                           receive event-specific arguments when invoked.
+                                           Defaults to True.
 
-            Returns:    None
+        Returns: None
         """
 
         if not event_index in self._events:
             raise Exception( f"Failed to index event { event_index }" )
-        
 
         event: c_event = self._events[ event_index ]
         event.set( function, function_name, get_arguments )
@@ -384,14 +400,17 @@ class c_scene:
 
     def create_window( self, position: vector, size: vector, config: window_config_t = None ) -> c_window:
         """
-            Create new pop up window and attach it
-            
-            Receives:   
-            - position              - Window position
-            - size                  - Window size
-            - config [optional]     - Window config
+        Creates a new Window object, attaches it to the current scene,
+        and returns the new window instance.
 
-            Returns:    Window object
+        Receive:
+        - position (vector): The initial position (x, y) of the new window.
+        - size (vector): The initial size (width, height) of the new window.
+        - config (window_config_t, optional): An optional configuration object
+                                               for the new window. Defaults to None.
+
+        Returns:
+        - c_window: The newly created and attached Window object.
         """
 
         new_window = c_window( self, position, size, config )
@@ -403,12 +422,12 @@ class c_scene:
 
     def attach_window( self, window: c_window ) -> None:
         """
-            Attach new window to the scene
-            
-            Receives:   
-            - window - new window object
+        Attaches an existing Window object to the current scene.
 
-            Returns:    None
+        Receive:
+        - window (c_window): The Window object to be added to the scene.
+
+        Returns: None
         """
 
         self._windows.append( window )
@@ -417,12 +436,12 @@ class c_scene:
     
     def deattach_window( self, window: c_window ) -> None:
         """
-            De Attach window from the scene
+        Detaches a Window object from the current scene.
 
-            Receive : 
-            - window - Window object to remove from the scene
+        Receive :
+        - window (c_window): The Window object to be removed from the scene.
 
-            Returns :   None
+        Returns : None
         """
 
         self._windows.remove( window )
@@ -430,13 +449,15 @@ class c_scene:
 
     def disable_window( self, window: c_window = None ) -> None:
         """
-            Disables window in the windows list.
-            If None provided, disables the last window
+        Disables a window, preventing it from being drawn or receiving input.
+        If no window is provided, it disables the last added window.
 
-            Receive :   
-            - window [optional] - window to disable
+        Receive :
+        - window (c_window, optional): The Window object to disable.
+                                       If None, the last window in the list is disabled.
+                                       Defaults to None.
 
-            Returns :   None
+        Returns : None
         """
 
         if window is None:
@@ -447,11 +468,11 @@ class c_scene:
     
     def is_any_window_active( self ) -> bool:
         """
-            Is there any attached window 
-            
-            Receives:   None
+        Checks if there is at least one active (visible) window attached to the scene.
 
-            Returns:    Bool if true or false
+        Receives: None
+
+        Returns: bool: True if there is one or more active windows; False otherwise.
         """
 
         return len( self._windows ) != 0 and self._windows[ 0 ].show( )
@@ -459,11 +480,12 @@ class c_scene:
 
     def last_window( self ) -> c_window:
         """
-            Return last attached window
-            
-            Receives:   None
+        Returns the last window that was attached to the scene.
 
-            Returns:    Window object
+        Receives: None
+
+        Returns: c_window: The last attached Window object, or None if no
+                          windows are currently attached.
         """
 
         return self._windows[ len( self._windows ) - 1 ]
@@ -474,12 +496,14 @@ class c_scene:
 
     def attach_element( self, item: any ) -> int:
         """
-            Attach new element to this scene
+        Attaches a new element to the scene. This could be a graphical
+        element or any other object that the scene needs to manage.
 
-            Receive :   
-            - item - item object
+        Receive :
+        - item (any): The object to be attached to the scene.
 
-            Returns : Item index
+        Returns : int: The index of the newly attached item within the
+                       scene's internal list of elements.
         """
 
         self._elements.append( item )
@@ -489,12 +513,12 @@ class c_scene:
 
     def deattach_element( self, item: any ) -> None:
         """
-            Deattach element from the scene
+        Detaches an element from the scene.
 
-            Receive : 
-            - item - Item object to remove from the scene
+        Receive :
+        - item (any): The object to be removed from the scene.
 
-            Returns :   None
+        Returns : None
         """
 
         # TODO ! Deattach element's callbacks from the scene
@@ -509,13 +533,16 @@ class c_scene:
 
     def try_to_get_handle( self, index: int ) -> bool:
         """
-            Tries to a get handle for specific item.
-            Used to proccess 1 input at a time.
-            
-            Receives:   
-            - index - Element index
+        Attempts to acquire the input handling focus for a specific element
+        within the scene. This ensures that only one element processes input
+        at a time.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element attempting to acquire the handle.
+
+        Returns:
+        - bool: True if the element successfully acquired the input handle;
+                False otherwise (if another element currently holds the handle).
         """
 
         if self._active_handle != -1 and index != self._active_handle:
@@ -528,13 +555,13 @@ class c_scene:
 
     def release_handle( self, index: int ) -> None:
         """
-            If a specific index called it and active_handle is setted.
-            It will release it.
-            
-            Receives:   
-            - index - Element index
+        Releases the input handling focus if the element at the provided index
+        currently holds it.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element that is releasing the handle.
+
+        Returns: None
         """
 
         if self._active_handle != -1 and self._active_handle == index:
@@ -543,12 +570,15 @@ class c_scene:
 
     def is_this_active( self, index: int ) -> bool:
         """
-            Gets if this index is active handle
-            
-            Receives:   
-            - index - Element index
+        Checks if the element at the given index currently holds the active
+        input handle for the scene.
 
-            Returns:    Result
+        Receive:
+        - index (int): The index of the element to check.
+
+        Returns:
+        - bool: True if the element at the specified index has the active
+                input handle; False otherwise.
         """
 
         return self._active_handle == index
@@ -559,11 +589,13 @@ class c_scene:
 
     def draw( self ) -> None:
         """
-            Draw current scene
-            
-            Receives:   None
+        Draws the current scene, including its background, stars (if enabled),
+        and all attached windows. The windows are drawn in the order of their
+        assigned index, ensuring proper layering.
 
-            Returns:    None
+        Receive: None
+
+        Returns: None
         """
 
         self.__animations( )
@@ -571,17 +603,17 @@ class c_scene:
         fade:       float   = self._animations.value( "Fade" )
         
         mouse:              vector  = self._animations.value( "Mouse" )
-        animate_movement:   bool     = self._config.animate_movement
+        animate_movement:   bool    = self._config.animate_movement
 
         if animate_movement:
             self._render.push_position( mouse )
 
-        self.__draw_background( fade )
+        self.__draw_stars( fade )
 
         if animate_movement:
             self._render.pop_position( )
 
-        self.__draw_city( fade )
+        self.__draw_background_image( fade )
 
         if fade == 0:
             return
@@ -600,14 +632,15 @@ class c_scene:
             window.draw( )
 
 
-    def __draw_background( self, fade: float ) -> None:
+    def __draw_stars( self, fade: float ):
         """
-            Render background things.
+        Renders the starfield effect with an optional fade factor.
 
-            Receive :   
-            - fade - Scene fade factor
+        Receive :
+        - fade (float): A value between 0.0 and 1.0 representing
+                        the fade amount of the stars.
 
-            Returns :   None
+        Returns : None
         """
 
         if not self._config.enable_stars:
@@ -636,15 +669,17 @@ class c_scene:
             self._render.circle( star[ 0 ], color( ) * star[ 2 ] * fade, star[ 3 ] )
     
 
-    def __draw_city( self, fade: float ):
+    def __draw_background_image( self, fade: float ):
         """
-            Draw background image.
+        Draws the background image of the scene with a specified fade factor.
 
-            Receive :
-            - fade - Scene fade factor
+        Receive :
+        - fade (float): A value between 0.0 and 1.0 representing the fade
+                        amount of the background image.
 
-            Returns :   None
+        Returns : None
         """
+
         image = self._config.background_image
         if image is None:
             return
@@ -657,11 +692,13 @@ class c_scene:
 
     def __animations( self ):
         """
-            Preform the general animations for the current scene.
+        Performs the general animations specific to the current scene.
+        This method updates animation values and triggers any necessary actions
+        based on the animation states.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         self._animations.update( )
@@ -687,43 +724,54 @@ class c_scene:
 
     def index( self, new_value: int = None ) -> int:
         """
-            Returns / Sets the current scene index in the queue
-            
-            Receives:   
-            - new_value [optional] - new scene index value
+        Returns the current scene's index in the rendering queue.
+        Optionally sets a new index value for the scene.
 
-            Returns:    Scene index value
+        Receive:
+        - new_value (int, optional): The new index value to set for the scene.
+                                     If None, the current index is returned.
+                                     Defaults to None.
+
+        Returns:
+        - int: The current scene index in the queue.
         """
 
         if new_value is None:
             return self._index
         
         self._index = new_value
+        return new_value
 
     
     def show( self, new_value: bool = None ) -> bool:
         """
-            Return / Sets if the scene should show
-            
-            Receives:   
-            - new_value [optional] - new value if should show scene
+        Returns whether the scene is currently set to be shown.
+        Optionally sets a new value for the scene's visibility.
 
-            Returns:    Should show scene
+        Receive:
+        - new_value (bool, optional): The new value indicating whether the
+                                      scene should be shown. If None, the
+                                      current visibility state is returned.
+                                      Defaults to None.
+
+        Returns:
+        - bool: True if the scene is set to show; False otherwise.
         """
 
         if new_value is None:
             return self._show
         
         self._show = new_value
+        return new_value
 
     
     def parent( self ) -> any:
         """
-            Returns current scene parent
-            
-            Receives:   None
+        Returns the parent object of the current scene.
 
-            Returns:    Application object
+        Receive: None
+
+        Returns: c_application: The parent object to which this scene is attached.
         """
 
         return self._parent
@@ -731,11 +779,11 @@ class c_scene:
 
     def render( self ) -> c_renderer:
         """
-            Access render object
-            
-            Receives:   None
+        Provides access to the renderer object managed by the parent application.
 
-            Returns:    Render object
+        Receive: None
+
+        Returns: c_renderer: The renderer object used for drawing within the application.
         """
 
         return self._render
@@ -743,11 +791,12 @@ class c_scene:
 
     def animations( self ) -> c_animations:
         """
-            Access animations object
-            
-            Receives:   None
+        Provides access to the animations manager object associated with this scene.
 
-            Returns:    Animations object
+        Receive: None
+
+        Returns: c_animations: The animations manager object for controlling
+                              animations within this scene.
         """
 
         return self._animations
@@ -755,12 +804,12 @@ class c_scene:
 
     def element( self, index: int ) -> any:
         """
-            Search and find specific Element that were attached.
+        Retrieves a specific attached element by its index.
 
-            Receive :  
-            - index - Element index in list
+        Receive :
+        - index (int): The index of the element in the scene's internal list of elements.
 
-            Returns : Any type of element
+        Returns : any: The element object at the specified index, or None if the index is out of bounds.
         """
 
         if index in self._elements:
@@ -771,11 +820,14 @@ class c_scene:
 
     def relative_position( self ) -> vector:
         """
-            Returns relative position on the screen size.
+        Returns the scene's position as a relative value based on the
+        parent application's window size. The returned vector components
+        will be 0, 0.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   Vector object
+        Returns : vector: A Vector object representing the scene's position
+                         relative to the application window dimensions.
         """
 
         return vector( )

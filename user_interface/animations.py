@@ -1,19 +1,18 @@
 """
     project     : Digital Editor
-
-    type:       : User Interface
+    type        : User Interface
     file        : Animations
 
-    description : User Interface Animations handler
+    description : Manages animations and value interpolation for the
+                  Digital Editor's user interface elements, providing
+                  smooth transitions and dynamic visual effects.
 """
 
 import imgui
 
-from utilities.color    import color
-from utilities.vector   import vector
 from utilities.math     import math
 
-# Animations handler class
+
 class c_animations:
     
     _cache:             dict    # Animations values stored by name
@@ -21,11 +20,13 @@ class c_animations:
 
     def __init__( self ):
         """
-            Default constructor for animations handler
+        Default constructor for the animations handler.
 
-            Receives:   None
+        Initializes the animation cache and the interpolation factor.
 
-            Returns:    Animations object
+        Receives: None
+
+        Returns: c_animations object
         """
 
         self._cache             = { }
@@ -34,11 +35,11 @@ class c_animations:
 
     def clear( self ):
         """
-            Clears the animations cache
+        Clears all stored animation values from the cache.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._cache.clear( )
@@ -46,12 +47,12 @@ class c_animations:
     
     def delete_value( self, value_index: str ):
         """
-            Delete specific value from the animation cache.
+        Deletes a specific animation value from the cache based on its index.
 
-            Receive :
-            - value_index - String index of the value
+        Receive :
+        - value_index (str): The string index of the animation value to delete.
 
-            Returns :   None
+        Returns : None
         """
 
         #if value_index in self._cache:
@@ -60,12 +61,14 @@ class c_animations:
 
     def interpolation( self, new_value: float = None ) -> float:
         """
-            Returns / changes current interpolation factor
+        Gets or sets the current animation interpolation factor.
 
-            Receives:   
-            - new_value [optional] - new interpolation value
+        Receives:
+        - new_value (float, optional): The new interpolation value to set.
+                                        If None, the current value is returned. Defaults to None.
 
-            Returns:    Interpolation value or None
+        Returns:
+        - float: The current interpolation value.
         """
 
         if new_value is None:
@@ -77,13 +80,15 @@ class c_animations:
 
     def value( self, index: str, new_value: any = None ) -> any:
         """
-            Returns / changes specific value
+        Gets or sets a specific animation value based on its index.
 
-            Receives:   
-            - index                 - value index
-            - new_value [optional]  - new interpolation value
+        Receives:
+        - index (str): The unique index of the animation value to access.
+        - new_value (any, optional): The new value to set for the animation.
+                                      If None, the current value is returned. Defaults to None.
 
-            Returns:    Value or None
+        Returns:
+        - any: The current value associated with the given index. 
         """
 
         if new_value is None:
@@ -94,13 +99,14 @@ class c_animations:
 
     def prepare( self, index: str, value: any ) -> None:
         """
-            Cache specific index by start value
+        Caches a starting value for a specific animation index.
+        This is typically used to store the initial value before an animation begins.
 
-            Receives:   
-            - index     - value index
-            - value     - start value
+        Receives:
+        - index (str): The unique index of the animation value to prepare.
+        - value (any): The starting value to cache for the given index.
 
-            Returns:    None
+        Returns: None
         """
 
         if not index in self._cache:
@@ -109,26 +115,30 @@ class c_animations:
 
     def update( self ) -> None:
         """
-            Update each frame our interpolation
+        Updates the interpolation factor based on the time elapsed since the last frame,
+        typically using ImGui's delta time to ensure smooth, frame-rate independent animations.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._interpolation = imgui.get_io( ).delta_time
 
+
     def perform( self, index: str, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
         """
-            Preform animation of specific index and return end value
+        Performs a linear interpolation animation for a specific value.
 
-            Receives:   
-            - index             - value index
-            - value             - new value
-            - speed [optional]  - speed for interpolation
-            - hold [optional]   - hold limit interpolation
+        Receives:
+        - index (str): The unique index of the animation value to animate.
+        - value (any): The target end value for the animation.
+        - speed (int, optional): The speed of the interpolation. Higher values result in faster animation. Defaults to 10.
+        - hold (float, optional): A small threshold to determine when the interpolation is considered complete. Defaults to 0.01.
 
-            Returns:    Interpolated Value
+        Returns:
+        - any: The interpolated value between the cached starting value and the target value.
+               The return type will match the type of the 'value' argument.
         """
 
         self.prepare( index, value )
@@ -148,17 +158,19 @@ class c_animations:
     
     def fast_perform( self, start_value: any, value: any, speed: int = 10, hold: float = 0.01 ) -> any:
         """
-            Preform animation of specific index and return end value
+        Performs a linear interpolation animation between two provided values.
+        This method does not rely on the animation cache.
 
-            Receives:   
-            - start_value       - start value
-            - value             - new value
-            - speed [optional]  - speed for interpolation
-            - hold [optional]   - hold limit interpolation
+        Receives:
+        - start_value (any): The starting value for the animation.
+        - value (any): The target end value for the animation.
+        - speed (int, optional): The speed of the interpolation. Higher values result in faster animation. Defaults to 10.
+        - hold (float, optional): A small threshold to determine when the interpolation is considered complete. Defaults to 0.01.
 
-            Returns:    Interpolated Value
+        Returns:
+        - any: The interpolated value between the 'start_value' and the 'value'.
+               The return type will match the type of the 'start_value' argument.
         """
-
 
         value_type = type( start_value )
 

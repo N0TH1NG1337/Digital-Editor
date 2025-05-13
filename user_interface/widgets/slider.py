@@ -40,6 +40,7 @@ class slider_config_t:
     value_color:        color
 
     def __init__( self ):
+
         self.speed:             int     = 7
         self.pad:               int     = 10
         self.separate:          int     = 4
@@ -91,7 +92,23 @@ class c_slider_int:
     # region : Initialize
 
     def __init__( self, parent: any, position: vector, width: int, font: c_font, minimum: int, maximum: int, default_value: int, config: slider_config_t = None ):
-        
+        """
+        Default constructor for the integer slider.
+
+        Receives:
+        - parent (any): The parent object or container for this slider.
+        - position (vector): The initial position (x, y) of the slider.
+        - width (int): The width of the slider.
+        - font (c_font): The font object to use for rendering text.
+        - minimum (int): The minimum allowed value for the slider.
+        - maximum (int): The maximum allowed value for the slider.
+        - default_value (int): The initial value of the slider.
+        - config (slider_config_t, optional): Configuration settings for the slider. Defaults to None.
+
+        Returns:
+        - c_slider_int: The newly created c_slider_int object.
+        """
+
         # Set config
         self._config = config is None and slider_config_t( ) or config
 
@@ -121,6 +138,16 @@ class c_slider_int:
 
 
     def __init_attachment( self ):
+        """
+        Initializes the attachment of the slider to its parent.
+
+        Retrieves the renderer from the parent and attaches the slider as an element, 
+        registering its mouse position and input event handlers with the parent.
+
+        Receives: None
+
+        Returns: None
+        """
         
         # Get renderer
         self._render = self._parent.render( )
@@ -136,6 +163,16 @@ class c_slider_int:
 
 
     def __init_animations( self ):
+        """
+        Initializes the animations for the slider.
+
+        Sets up an animation manager and prepares animations for fade, 
+        circle radius, and the slider value.
+
+        Receives: None
+
+        Returns: None
+        """
         
         # Create standalone animations handler
         self._animation = c_animations( )
@@ -146,6 +183,16 @@ class c_slider_int:
 
     
     def __init_bones( self ):
+        """
+        Initializes the core attributes of the slider.
+
+        Sets initial values for relative position, visibility, hover and holding states, 
+        work width, mouse position, text size, and the callback event.
+
+        Receives: None
+
+        Returns: None
+        """
 
         self._relative_position = self._position.copy( )
 
@@ -165,6 +212,16 @@ class c_slider_int:
     # region : Draw
 
     def draw( self, fade: float ):
+        """
+        Draws the integer slider.
+
+        Performs pre-drawing calculations and animations, then draws the slider bar and its current value.
+
+        Receives:
+        - fade (float): The fade value to apply during drawing.
+
+        Returns: None
+        """
 
         # Perform some calculations before drawing
         self.__perform_calculations( )
@@ -179,6 +236,16 @@ class c_slider_int:
 
 
     def __perform_calculations( self ):
+        """
+        Performs calculations needed before drawing the slider.
+
+        Calculates the relative position, measures the text size for minimum and maximum values, 
+        and determines the available width for the slider bar.
+
+        Receives: None
+
+        Returns: None
+        """
         
         pad: int = self._config.pad
 
@@ -195,6 +262,16 @@ class c_slider_int:
 
 
     def __perform_animations( self ):
+        """
+        Updates and performs animations for the slider.
+
+        Updates the animation manager and performs animations for fade, value, and 
+        the circle radius based on the holding state.
+
+        Receives: None
+
+        Returns: None
+        """
 
         self._animation.update( )
     
@@ -206,6 +283,17 @@ class c_slider_int:
 
     
     def __draw_slider( self, fade: float ):
+        """
+        Draws the slider bar and the indicator.
+
+        Draws the background of the slider, the progress bar indicating the current animated value, 
+        and a circle representing the current actual value with a neon effect.
+
+        Receives:
+        - fade (float): The fade value to apply during drawing.
+
+        Returns: None
+        """
         
         height:         int = self._config.height
         thickness:      int = self._config.thickness
@@ -231,6 +319,14 @@ class c_slider_int:
 
     
     def __draw_value( self, fade: float ):
+        """
+        Draws the current value of the slider as text.
+
+        Receives:
+        - fade (float): The fade value to apply to the text color.
+
+        Returns: None
+        """
 
         height:         int     = self._config.height
 
@@ -247,6 +343,14 @@ class c_slider_int:
     # region : Events
 
     def __event_mouse_position( self, event ):
+        """
+        Handles mouse position change events.
+
+        Receives:
+        - event (callable): Event information.
+
+        Returns: None
+        """
         
         if not self._is_visible:
             return
@@ -265,6 +369,14 @@ class c_slider_int:
 
 
     def __event_mouse_input( self, event ):
+        """
+        Handles mouse button input events.
+
+        Receives:
+        - event (callable): Event information.
+
+        Returns: None
+        """
 
         if not self._is_visible:
             return
@@ -283,6 +395,14 @@ class c_slider_int:
 
 
     def __handle_input( self, delta ):
+        """
+        Handles user input while the mouse button is held down.
+
+        Receives:
+        - delta (float): The pixel distance per unit value.
+
+        Returns: None
+        """
 
         if not self._is_holding:
             return
@@ -307,11 +427,21 @@ class c_slider_int:
         if new_value is None:
             return self._position
         
-        self._position = new_value.copy( )
+        self._position.x = new_value.x
+        self._position.y = new_value.y
         return new_value
     
     
     def width( self, new_value: int = None ) -> int:
+        """
+        Access or update the width of the slider.
+
+        Receives:
+        - new_value (int, optional): The new width. If None, returns the current width. Defaults to None.
+
+        Returns:
+        - int: The current width.
+        """
 
         if new_value is None:
             return self._width
@@ -321,6 +451,15 @@ class c_slider_int:
 
 
     def visible( self, new_value: bool = None ) -> bool:
+        """
+        Access or update the visibility of the slider.
+
+        Receives:
+        - new_value (bool, optional): The new visibility. If None, returns the current visibility. Defaults to None.
+
+        Returns:
+        - bool: The current visibility.
+        """
 
         if new_value is None:
             return self._is_visible
@@ -330,11 +469,27 @@ class c_slider_int:
     
 
     def get( self ) -> int:
+        """
+        Returns the current value of the slider.
+
+        Receives: None
+
+        Returns:
+        - int: The current value.
+        """
 
         return self._value
     
 
     def set_callback( self, value: any ):
+        """
+        Sets the callback function to be invoked when the slider value changes.
+
+        Receives:
+        - value (any): The callable function to set as the callback.
+
+        Returns: None
+        """
 
         self._callback.set( value, value.__name__, True )
 

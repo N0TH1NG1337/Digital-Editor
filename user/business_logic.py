@@ -42,11 +42,12 @@ class c_user_business_logic:
 
     def __init__( self ):
         """
-            Default constructor for user business logic.
+        Default constructor for user business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns:    
+        - c_user_business_logic: User business logic object
         """
 
         self.__initialize_protocols( )
@@ -58,11 +59,11 @@ class c_user_business_logic:
     
     def __initialize_protocols( self ):
         """
-            Initialize protocols for host business logic.
+        Initialize protocols for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._files         = c_files_manager_protocol( )
@@ -76,11 +77,11 @@ class c_user_business_logic:
 
     def __initialize_events( self ):
         """
-            Initialize events for user business logic.
+        Initialize events for user business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._events = {
@@ -111,11 +112,11 @@ class c_user_business_logic:
     
     def __initialize_information( self ):
         """
-            Initialize information for user business logic.
+        Initialize information for user business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._information = {
@@ -151,14 +152,15 @@ class c_user_business_logic:
 
     def connect( self, project_code: str, username: str, password: str, register_type: str ) -> bool:
         """
-            Establish connection with the host.
+        Establish connection with the host.
 
-            Receive :
-            - project_code  - Project code received from host
-            - username      - Current username
-            - password      - Current password
+        Receive:
+        - project_code (str): Project code received from host
+        - username (str): Current username
+        - password (str): Current password
 
-            Receive :   Result
+        Receive:   
+        - bool: Result of the connection process
         """
 
         # We receive code that need to be resolved into ip and port
@@ -188,12 +190,13 @@ class c_user_business_logic:
     
     def __resolve_code( self, project_code: str ):
         """
-            Convert the code into information. 
+        Convert the code into information. 
             
-            Receive :
-            - project_code - String value
+        Receive:
+        - project_code (str): Project code to connect to
 
-            Returns : Tuple ( ip, port )
+        Returns: 
+        - tuple: A tuple containing ip and port
         """
 
         result = base64.b64decode( project_code ).decode( )
@@ -205,13 +208,14 @@ class c_user_business_logic:
 
     def __try_to_connect( self, ip: str, port: int ) -> bool:
         """
-            Try to establish connection with the server.
+        Try to establish connection with the server.
 
-            Receive : 
-            - ip    - Server IP
-            - port  - Server Port
+        Receive: 
+        - ip (str): Server IP
+        - port (int): Server Port
 
-            Returns :   Result
+        Returns:   
+        - bool: Result of initialize connection
         """
         result = self._network.start_connection( CONNECTION_TYPE_CLIENT, ip, port, 5 ) is True
         
@@ -223,11 +227,12 @@ class c_user_business_logic:
     
     def __preform_safety_registration( self ) -> bool:
         """
-            Initialize and establish safety for the communication.
+        Initialize and establish safety for the communication.
 
-            Receive :   None
+        Receive:   None
 
-            Returns :   None
+        Returns:   
+        - bool: Result of process
         """
         
         # Send public key and signature
@@ -271,13 +276,15 @@ class c_user_business_logic:
     
     def __preform_registration( self, username: str, password: str, register_type: str ) -> bool:
         """
-            Preform a registration process for this user.
+        Preform a registration process for this user.
 
-            Receive :
-            - username  - Current user username
-            - password  - Current user password
+        Receive:
+        - username (str): Current user username
+        - password (str): Current user password
+        - register_type (str): Type of registration operation
 
-            Returns :   Result if success
+        Returns:   
+        - bool: Result if success
         """
         
         register_command = {
@@ -316,11 +323,11 @@ class c_user_business_logic:
     
     def disconnect( self ):
         """
-            Disconnect from the server.
+        Disconnect from the server.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._information[ "is_connected" ]:
@@ -342,11 +349,11 @@ class c_user_business_logic:
 
     def __end_connection( self ):
         """
-            Forcedly end connection with server, without notifying it.
+        Forcedly end connection with server, without notifying it.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._network.end_connection( )
@@ -364,11 +371,11 @@ class c_user_business_logic:
 
     def __attach_process( self ):
         """
-            Attach different processes into threads.
+        Attach different processes into threads.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._information[ "messages_thread" ] = self.__process_handle_messages( )
@@ -377,16 +384,16 @@ class c_user_business_logic:
     @standalone_execute
     def __process_handle_messages( self ):
         """
-            Process function to receive messages from server.
+        Process function to receive messages from server.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         while self._network.is_valid( ):
 
-            # Receive the key and remove the protection
+            # Receive the message
             message: bytes = self.__receive( )
             if not message:
                 continue
@@ -399,45 +406,34 @@ class c_user_business_logic:
 
     def __receive( self ) -> bytes:
         """
-            Wrap the receive and the security part.
+        Wrap the receive and the security part.
 
-            Receive :   None
+        Receive:   None
 
-            Returns :   Received Bytes
+        Returns:   
+        - bytes: Received information from server
         """
-
-        # Receive the key and remove the protection
-        #key: bytes = self._security.complex_remove_protection( self._network.receive( TIMEOUT_MESSAGE ) )
-        #if not key:
-        #    return None
-                
-        # Receive the message
-        #message: bytes = self._network.receive( TIMEOUT_MESSAGE )
-
-        ## If there is no message, continue
-        #if message is None:
-        #    return None
-        
-        #self._security.increase_input_sequence_number( )
-
-        ## Remove shuffle and protection
-        #return self._security.dual_unprotect( message )
 
         result: bytes = b''
 
         has_next: bool = True
         while has_next:
+
+            # Receive from network the data
             chunk: bytes = self._network.receive_chunk( TIMEOUT_MESSAGE )
 
             if not chunk:
                 return None
             
+            # Update the seq number
             self._security.increase_input_sequence_number( )
 
+            # Remove protection
             chunk = self._security.dual_unprotect( chunk )
             if not chunk:
                 return None
             
+            # Parse data
             has_next    = chunk[ :1 ] == b'1'
             chunk       = chunk[ 1: ]
 
@@ -448,12 +444,12 @@ class c_user_business_logic:
 
     def __handle_receive( self, receive: str ):
         """
-            Handles messages received from the host.
+        Handles messages received from the host.
 
-            Receive :
-            - receive - Message content
+        Receive:
+        - receive (str): Message content
 
-            Returns :   None
+        Returns:   None
         """
 
         if receive == DISCONNECT_MSG:
@@ -468,12 +464,12 @@ class c_user_business_logic:
     
     def __handle_files_message( self, message: str ):
         """
-            Handle file's protocol message.
+        Handle file's protocol message.
 
-            Receive :   None
-            - message - Message from server
+        Receive:
+        - message (str): Message from server
 
-            Returns :   None
+        Returns: None
         """
 
         command, arguments = self._files.parse_message( message )
@@ -483,15 +479,27 @@ class c_user_business_logic:
         
     
     def __handle_security_rotation( self ):
+        """
+        Perform the security key rotation operation.
 
+        Receive: None
+
+        Returns: None
+        """
+
+        # Get key
         new_key = self._network.receive_chunk( )
 
+        # Send notification
         self.__send_quick_message( COMMAND_ROTATE_KEY )
 
+        # Load new key
         self._security.share( ENUM_OUTER_LAYER_KEY, new_key )
 
+        # Sync outer layer keys
         self._security.sync_outer_level_keys( )
 
+        # Reset seq numbers
         self._security.reset_input_sequence_number( )
         self._security.reset_output_sequence_number( )
 
@@ -502,12 +510,12 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_received_files( self, arguments: list ):
         """
-            Command method for receiving files.
+        Command method for receiving files.
 
-            Receive :
-            - arguments - List containing files details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns : None
+        Returns: None
         """
 
         self.__event_register_files( )
@@ -516,12 +524,12 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_set_file( self, arguments: list ):
         """
-            Command method for setting file content.
+        Command method for setting file content.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
 
         file_name: str = arguments[ 0 ]
@@ -575,13 +583,14 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_response_line_lock( self, arguments: list ):
         """
-            Command method for getting line lock response.
+        Command method for getting line lock response.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
+
 
         file_name:  str = arguments[ 0 ]
         line:       int = math.cast_to_number( arguments[ 1 ] )
@@ -596,13 +605,14 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_line_lock( self, arguments: list ):
         """
-            Command method for line lock.
+        Command method for line lock.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
+
 
         file_name:  str = arguments[ 0 ]
         line:       int = math.cast_to_number( arguments[ 1 ] )
@@ -623,13 +633,14 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_line_unlock( self, arguments: list ):
         """
-            Command method for line unlock.
+        Command method for line unlock.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
+
 
         file_name:  str = arguments[ 0 ]
         line:       int = math.cast_to_number( arguments[ 1 ] )
@@ -649,13 +660,14 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_line_update( self, arguments: list ):
         """
-            Command method for line update.
+        Command method for line update.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
+
 
         file_name:      str = arguments[ 0 ]
         line:           int = math.cast_to_number( arguments[ 1 ] )
@@ -691,13 +703,14 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_line_delete( self, arguments: list ):
         """
-            Command method for line delete.
+        Command method for line delete.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
+
 
         file_name:      str = arguments[ 0 ]
         line:           int = math.cast_to_number( arguments[ 1 ] )
@@ -715,12 +728,12 @@ class c_user_business_logic:
     @safe_call( c_debug.log_error )
     def __command_file_register( self, arguments: list ):
         """
-            Command method for updating access level to a file.
+        Command method for updating access level to a file.
 
-            Receive :
-            - arguments - List containing file details
+        Receive:
+        - arguments (str): List containing files details
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str = arguments[ 0 ]
@@ -755,6 +768,14 @@ class c_user_business_logic:
 
     @safe_call( c_debug.log_error )
     def __command_update_file_name( self, arguments: list ):
+        """
+        Command method for updating file name.
+
+        Receive:
+        - arguments (str): List containing files details
+
+        Returns: None
+        """
 
         old_index: str = arguments[ 0 ]
         new_index: str = arguments[ 1 ]
@@ -773,12 +794,12 @@ class c_user_business_logic:
 
     def __send_quick_message( self, message: str ):
         """
-            Send a quick message to the host.
+        Send a quick message to the host.
 
-            Receive :
-            - message - Message to send
+        Receive:
+        - message (str): String message to send to host
 
-            Returns :   None
+        Returns: None
         """
 
         self.__send_quick_bytes( message.encode( ) )
@@ -786,12 +807,12 @@ class c_user_business_logic:
     
     def __send_quick_bytes( self, data: bytes ):
         """
-            Send a quick bytes to the host.
+        Send a quick bytes to the host.
 
-            Receive :
-            - message - Message to send
+        Receive:
+        - data (bytes): Bytes of information to send to host
 
-            Returns :   None
+        Returns:   None
         """
 
         config = self._network.get_raw_details( len( data ) )
@@ -813,11 +834,11 @@ class c_user_business_logic:
 
     def request_files( self ):
         """
-            Request files from the host.
+        Request files from the host.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._network.is_valid( False ):
@@ -830,12 +851,12 @@ class c_user_business_logic:
     
     def request_file( self, file_name: str ):
         """
-            Request specific file from the host.
+        Request specific file from the host.
 
-            Receive :
-            - file_name - File name
+        Receive:
+        - file_name (str): File name
 
-            Returns :   None
+        Returns: None
         """
 
         if not self._network.is_valid( False ):
@@ -851,13 +872,13 @@ class c_user_business_logic:
     
     def request_line( self, file_name: str, line: int ):
         """
-            Request specific line.
+        Request specific line.
 
-            Receive : 
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -870,13 +891,13 @@ class c_user_business_logic:
 
     def discard_line( self, file_name: str, line: int ):
         """
-            Message of discard changes.
+        Message of discard changes.
 
-            Receive : 
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -889,14 +910,14 @@ class c_user_business_logic:
     
     def update_line( self, file_name: str, line: int, lines: list ):
         """
-            Message of updated lines.
+        Message of updated lines.
 
-            Receive :
-            - file_name - File name
-            - line      - Line number
-            - lines     - List of changed lines
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
+        - lines (list): List of new lines
 
-            Returns :   None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -917,13 +938,13 @@ class c_user_business_logic:
     
     def delete_line( self, file_name: str, line: int ):
         """
-            Message of delete line.
+        Message of delete line.
 
-            Receive :
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -936,26 +957,34 @@ class c_user_business_logic:
     
     def accept_offset( self, file_name: str, offset: int ):
         """
-            Message to correct offset.
+        Message to correct offset.
 
-            Receive :
-            - file_name - File name
-            - offset    - Offset value
+        Receive: 
+        - file_name (str): File name
+        - offset (int): Offset value to verify
 
-            Returns :   None
+        Returns: None
         """
 
         # Without this, we will have problems
-
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
             return
         
-        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ str( FILE_UPDATE_CONTENT ), file.name( ), str( offset) ] )
+        message: str = self._files.format_message( FILES_COMMAND_APPLY_UPDATE, [ str( FILE_UPDATE_CONTENT ), file.name( ), str( offset ) ] )
         self.__send_quick_message( message )
 
 
     def accept_file_rename( self, old_index: str, new_index: str ):
+        """
+        Message to accept new file name.
+
+        Receive: 
+        - old_index (str): Old file name
+        - new_index (str): New file name
+
+        Returns: None
+        """
 
         file: c_virtual_file = self._files.search_file( new_index )
         if not file:
@@ -970,13 +999,13 @@ class c_user_business_logic:
 
     def __event_connect( self, ip: str, port: int ):
         """
-            Event callback when the user connects to the host.
+        Event callback when the user connects to the host.
 
-            Receive :
-            - ip    - Host IP
-            - port  - Port to connect
+        Receive:
+        - ip (str): Host IP
+        - port (int): Port to connect
 
-            Returns :   None
+        Returns:   None
         """
 
         event: c_event = self._events[ "on_connect" ]
@@ -990,11 +1019,11 @@ class c_user_business_logic:
     
     def __event_pre_disconnect( self ):
         """
-            Event callback before disconnect process.
+        Event callback before disconnect process.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_pre_disconnect" ]
@@ -1004,11 +1033,11 @@ class c_user_business_logic:
     
     def __event_post_disconnect( self ):
         """
-            Event callback after disconnect process.
+        Event callback after disconnect process.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_post_disconnect" ]
@@ -1018,11 +1047,11 @@ class c_user_business_logic:
     
     def __event_register_files( self ):
         """
-            Event callback when the user registers a new file.
+        Event callback when the user registers a new file.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         #self._files.create_new_file( file_name, access_level, False )
@@ -1034,12 +1063,12 @@ class c_user_business_logic:
 
     def __event_file_set( self, file: c_virtual_file ):
         """
-            Event when the the host user request file.
+        Event when the the host user request file.
 
-            Receive :
-            - file - Line Text
+        Receive:
+        - file (c_virtual_file): File pointer to update
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_file_set" ]
@@ -1052,12 +1081,12 @@ class c_user_business_logic:
     
     def __event_file_update( self, file: c_virtual_file ):
         """
-            Event callback for updating a file
+        Event callback for updating a file
 
-            Receive :
-            - file - Line Text
+        Receive:
+        - file (c_virtual_file): File pointer to update
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_file_update" ]
@@ -1069,14 +1098,14 @@ class c_user_business_logic:
 
     def __event_accept_line( self, file: str, line: int, accept: bool ):
         """
-            Event callback for updating a file
+        Event callback for updating a file
 
-            Receive :
-            - file      - File's name
-            - line      - Line number
-            - accept    - Did host accept
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
+        - accept (bool): Did host accept
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_accept_line" ]
@@ -1090,13 +1119,13 @@ class c_user_business_logic:
 
     def __event_line_lock( self, file: str, line: int, locked_by: str ):
         """
-            Event callback for locking a line.
+        Event callback for locking a line.
 
-            Receive :
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_lock" ]
@@ -1110,13 +1139,13 @@ class c_user_business_logic:
 
     def __event_line_unlock( self, file: str, line: int ):
         """
-            Event callback for unlocking a line.
+        Event callback for unlocking a line.
 
-            Receive :
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_unlock" ]
@@ -1131,12 +1160,12 @@ class c_user_business_logic:
         """
             Event callback for updating line/lines.
 
-            Receive :
-            - file      - File's name
-            - line      - Line number
-            - new_lines - New lines
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
+        - new_lines(list): New lines to add
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_update" ]
@@ -1150,13 +1179,13 @@ class c_user_business_logic:
     
     def __event_line_delete( self, file: str, line: int ):
         """
-            Event callback for deleting line.
+        Event callback for deleting line.
 
-            Receive :
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_delete" ]
@@ -1169,13 +1198,13 @@ class c_user_business_logic:
 
     def __event_file_register( self, file: str, access_level: int ):
         """
-            Event callback for updating file's access level.
+        Event callback for updating file's access level.
 
-            Receive :
-            - file          - File's name
-            - access_level  - New access level value
+        Receive:
+        - file (str): File's name
+        - access_level (int): Access level to register for a file
 
-            Returns :   None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_file_register" ]
@@ -1187,6 +1216,15 @@ class c_user_business_logic:
 
 
     def __event_file_rename( self, old_index: str, new_index: str ):
+        """
+        Event callback for updating file's access level.
+
+        Receive:
+        - old_index (str): Old file name
+        - new_index (str): New file name
+
+        Returns: None
+        """
 
         event: c_event = self._events[ "on_file_rename" ]
 
@@ -1198,12 +1236,14 @@ class c_user_business_logic:
 
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
-            Add function to be called on specific event.
+        Add function to be called on specific event.
 
-            Receive :
-            - event_type    - Event name
-            - callback      - Function to execute
-            - index         - Function index
+        Receive:
+        - event_type (str): Event name
+        - callback (function): Function to execute
+        - index (str): Function index
+
+        Returns: None
         """
 
         if not event_type in self._events:
@@ -1218,12 +1258,13 @@ class c_user_business_logic:
 
     def __call__( self, index ):
         """
-            Access sepcific information from the user bl.
+        Access sepcific information from the user bl.
 
-            Receive : 
-            - index - Information index
+        Receive: 
+        - index (str): Information index
 
-            Returns : Any ( based on value type )
+        Returns: 
+        - any: Information value
         """
 
         if index in self._information:
@@ -1234,12 +1275,13 @@ class c_user_business_logic:
 
     def check_username( self, username: str ) -> tuple:
         """
-            Check if the username is valid.
+        Check if the username is valid.
 
-            Receive :
-            - username - Username string
+        Receive:
+        - username (str): Username string
             
-            Returns :   Result ( True/False, Reason )
+        Returns:   
+        - bool: A tuple with result True/False and reason
         """ 
 
         return self._registration.validate_username( username )

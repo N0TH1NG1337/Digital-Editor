@@ -36,11 +36,14 @@ class c_renderer:
 
     def __init__( self ):
         """
-            Renderer class constructor
+        Renderer class constructor.
 
-            Receives:   None
+        Initializes the internal data structures used for drawing
+        operations, such as the draw list, position queue, and measures dictionary.
 
-            Returns:    Renderer object
+        Receives: None
+
+        Returns: Renderer object
         """
 
         # Set default values and Setup things
@@ -54,11 +57,13 @@ class c_renderer:
 
     def update( self ) -> None:
         """
-            Updates the DrawList pointer
+        Updates the ImDrawList pointer to the current background draw list
+        provided by ImGui. Also iterates through any pending text measurements
+        and calculates their dimensions if they haven't been already.
 
-            Receives:   None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._draw_list = imgui.get_background_draw_list( )
@@ -75,12 +80,14 @@ class c_renderer:
 
     def push_position( self, new_vector: vector ) -> None:
         """
-            Applies the new relative position for all subsequent elements.
+        Pushes a new relative position onto the position queue. Subsequent
+        drawing calls will have their coordinates offset by the accumulated
+        relative positions in the queue.
 
-            Receives:   
-            - new_vector - New relative position on the screen
+        Receive:
+        - new_vector (vector): The new relative position vector to apply.
 
-            Returns:    None
+        Returns: None
         """
 
         self._position_queue.append( new_vector )
@@ -88,14 +95,18 @@ class c_renderer:
 
     def push_clip_rect( self, position: vector, end_position: vector, intersect: bool = False ) -> None:
         """
-            Applies the clip region to the given rectangle for all subsequent elements.
+        Applies a clipping rectangle to the drawing context. Subsequent drawing
+        operations will be limited to the area defined by this rectangle.
 
-            Receives:   
-            - position              - start of the clip
-            - end_position          - end of the clip
-            - intersect [optional]  - interact with others cliped rects
+        Receive:
+        - position (vector): The top-left corner of the clipping rectangle.
+        - end_position (vector): The bottom-right corner of the clipping rectangle.
+        - intersect (bool, optional): If True, the new clip rectangle will be
+                                       intersected with the currently active clip
+                                       rectangle, further restricting the drawing area.
+                                       Defaults to False.
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -107,11 +118,13 @@ class c_renderer:
     
     def pop_position( self ) -> None:
         """
-            Discards an early set relative position.
+        Removes the last relative position that was pushed onto the position queue.
+        This effectively undoes the positional offset applied by the corresponding
+        `push_position` call.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         length = len( self._position_queue )
@@ -122,11 +135,13 @@ class c_renderer:
     
     def pop_clip_rect( self ) -> None:
         """
-            Discards an early set rectangle clipping region.
+        Removes the last clipping rectangle that was pushed onto the ImGui
+        clip stack. This restores the clipping region to the one that was active
+        before the corresponding `push_clip_rect` call.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._draw_list.pop_clip_rect( )
@@ -137,21 +152,25 @@ class c_renderer:
 
     def measure_text( self, font: c_font, text: str ) -> vector:
         """
-            Returns the measured size of the text.
+        Calculates and returns the rendered size (width and height) of a given
+        text string using the specified font.
 
-            Receives:   
-            - font - Font object
-            - text - Text that will be measured
+        Receive:
+        - font (c_font): The font object to use for measuring the text.
+        - text (str): The text string to measure.
 
-            Returns:    Vector object
+        Returns:
+        - vector: A Vector object containing the width (x) and height (y)
+                  of the rendered text.
         """
 
         imgui.push_font( font( ) )
 
         result      = vector( )
 
-        result.y    = imgui.calc_text_size( text )[ 1 ]
-        result.x    = imgui.calc_text_size( text )[ 0 ]
+        temp        = imgui.calc_text_size( text )
+        result.y    = temp[ 1 ]
+        result.x    = temp[ 0 ]
 
         imgui.pop_font( )
 
@@ -160,15 +179,21 @@ class c_renderer:
     
     def cache_measures( self, index: str, font: c_font, text: str ) -> vector:
         """
-            Returns the cached value of measured size of the text.
-            Can be used outside of render callback
+        Returns the cached measured size of the text. If the measurement
+        for the given index doesn't exist in the cache, it creates a new
+        entry and the actual measurement will be performed during the
+        next `update` call. This allows for text measurement outside of
+        the immediate rendering callback.
 
-            Receives:   
-            - index - cache index
-            - font  - Font object
-            - text  - Text that will be measured
+        Receives:
+        - index (str): The unique index to cache the text measurement under.
+        - font (c_font): The font object to use for measuring the text.
+        - text (str): The text string to be measured and cached.
 
-            Returns:    Vector object
+        Returns:
+        - vector: The cached Vector object representing the measured size
+                  of the text. If the measurement hasn't been performed yet,
+                  it will return a zero vector initially.
         """
 
         if not index in self._measures:
@@ -179,27 +204,29 @@ class c_renderer:
     
     def delete_cache_measures( self, index: str ) -> None:
         """
-            Deletes the cache of specific measure.
+        Deletes the cached text measurement associated with the given index.
 
-            Receives:   
-            - index - cache index
+        Receives:
+        - index (str): The index of the cached measurement to delete.
 
-            Returns:    None
+        Returns: None
         """
 
-        del self._measures[ index ]
+        if index in self._measures:
+            del self._measures[index]
 
     
     def wrap_text( self, font: c_font, text: str, length: int ) -> str:
         """
-            Wraps text to fit within a specified length.
+        Wraps the given text to fit within a specified maximum width.
 
-            Receive :
-            - font      - Font object
-            - text      - Text to wrap
-            - length    - Max allowed length
+        Receive :
+        - font (c_font): The font object to use for measuring text width.
+        - text (str): The text string to wrap.
+        - length (int): The maximum allowed width (in pixels) for a line of text.
 
-            Returns :   List with wraped lines
+        Returns :
+        - str: The wrapped text, with lines separated by newline characters.
         """
 
         lines: list = [ ]
@@ -226,17 +253,18 @@ class c_renderer:
 
     def image( self, img: c_image, position: vector, clr: color, size: vector = None, roundness: int = 0 ) -> None:
         """
-            Renders Image in a specific place with specific size.
-            Recommended : use original size for the image while loading and while using
+        Renders an image at a specified position with a given color tint and optional size and roundness.
+        It's generally recommended to use the original image size during loading and rendering for optimal quality.
 
-            Receives:   
-            - img                   - Image object
-            - position              - Position
-            - clr                   - Color 
-            - size [optional]       - Image size
-            - roundness [optional]  - Image roundness
+        Receives:
+        - img (c_image): The Image object to render.
+        - position (vector): The top-left position where the image will be drawn.
+        - clr (color): The color tint to apply to the image.
+        - size (vector, optional): The width and height to render the image at.
+                                   If None, the original image dimensions will be used. Defaults to None.
+        - roundness (int, optional): The radius for rounding the corners of the image. Defaults to 0 (no rounding).
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -267,16 +295,19 @@ class c_renderer:
     
     def text( self, font: c_font, position: vector, clr: color, text: str, flags: str = "" ) -> None:
         """
-            Renders Text in a specific place.
+        Renders text at a specific position with a given color and optional flags.
 
-            Receives:   
-            - font              - Font object
-            - position          - Position
-            - clr               - Color 
-            - text              - Text to render
-            - flags [optional]  - Text render flags
+        Receives:
+        - font (c_font): The Font object to use for rendering the text.
+        - position (vector): The top-left position where the text will be drawn.
+        - clr (color): The color of the text.
+        - text (str): The text string to render.
+        - flags (str, optional): Rendering flags. 'c' for center alignment.
+                                 Defaults to "".
 
-            Returns:    None
+        Returns:
+        - vector: The size of the rendered text. If the 'c' flag is used,
+                  it returns the size that was used for centering.
         """
 
         add_position    = self.__get_last_position( )
@@ -301,25 +332,21 @@ class c_renderer:
         # Return text size if centered to use if need
         return text_size
 
-
-    def gradient_text( self, font: c_font, position: vector, clr1: color, clr2: color, text: str ) -> None:
-        pass
-
     # endregion
 
     # region : Shapes
 
     def rect( self, position: vector, end_position: vector, clr: color, roundness: int = 0 ):
         """
-            Renders filled rectangle
+        Renders a filled rectangle.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr                   - Color 
-            - roundness [optional]  - Roundness factor
+        Receives:
+        - position (vector): The top-left corner of the rectangle.
+        - end_position (vector): The bottom-right corner of the rectangle.
+        - clr (color): The fill color of the rectangle.
+        - roundness (int, optional): The radius for rounding the corners of the rectangle. Defaults to 0 (no rounding).
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -336,16 +363,16 @@ class c_renderer:
     
     def rect_outline( self, position: vector, end_position: vector, clr: color, thick: float = 1, roundness: int = 0 ):
         """
-            Renders outline rectangle
+        Renders the outline of a rectangle.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr                   - Color 
-            - thick [optional]      - Thinkness of the lines
-            - roundness [optional]  - Roundness factor
+        Receives:
+        - position (vector): The top-left corner of the rectangle.
+        - end_position (vector): The bottom-right corner of the rectangle.
+        - clr (color): The color of the rectangle outline.
+        - thick (float, optional): The thickness of the outline lines. Defaults to 1.
+        - roundness (int, optional): The radius for rounding the corners of the rectangle. Defaults to 0 (no rounding).
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -363,18 +390,18 @@ class c_renderer:
     
     def gradiant( self, position: vector, end_position: vector, clr_up_left: color, clr_up_right: color, clr_bot_left: color, clr_bot_right: color, roundness: int = 0 ):
         """
-            Renders gradiant rectangle
+        Renders a rectangle with a color gradient across its corners.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr_up_left           - Top Left Color
-            - clr_up_right          - Top Right Color
-            - clr_bot_left          - Bottom Left Color
-            - clr_bot_right         - Bottom Right Color
-            - roundness [optional]  - Roundness factor
+        Receives:
+        - position (vector): The top-left corner of the rectangle.
+        - end_position (vector): The bottom-right corner of the rectangle.
+        - clr_up_left (color): The color at the top-left corner.
+        - clr_up_right (color): The color at the top-right corner.
+        - clr_bot_left (color): The color at the bottom-left corner.
+        - clr_bot_right (color): The color at the bottom-right corner.
+        - roundness (int, optional): The radius for rounding the corners of the rectangle. Defaults to 0 (no rounding).
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -480,15 +507,15 @@ class c_renderer:
 
     def line( self, position: vector, end_position: vector, clr: color, thickness: float = 1 ):
         """
-            Renders gradiant rectangle
+        Renders a straight line between two specified points.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr                   - Color
-            - thickness [optional]  - Thickness factor
+        Receives:
+        - position (vector): The starting point of the line.
+        - end_position (vector): The ending point of the line.
+        - clr (color): The color of the line.
+        - thickness (float, optional): The thickness of the line. Defaults to 1.
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -505,15 +532,18 @@ class c_renderer:
     
     def circle( self, position: vector, clr: color, radius: float, segments: int = 0 ):
         """
-            Render circle.
-        
-            Receives:   
-            - position              - Start position
-            - clr                   - Color
-            - radius                - Circle radius
-            - segments [optional]   - Segments count
+        Renders a filled circle.
 
-            Returns:    None
+        Receives:
+        - position (vector): The center position of the circle.
+        - clr (color): The fill color of the circle.
+        - radius (float): The radius of the circle.
+        - segments (int, optional): The number of segments to use for drawing the circle.
+                                     If 0, ImGui will choose a reasonable default.
+                                     Increasing this value makes the circle smoother.
+                                     Defaults to 0.
+
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -529,16 +559,19 @@ class c_renderer:
 
     def circle_outline( self, position: vector, clr: color, radius: float, segments: int = 0, thickness: float = 1 ):
         """
-            Render outline circle.
-        
-            Receives:   
-            - position              - Start position
-            - clr                   - Color
-            - radius                - Circle radius
-            - segments [optional]   - Segments count
-            - thickness [optional]  - Thinkness of the line
+        Renders the outline of a circle.
 
-            Returns:    None
+        Receives:
+        - position (vector): The center position of the circle.
+        - clr (color): The color of the circle outline.
+        - radius (float): The radius of the circle.
+        - segments (int, optional): The number of segments to use for drawing the circle outline.
+                                     If 0, ImGui will choose a reasonable default.
+                                     Increasing this value makes the circle smoother.
+                                     Defaults to 0.
+        - thickness (float, optional): The thickness of the circle outline. Defaults to 1.
+
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -555,16 +588,17 @@ class c_renderer:
     
     def shadow( self, position: vector, end_position: vector, clr: color, alpha: float, glow: float, roundness: int = 0 ):
         """
-            Render a shadow.
+        Renders a shadow effect behind a rectangle.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr                   - Color
-            - glow                  - Shadow thickness
-            - roundness [optional]  - Roundness factor
+        Receives:
+        - position (vector): The top-left corner of the element casting the shadow.
+        - end_position (vector): The bottom-right corner of the element casting the shadow.
+        - clr (color): The base color of the shadow.
+        - alpha (float): The overall alpha (opacity) of the shadow (0.0 to 1.0).
+        - glow (float): The spread or blur radius of the shadow.
+        - roundness (int, optional): The corner roundness of the shadow. Defaults to 0.
 
-            Returns:    None
+        Returns: None
         """
 
         add_position    = self.__get_last_position( )
@@ -587,16 +621,16 @@ class c_renderer:
     
     def neon( self, position: vector, end_position: vector, clr: color, glow: float = 18, roundness: int = 0 ):
         """
-            Render a neon rect.
+        Renders a rectangle with a neon glow effect.
 
-            Receives:   
-            - position              - Start position
-            - end_position          - End position
-            - clr                   - Color
-            - glow [optional]       - Shadow thickness
-            - roundness [optional]  - Roundness factor
+        Receives:
+        - position (vector): The top-left corner of the rectangle.
+        - end_position (vector): The bottom-right corner of the rectangle.
+        - clr (color): The base color of the neon effect.
+        - glow (float, optional): The spread or blur radius of the neon glow. Defaults to 18.
+        - roundness (int, optional): The corner roundness of the rectangle and glow. Defaults to 0.
 
-            Returns:    None
+        Returns: None
         """
         
         self.shadow( position, end_position, clr, clr.a / 255, glow, roundness )
@@ -608,11 +642,13 @@ class c_renderer:
 
     def __get_last_position( self ) -> vector:
         """
-            Receives the last position in queue
+        Returns the last relative position that was pushed onto the position queue.
+        If the queue is empty, it returns a zero vector.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    Vector object
+        Returns: vector: The last Vector object in the position queue, or a zero
+                         vector if the queue is empty.
         """
 
         return self._position_queue[ len( self._position_queue ) - 1 ]

@@ -32,13 +32,13 @@ ENUM_PROTOCOL_FILES:    int     = 1
 ENUM_PROTOCOL_NETWORK:  int     = 2
 ENUM_PROTOCOL_UNK:      int     = 0
 
+ENUM_SCAN_DISABLE:      int     = 1
+ENUM_SCAN_CREATE_NEW:   int     = 2
+ENUM_SCAN_OVERWRITE:    int     = 3
 
-ENUM_SCAN_DISABLE:      int = 1
-ENUM_SCAN_CREATE_NEW:   int = 2
-ENUM_SCAN_OVERWRITE:    int = 3
+ENUM_LOG_INFO:          int     = 1
+ENUM_LOG_ERROR:         int     = 2
 
-ENUM_LOG_INFO:          int = 1
-ENUM_LOG_ERROR:         int = 2
 
 class c_log:
 
@@ -80,18 +80,6 @@ class c_command:
     _arguments: list
 
     def __init__( self, client: any,protocol: int, command: str, arguments: list ):
-        """
-            Default constructor for command object.
-            
-            Receive :
-            - client    - Client handle object
-            - protocol  - Related protocol command
-            - command   - Command itself
-            - arguments - Arguments for command
-
-            Returns :   Command object
-        """
-
         self._client    = client
         self._protocol  = protocol
         self._command   = command
@@ -99,75 +87,26 @@ class c_command:
 
     
     def client( self ) -> any:
-        """
-            Access the client.
-
-            Receive :   None
-
-            Returns :   Client handle object
-        """
-
         return self._client
     
 
     def protocol( self ) -> int:
-        """
-            Access the protocol index.
-
-            Receive :   None
-
-            Returns :   Int - Protocol enum
-        """
-
         return self._protocol
     
 
     def command( self ) -> str:
-        """
-            Access the command itself.
-
-            Receive :   None
-
-            Returns :   Command string
-        """
-
         return self._command
     
 
     def arguments( self ) -> list:
-        """
-            Access the arguments list.
-
-            Receive :   None
-
-            Returns :   List
-        """
-
         return self._arguments
     
 
     def clear_arguments( self ) -> None:
-        """
-            Clear the arguments list.
-
-            Receive :   None
-
-            Returns :   None
-        """
-
         self._arguments.clear( )
 
     
     def add_arguments( self, value: any ) -> None:
-        """
-            Add to the arguments any value.
-
-            Receive :
-            - value - Value to add
-
-            Returns :   None
-        """ 
-
         self._arguments.append( value )
 
 
@@ -198,9 +137,9 @@ class c_client_handle:
     _is_modded:         bool                        # Is the client modded
     _issues:            list                        # Issues that the client created that lowered the trust factor
     
-    _files_commands:    dict
+    _files_commands:    dict                        # Files protocol available commands
 
-    _start_rotation:    bool
+    _start_rotation:    bool                        # Is security key rotation has started
 
     # endregion
 
@@ -208,11 +147,12 @@ class c_client_handle:
 
     def __init__( self ):
         """
-            Default constructor for client handle.
+        Default constructor for client handle.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns:    
+        - c_client_handle: Client handle for the host
         """
 
         # Initialize client's events
@@ -224,11 +164,11 @@ class c_client_handle:
     
     def __initialize_events( self ):
         """
-            Initialize events for client handle.
+        Initialize events for client handle.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._events = {
@@ -242,11 +182,11 @@ class c_client_handle:
     
     def __initialize_information( self ):
         """
-            Initialize information for client handle.
+        Initialize information for client handle.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._network       = None
@@ -289,13 +229,14 @@ class c_client_handle:
 
     def connect( self, socket_object: socket, address: tuple ) -> bool:
         """
-            Connect the client to the server.
+        Connect the client to the server.
 
-            Receive:    
-            - socket_object     - Client socket object
-            - address           - Client address
+        Receive:    
+        - socket_object (socket): Client socket object
+        - address (tuple): Client address
 
-            Returns:    bool - Is the client connected successfully
+        Returns:
+        - bool: Is the client connected successfully
         """
 
         self.__event_client_log( f"New connection. Ip - { address[ 0 ] } : Port - { address[ 1 ] }" )
@@ -309,7 +250,7 @@ class c_client_handle:
 
         # Register the connection
         if not self.__register_connection( ):
-            return self.disconnect( False, True, False )
+            return self.disconnect( True, True, False )
 
         self.__event_client_connected( address )
 
@@ -321,13 +262,13 @@ class c_client_handle:
 
     def __attach_connection( self, socket_object: socket, address: tuple ):
         """
-            Create new connection object and attach it in the network protocol.
+        Create new connection object and attach it in the network protocol.
 
-            Receive :
-            - socket_object - Client socket
-            - address       - Client address
+        Receive:
+        - socket_object (socket): Client socket
+        - address (tuple): Client address
 
-            Returns :   None
+        Returns: None
         """
 
         # Create connection
@@ -342,11 +283,11 @@ class c_client_handle:
 
     def __secure_connection( self ) -> bool:
         """
-            Protect the communication between the host and the client.
+        Protect the communication between the host and the client.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         # Send public key and signature
@@ -402,11 +343,12 @@ class c_client_handle:
 
     def __register_connection( self ) -> bool:
         """
-            Register the connection to the server.
+        Register the connection to the server.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    Result
+        Returns:    
+        - bool: Result
         """
 
         raw_msg: str = self._security.complex_remove_protection( self.__receive( ) ).decode( )
@@ -433,28 +375,31 @@ class c_client_handle:
             success:    bool        = self._registration.login_user( arguments[ 0 ], arguments[ 1 ] )
 
 
+        is_blacklisted: bool = False
+
+        if success:
+            # Now since we have registered the user. Get the fields we need
+            self._trust_factor = self._registration.get_field( "trust_factor" )
+            self._issues       = self._registration.get_field( "issues" )
+
+            if not self.check_trust_factor( ):
+                is_blacklisted = True
+                success = False
+
         response: str = self._registration.format_message( 
             REGISTRATION_RESPONSE, 
             [ 
                 success and "1" or "0", 
-                self._registration.last_error( ) 
+                is_blacklisted and "Blacklisted" or self._registration.last_error( ) 
             ] 
         )
 
         self.send_quick_message( response )
         
         if success:
-            
-            self.__event_client_log( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
-
             self._information[ "username" ] = arguments[ 0 ]
 
-            # Now since we have registered the user. Get the fields we need
-            self._trust_factor = self._registration.get_field( "trust_factor" )
-            self._issues       = self._registration.get_field( "issues" )
-
-            if not self.check_trust_factor( ):
-                return False
+            self.__event_client_log( f"Client with username ( { arguments[ 0 ] } ) completed registration" )
 
             # Now get the files access levels
             stored_access_levels = self._registration.get_field( "files" )
@@ -477,11 +422,11 @@ class c_client_handle:
 
     def __attach_processes( self ):
         """
-            Attach processes for the client handle.
+        Attach processes for the client handle.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         # Start the receive process
@@ -490,12 +435,14 @@ class c_client_handle:
 
     def disconnect( self, notify_the_client: bool = True, remove_client_handle: bool = True, update_fields: bool = True ):
         """
-            Disconnect the client from the server.
+        Disconnect the client from the server.
 
-            Receive:    
-            - notify_the_client  - Notify the client about the disconnection
+        Receive:    
+        - notify_the_client (bool, optional): Notify the client about the disconnection
+        - remove_client_handle (bool, optional): Should remove client handle from list
+        - update_fields (bool, optional): Should update the client fields in the database
 
-            Returns:    None
+        Returns: None
         """
 
         # Potentially notify the client
@@ -530,7 +477,13 @@ class c_client_handle:
 
 
     def clear( self ):
-        # Clear the user activities, such as line lock or anything similar
+        """
+        Clear the user activities, such as line lock or anything similar.
+
+        Receive: None
+
+        Returns: None  
+        """
 
         if self._selected_line == 0:
             return
@@ -547,11 +500,11 @@ class c_client_handle:
     @standalone_execute
     def __receive_process( self ):
         """
-            Process for receiving messages from the client.
+        Process for receiving messages from the client.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         # Run the process while the network is valid
@@ -576,11 +529,12 @@ class c_client_handle:
 
     def __receive( self ) -> bytes:
         """
-            Wrap the receive and the security part.
+        Wrap the receive and the security part.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Received Bytes
+        Returns:   
+        - bytes: Received information from client
         """
 
         result:     bytes   = b''
@@ -607,12 +561,12 @@ class c_client_handle:
 
     def __handle_message( self, message: str ):
         """
-            Handle message from client.
+        Handle message from client.
 
-            Receive :
-            - message - Client's message
+        Receive:
+        - message (str): Client's message
 
-            Returns :   None
+        Returns: None
         """
 
         self.__event_client_log( f"Received from client ( { self( 'username' ) } ) -> { message }", False )
@@ -651,12 +605,13 @@ class c_client_handle:
     
     def __parse_message( self, message: str ) -> c_command:
         """
-            Parse message from the client.
+        Parse message from the client.
 
-            Receive :
-            - message - Client's message
+        Receive:
+        - message (str): Client's message
 
-            Returns : Tuple ( Protocol, Command, Arguments )
+        Returns: 
+        -tuple: ( Protocol, Command, Arguments )
         """
 
         if message.startswith( self._files.get_header( ) ):
@@ -671,12 +626,13 @@ class c_client_handle:
 
     def __verify( self, cmd: c_command ) -> bool:
         """
-            Verify if the command is valid.
+        Verify if the command is valid.
 
-            Receive :
-            - command - Command object
+        Receive:
+        - command (c_command): Command object
 
-            Returns :   Result 
+        Returns:  
+        - bool: Result of the verefication of the command
         """
 
         protocol = cmd.protocol( )
@@ -695,12 +651,12 @@ class c_client_handle:
 
     def send_quick_message( self, message: str ):
         """
-            Send a quick message to the host.
+        Send a quick message to the host.
 
-            Receive :
-            - message - Message to send
+        Receive:
+        - message (str): Message to send
 
-            Returns :   None
+        Returns: None
         """
 
         self.send_quick_bytes( message.encode( ) )
@@ -708,12 +664,12 @@ class c_client_handle:
 
     def send_quick_bytes( self, data: bytes ):
         """
-            Send a quick bytes to the client.
+        Send a quick bytes to the client.
 
-            Receive :
-            - message - Message to send
+        Receive:
+        - data (bytes): Information to send to client
 
-            Returns :   None
+        Returns: None
         """
 
         config = self._network.get_raw_details( len( data ) )
@@ -734,6 +690,13 @@ class c_client_handle:
 
 
     def __start_security_rotation( self ):
+        """
+        Start key rotation process.
+
+        Receive: None
+
+        Returns: None
+        """
         
         self.__event_client_log( f"Started key rotation for client ( { self( 'username' ) } )" )
 
@@ -749,6 +712,13 @@ class c_client_handle:
 
     
     def __complete_security_rotation( self ):
+        """
+        Complete the key rotation process with the client.
+
+        Receive: None
+
+        Returns: None
+        """
         
         self._security.sync_outer_level_keys( )
 
@@ -764,12 +734,12 @@ class c_client_handle:
 
     def __event_client_connected( self, address: tuple ):
         """
-            Event when the client connected to the server.
+        Event when the client connected to the server.
 
-            Receive: 
-            - address   - Client address
+        Receive: 
+        - address (tuple): Client address
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_client_connected" ]
@@ -781,12 +751,13 @@ class c_client_handle:
 
     def __event_client_disconnected( self, notify_the_client: bool, remove_client_handle: bool ):
         """
-            Event when the client disconnected from the server.
+        Event when the client disconnected from the server.
 
-            Receive:    
-            - notify_the_client  - Notify the client about the disconnection
+        Receive:    
+        - notify_the_client (bool): Notify the client about the disconnection
+        - remove_client_handle (bool): Remove client handle from list
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_client_disconnected" ]
@@ -799,12 +770,12 @@ class c_client_handle:
     
     def __event_client_command( self, command: c_command ):
         """
-            Event when the client sent a command.
+        Event when the client sent a command.
 
-            Receive:    
-            - command   - Command object
+        Receive:    
+        - command (c_command): Command object
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_client_command" ]
@@ -814,7 +785,18 @@ class c_client_handle:
     
 
     def __event_client_log( self, message: str, save_in_app: bool = True, log_type: int = ENUM_LOG_INFO, user: str = "system" ):
-        
+        """
+        Event to log information on the host.
+
+        Receive: 
+        - message: (str): Message of the log
+        - save_in_app: (bool, optional): Should display in application
+        - log_type: (int, optional): Log type like error or info
+        - user: (str , optional): User that triggered this log
+
+        Returns: None
+        """
+
         event: c_event = self._events[ "on_client_log" ]
         
         event.attach( "message",        message )
@@ -827,14 +809,14 @@ class c_client_handle:
 
     def set_event( self, event_name: str, callback: any, index: str ):
         """
-            Set an event for the client handle.
+        Set an event for the client handle.
 
-            Receive:    
-            - event_name    - Event name
-            - callback      - Callback function
-            - index         - Index of the event
+        Receive:    
+        - event_name (str): Event name
+        - callback (function): Callback function
+        - index (str): Index of the event
 
-            Returns:    None
+        Returns: None
         """
 
         if not event_name in self._events:
@@ -849,12 +831,12 @@ class c_client_handle:
 
     def load_files( self, files_protocol: c_files_manager_protocol ):
         """
-            Initialize files for client.
+        Initialize files for client.
 
-            Receive :   
-            - files - Files access
+        Receive:   
+        - files (c_files_manager_protocol): Files access
 
-            Returns :   None
+        Returns: None
         """
 
         files: dict = files_protocol.get_files( )
@@ -867,14 +849,14 @@ class c_client_handle:
     
     def load_database( self, database: c_database ):
         """
-            Load path for database of registration protocol.
+        Load path for database of registration protocol.
 
-            This must be called before .connect( )
+        This must be called before .connect( )
 
-            Receive :
-            - database  - Database object
+        Receive:
+        - database (c_database): Database object
 
-            Returns :   None
+        Returns: None
         """
 
         self._registration.load_database( database )
@@ -882,12 +864,12 @@ class c_client_handle:
 
     def __share_files( self, command: c_command ):
         """
-            Share with client the allowed files.
+        Share with client the allowed files.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         self.__event_client_log( "requested files list", user=f"client ( { self( 'username' ) } )" )
@@ -912,12 +894,12 @@ class c_client_handle:
     
     def __get_file( self, command: c_command ):
         """
-            Share the file with the client.
+        Share the file with the client.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         file_name: str = command.arguments( )[ 0 ]
@@ -968,12 +950,12 @@ class c_client_handle:
 
     def __request_line( self, command: c_command ):
         """
-            Client's request to lock a line.
+        Client's request to lock a line.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         # Here we just preform all the checks...
@@ -1022,12 +1004,12 @@ class c_client_handle:
 
     def __discard_line( self, command: c_command ):
         """
-            Client's message to discard a line.
+        Client's message to discard a line.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         # Here we just preform all the checks...
@@ -1072,12 +1054,12 @@ class c_client_handle:
 
     def __update_line( self, command: c_command ):
         """
-            Client's message to update a line.
+        Client's message to update a line.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         # Here we just preform all the checks...
@@ -1137,12 +1119,12 @@ class c_client_handle:
 
     def __delete_line( self, command: c_command ):
         """
-            Client's message to delete a line.
+        Client's message to delete a line.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         # Here we just preform all the checks...
@@ -1187,12 +1169,12 @@ class c_client_handle:
 
     def __apply_update( self, command: c_command ):
         """
-            Client's message to apply an update received before.
+        Client's message to apply an update received before.
 
-            Receive :   
-            - command - Original command
+        Receive:   
+        - command (c_command): Original command
 
-            Returns :   None
+        Returns: None
         """
 
         arguments:      list    = command.arguments( )
@@ -1209,13 +1191,13 @@ class c_client_handle:
     @standalone_execute
     def change_access_level( self, file_name: str, new_level: int ):
         """
-            Change the access level of the file.
+        Change the access level of the file.
 
-            Receive :   
-            - file_name - File name
-            - new_level - New access level
+        Receive:   
+        - file_name (str): File name
+        - new_level (int): New access level
 
-            Returns :   None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -1245,7 +1227,16 @@ class c_client_handle:
     # region : Updates verifications
 
     def __get_correct_update_callback( self, update_type: int, command: c_command ):
-        
+        """
+        Convert update callback type into callable function.
+
+        Receive:
+        - update_type (int): Update type to peroform
+        - command (c_command): Command with information
+
+        Returns: None
+        """
+
         update_callbacks = {
             FILE_UPDATE_CONTENT:    self.__update_type_content,
             FILE_UPDATE_NAME:       self.__update_type_name
@@ -1254,7 +1245,16 @@ class c_client_handle:
         update_callbacks[ update_type ]( command ) 
 
     
-    def __update_type_content( self, command: c_command ):
+    def __update_type_content( self, command: c_command ): 
+        """
+        Client's message to apply an update received before about new lines.
+
+        Receive:   
+        - command (c_command): Original command
+
+        Returns: None
+        """
+
         arguments:      list    = command.arguments( )
 
         file_name:      str     = arguments[ 0 ]
@@ -1283,6 +1283,14 @@ class c_client_handle:
 
 
     def __update_type_name( self, command: c_command ):
+        """
+        Client's message to apply an update received before about file rename.
+
+        Receive:   
+        - command (c_command): Original command
+
+        Returns: None
+        """
 
         arguments:      list    = command.arguments( )
 
@@ -1310,11 +1318,12 @@ class c_client_handle:
 
     def get_offset( self ) -> int:
         """
-            Get the offset for the client.
+        Get the offset for the client.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    int - Offset
+        Returns:    
+        - int: Offset
         """
 
         return sum( self._offsets )
@@ -1322,12 +1331,12 @@ class c_client_handle:
 
     def add_offset( self, offset: int ):
         """
-            Add an offset to the client.
+        Add an offset to the client.
 
-            Receive:    
-            - offset    - Offset
+        Receive:    
+        - offset (int): Offset
 
-            Returns:    None
+        Returns: None
         """
 
         self._offsets.append( offset )
@@ -1335,12 +1344,13 @@ class c_client_handle:
     
     def is_offset( self, offset: int ) -> bool:
         """
-            Check if the client has an offset.
+        Check if the client has an offset.
 
-            Receive:    
-            - offset    - Offset
+        Receive:    
+        - offset (int): Offset value
 
-            Returns:    bool - Is the offset in the client
+        Returns:    
+        - bool : Is the offset in the client
         """
 
         for item in self._offsets:
@@ -1352,12 +1362,13 @@ class c_client_handle:
 
     def remove_offset( self, offset: int ) -> bool:
         """
-            Remove an offset from the client.
+        Remove an offset from the client.
 
-            Receive:    
-            - offset    - Offset
+        Receive:    
+        - offset (int): Offset value
 
-            Returns:    bool - Is the offset removed
+        Returns:    
+        - bool : Is the offset removed
         """
 
         if not self.is_offset( offset ):
@@ -1372,12 +1383,13 @@ class c_client_handle:
 
     def selected_file( self, new_value: any = None ) -> str:
         """
-            Get/Set active client's file.
+        Get/Set active client's file.
 
-            Receive :   
-            - new_value [optional] - New value to set
+        Receive:   
+        - new_value (any, optional) - New value to set
 
-            Returns :   String
+        Returns:   
+        - string: Selected file index
         """
 
         if new_value is None:
@@ -1402,10 +1414,10 @@ class c_client_handle:
         """
             Get/Set clients active line.
 
-            Receive :   
+            Receive:   
             - new_value [optional] - New value to set
 
-            Returns :   Line number. ( 0 - is None )
+            Returns:   Line number. ( 0 - is None )
         """
 
         if new_value is None:
@@ -1421,11 +1433,12 @@ class c_client_handle:
 
     def files_list( self ) -> list:
         """
-            Returns a list of names of files for the client.
+        Returns a list of names of files for the client.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   List
+        Returns:   
+        - list: List of files indexes
         """
 
         result = [ ]
@@ -1441,12 +1454,13 @@ class c_client_handle:
 
     def get_file( self, file_name: str ) -> list:
         """
-            Get the file object by name.
+        Get the file object by name.
 
-            Receive :   
-            - file_name - File name
+        Receive:   
+        - file_name (str): File name
 
-            Returns :   List [ file_name, access_level ]
+        Returns:   
+        - list: List that contains the file name and access level
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -1461,13 +1475,13 @@ class c_client_handle:
 
     def lower_trust_factor( self, value: int, reason: str ):
         """
-            Register lowering the trust factor of a client.
+        Register lowering the trust factor of a client.
 
-            Receive :
-            - value     - How much to lower the trust factor
-            - reason    - Reason for lowering
+        Receive:
+        - value (int): How much to lower the trust factor
+        - reason (str): Reason for lowering
 
-            Returns :   None
+        Returns: None
         """
 
         self._trust_factor = math.clamp( self._trust_factor - value, 0, 100 )
@@ -1478,18 +1492,26 @@ class c_client_handle:
     
     def check_trust_factor( self ) -> bool:
         """
-            Check if the current client trust factor is valid.
+        Check if the current client trust factor is valid.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Result if valid
+        Returns:   
+        - bool: Result if valid
         """
         
         return self._trust_factor > 0
     
 
     def trust_factor_latency( self ):
-        
+        """
+        Create delay for receving data on lower trust factor.
+
+        Receive: None
+
+        Returns: None
+        """
+
         pure_value = DEFAULT_TRUST_FACTOR - self._trust_factor
         
         if pure_value == 0:
@@ -1501,11 +1523,12 @@ class c_client_handle:
 
     def trust_factor( self, value: int = None ) -> int:
         """
-            Get/Set client's trust factor value.
+        Get/Set client's trust factor value.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Number value
+        Returns:   
+        int - Trust factor number value
         """
 
         if value is None:
@@ -1520,11 +1543,12 @@ class c_client_handle:
 
     def network( self ) -> c_network_protocol:
         """
-            Get the network protocol.
+        Get the network protocol.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   c_network_protocol - Network protocol
+        Returns:   
+        - c_network_protocol: Network protocol
         """
 
         return self._network
@@ -1532,11 +1556,12 @@ class c_client_handle:
 
     def files( self ) -> c_files_manager_protocol:
         """
-            Get the clients files protocol.
+        Get the clients files protocol.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   c_files_manager_protocol - Files protocol
+        Returns:   
+        - c_files_manager_protocol: Files protocol
         """
 
         return self._files
@@ -1544,12 +1569,12 @@ class c_client_handle:
 
     def attach_files( self, value: c_files_manager_protocol ):
         """
-            Attach file manager protocol instance.
+        Attach file manager protocol instance.
 
-            Receive :
-            - value - New instance of files manager protocol
+        Receive:
+        - value (c_files_manager_protocol): New instance of files manager protocol
 
-            Returns :   None
+        Returns: None
         """
 
         self._files = value
@@ -1557,12 +1582,12 @@ class c_client_handle:
     
     def attach_network( self, value: c_network_protocol ):
         """
-            Attach network protocol instance.
+        Attach network protocol instance.
 
-            Receive :
-            - value - New instance of network protocol
+        Receive:
+        - value (c_network_protocol): New instance of network protocol
 
-            Returns :   None
+        Returns: None
         """
 
         self._network = value
@@ -1570,13 +1595,13 @@ class c_client_handle:
     
     def attach_information( self, index: str, value: any ):
         """
-            Attach new information or update for client handle.
+        Attach new information or update for client handle.
 
-            Receive :
-            - index - Key for value
-            - value - Actual value to attach
+        Receive:
+        - index (str): Key for value
+        - value (any): Actual value to attach
 
-            Returns :   None
+        Returns: None
         """
 
         self._information[ index ] = value
@@ -1584,12 +1609,13 @@ class c_client_handle:
 
     def __call__( self, index: str ):
         """
-            Index clients information.
+        Index clients information.
 
-            Receive:    
-            - index - Index of the information
+        Receive:    
+        - index (str): Index of the information
 
-            Returns:    Any - Information
+        Returns:    
+        - any: Information
         """
 
         if index in self._information:
@@ -1600,12 +1626,13 @@ class c_client_handle:
 
     def __eq__( self, other ) -> bool:
         """
-            Check if the client handle is equal to another client handle.
+        Check if the client handle is equal to another client handle.
 
-            Receive:    
-            - other - Other client handle
+        Receive:    
+        - other (c_client_handle): Other client handle
 
-            Returns:    bool - Is the client handle equal to the other
+        Returns:    
+        - bool: Is the client handle equal to the other
         """
 
         current_address = self._network.get_address( )
@@ -1646,11 +1673,12 @@ class c_host_business_logic:
 
     def __init__( self ):
         """
-            Default constructor for host business logic.
+        Default constructor for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: 
+        - c_host_business_logic: New host bl instance
         """
 
         self.__initialize_protocols( )
@@ -1662,11 +1690,11 @@ class c_host_business_logic:
 
     def __initialize_protocols( self ):
         """
-            Initialize protocols for host business logic.
+        Initialize protocols for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._network   = c_network_protocol( )
@@ -1676,11 +1704,11 @@ class c_host_business_logic:
     
     def __initialize_events( self ):
         """
-            Initialize events for host business logic.
+        Initialize events for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._events = {
@@ -1711,11 +1739,11 @@ class c_host_business_logic:
 
     def __initialize_information( self ):
         """
-            Initialize information for host business logic.
+        Initialize information for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._information = {
@@ -1737,6 +1765,17 @@ class c_host_business_logic:
     # region : Connection
 
     def setup( self, ip: str, port: int, username: str, max_clients: int ):
+        """
+            Setup the host backend with some values.
+
+            Receive:
+            - ip: (str): IP value to listen to
+            - port: (int): Port for clients to connect to
+            - username: (str): Host user username
+            - max_clients: (int): Max allowed clients on the host
+
+            Returns: None
+        """
 
         # I dont use @safe_call since I need to add debug options later on
 
@@ -1766,11 +1805,12 @@ class c_host_business_logic:
 
     def start( self ) -> bool:
         """
-            Start the server for host business logic.
+        Start the server for host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    bool - Is the server started successfully
+        Returns:    
+        - bool: Is the server started successfully
         """
 
         if not self._information[ "success" ]:
@@ -1794,11 +1834,11 @@ class c_host_business_logic:
 
     def terminate( self ):
         """
-            Terminate the host.
+        Terminate the host.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         if not self._information[ "running" ]:
@@ -1834,11 +1874,12 @@ class c_host_business_logic:
 
     def generate_code( self ) -> str:
         """
-            Generate a code for the client to connect to the server.
+        Generate a code for the client to connect to the server.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    str - Generated code
+        Returns:    
+        - str: Generated code
         """
 
         local_ip, local_port = self._network.get_address( )
@@ -1852,11 +1893,11 @@ class c_host_business_logic:
 
     def __attach_processes( self ):
         """
-            Attach processes for the host business logic.
+        Attach processes for the host business logic.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         # Start the process for handling connections
@@ -1869,11 +1910,11 @@ class c_host_business_logic:
     @standalone_execute
     def __process_handle_connections( self ):
         """
-            Process for handling connections.
+        Process for handling connections.
 
-            Receive:    None
+        Receive: None
             
-            Returns:    None
+        Returns: None
         """
 
         while self._information[ "running" ]:
@@ -1894,11 +1935,11 @@ class c_host_business_logic:
     @standalone_execute
     def __process_handle_commands( self ):
         """
-            Process for handling commands.
+        Process for handling commands.
 
-            Receive:    None
+        Receive: None
 
-            Returns:    None
+        Returns: None
         """
 
         while self._information[ "running" ] or not self._command_pool.empty( ):
@@ -1927,12 +1968,12 @@ class c_host_business_logic:
     @safe_call( c_debug.log_error )
     def __handle_command( self, command: c_command ):
         """
-            Handle command request.
+        Handle command request.
 
-            Receive :
-            - command - Command object from client
+        Receive:
+        - command (c_command): Command object from client
 
-            Returns :   None
+        Returns: None
         """
 
         base_command_callbacks = {
@@ -1952,13 +1993,13 @@ class c_host_business_logic:
     @safe_call( c_debug.log_error )
     def __command_execute_prepare_update( self, client: c_client_handle, arguments: list ):
         """
-            Command for prepare line update.
+        Command for prepare line update.
 
-            Receive :
-            - client    - Client handle that requested
-            - arguments - Arguments from the command
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str = arguments[ 0 ]
@@ -1985,13 +2026,13 @@ class c_host_business_logic:
 
     def __command_execute_discard_update( self, client: c_client_handle, arguments: list ):
         """
-            Command for discard line update.
+        Command for discard line update.
 
-            Receive :
-            - client    - Client handle that requested
-            - arguments - Arguments from the command
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str = arguments[ 0 ]
@@ -2009,13 +2050,13 @@ class c_host_business_logic:
     
     def __command_execute_commit_update( self, client: c_client_handle, arguments: list ):
         """
-            Command for commit line update.
+        Command for commit line update.
 
-            Receive :
-            - client    - Client handle that requested
-            - arguments - Arguments from the command
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str     = arguments[ 0 ]
@@ -2038,13 +2079,13 @@ class c_host_business_logic:
 
     def __command_execute_commit_delete( self, client: c_client_handle, arguments: list ):
         """
-            Command for commit line delete.
+        Command for commit line delete.
 
-            Receive :
-            - client    - Client handle that requested
-            - arguments - Arguments from the command
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str     = arguments[ 0 ]
@@ -2066,13 +2107,13 @@ class c_host_business_logic:
 
     def __command_execute_accept_offset( self, client: c_client_handle, arguments: list ):
         """
-            Command for accept offset change.
+        Command for accept offset change.
 
-            Receive :
-            - client    - Client handle that requested
-            - arguments - Arguments from the command
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
 
-            Returns :   None
+        Returns: None
         """
 
         update_type: int = arguments[ 0 ]
@@ -2105,6 +2146,15 @@ class c_host_business_logic:
         
     
     def __command_execute_change_file_name( self, client: c_client_handle, arguments: list ):
+        """
+        Command for changing the file name.
+
+        Receive:
+        - client (c_client_handle): Client handle that requested
+        - arguments (list): Arguments from the command
+
+        Returns: None
+        """
         
         old_index:          str = arguments[ 0 ]
         new_index:          str = arguments[ 1 ]
@@ -2122,14 +2172,14 @@ class c_host_business_logic:
 
     def __broadcast_for_shareable_clients( self, file: c_virtual_file, exception: c_client_handle, broadcast_function: any, *args ):
         """
-            Execute broadcase function for each client that shares the same file.
+        Execute broadcase function for each client that shares the same file.
 
-            Receive :
-            - file                  - Specific shared file
-            - exception             - Avoid broadcasting to him
-            - broadcase_function    - Function to execute for each client
+        Receive:
+        - file (c_virtual_file): Specific shared file
+        - exception (c_client_handle): Avoid broadcasting to him
+        - broadcase_function (function): Function to execute for each client
 
-            Returns :   None
+        Returns: None
         """
 
         for client in self._clients:
@@ -2143,14 +2193,15 @@ class c_host_business_logic:
 
     def __broadcast_lock_line( self, client: c_client_handle, file: c_virtual_file, line: int, username: str ):
         """
-            Notify the client that a specific line is locked.
+        Notify the client that a specific line is locked.
 
-            Receive :
-            - client    - Client to notify
-            - file      - File that is shared
-            - line      - Locked line
+        Receive:
+        - client (c_client_handle): Client to notify
+        - file (c_virtual_file) File that is shared
+        - line (int): Locked line
+        - username (str): Username of the client that locked that line
 
-            Returns :   None
+        Returns: None
         """
 
         # TODO ! Add check if the client can edit
@@ -2161,14 +2212,14 @@ class c_host_business_logic:
 
     def __broadcast_unlock_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
         """
-            Notify the client that a specific line is unlocked.
+        Notify the client that a specific line is unlocked.
 
-            Receive :
-            - client    - Client to notify
-            - file      - File that is shared
-            - line      - Locked line
+        Receive:
+        - client (c_client_handle): Client to notify
+        - file (c_virtual_file) File that is shared
+        - line (int): Locked line
 
-            Returns :   None
+        Returns: None
         """
 
         # TODO ! Add check if the client can edit
@@ -2179,15 +2230,15 @@ class c_host_business_logic:
 
     def __broadcast_update_line( self, client: c_client_handle, file: c_virtual_file, line: int, new_lines: list ):
         """
-            Notify the client that a specific line is updated.
+        Notify the client that a specific line is updated.
 
-            Receive :
-            - client    - Client to notify
-            - file      - File that is shared
-            - line      - Locked line
-            - new_lines - New lines
+        Receive:
+        - client (c_client_handle): Client to notify
+        - file (c_virtual_file) File that is shared
+        - line (int): Locked line
+        - new_lines (list): New lines
 
-            Returns :   None
+        Returns: None
         """
 
         client_line: int = client.selected_line( )
@@ -2216,14 +2267,14 @@ class c_host_business_logic:
 
     def __broadcast_delete_line( self, client: c_client_handle, file: c_virtual_file, line: int ):
         """
-            Notify the client that a specific line is deleted.
+        Notify the client that a specific line is deleted.
 
-            Receive :
-            - client    - Client to notify
-            - file      - File that is shared
-            - line      - Locked line
+        Receive:
+        - client (c_client_handle): Client to notify
+        - file (c_virtual_file) File that is shared
+        - line (int): Locked line
 
-            Returns :   None
+        Returns: None
         """
 
         client_line: int = client.selected_line( )
@@ -2242,6 +2293,17 @@ class c_host_business_logic:
 
 
     def __broadcast_change_file_name( self, client: c_client_handle, file: c_virtual_file, old_index: str, new_index: str ):
+        """
+        Notify the client that a specific file changed its name.
+
+        Receive:
+        - client (c_client_handle): Client to notify
+        - file (c_virtual_file) File that is shared
+        - old_index (str): Old file name
+        - new_index (str): New file name
+
+        Returns: None
+        """
 
         client_files: c_files_manager_protocol = client.files( )
         file = client_files.search_file( old_index )
@@ -2261,12 +2323,15 @@ class c_host_business_logic:
 
     def initialize_base_values( self, path: str, default_access: int, scan_types: int, should_scan_virtual: bool ):
         """
-            Create and setup the project files path.
+        Create and setup the project files path.
 
-            Receive :
-            - path - Path string for files
+        Receive:
+        - path (str): Path string for files
+        - default_access: (int): Default access level for new clients
+        - scan_types: (int): Scan type for files
+        - should_scan_virtual: (bool): Should scan virtually allocated files
 
-            Returns :   None
+        Returns: None
         """
 
         self._information[ "original_path" ]        = path
@@ -2278,6 +2343,15 @@ class c_host_business_logic:
 
     
     def connect_to_database( self, password: str ) -> bool:
+        """
+        Connect to database with host information.
+
+        Receive:
+        - password (str): Host password
+
+        Returns:
+        - bool: Result if success or no
+        """
 
         # Load path or create database
         self._database.load_path( self._information[ "normal_path" ] )
@@ -2340,9 +2414,9 @@ class c_host_business_logic:
         """
             Setup Folder for files.
 
-            Receive :   None
+            Receive: None
 
-            Returns :   None
+            Returns: None
         """
 
         original_path   = self._information[ "original_path" ]
@@ -2358,9 +2432,9 @@ class c_host_business_logic:
         """
             Setup files of the project.
 
-            Receive :   None
+            Receive: None
 
-            Returns :   None
+            Returns: None
         """
 
         # Here need to make a copy of each file to the new path.
@@ -2382,10 +2456,10 @@ class c_host_business_logic:
         """
             Dump specific path.
 
-            Receive : 
+            Receive: 
             - path - Full path to a folder to dump
 
-            Returns :   None
+            Returns: None
         """
         
         original_path           = self._information[ "original_path" ]
@@ -2467,10 +2541,10 @@ class c_host_business_logic:
         """
             Trigger the set file event to receive a file's content.
 
-            Receive :
+            Receive:
             - file_name - File's name
 
-            Returns :   None
+            Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2490,11 +2564,11 @@ class c_host_business_logic:
         """
             Request specific line.
 
-            Receive : 
+            Receive: 
             - file_name - File name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2519,11 +2593,11 @@ class c_host_business_logic:
         """
             Message of discard changes.
 
-            Receive : 
+            Receive: 
             - file_name - File name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2544,12 +2618,12 @@ class c_host_business_logic:
         """
             Update lines for all clients.
 
-            Receive :
+            Receive:
             - file_name - File name
             - line      - Line number
             - lines     - List of changed lines
 
-            Returns :   None
+            Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2569,11 +2643,11 @@ class c_host_business_logic:
         """
             Delete the line for all clients.
 
-            Receive :
+            Receive:
             - file_name - File name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2623,9 +2697,9 @@ class c_host_business_logic:
         """
             Event when the host server started.
 
-            Receive:    None
+            Receive: None
 
-            Returns:    None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_server_start" ]
@@ -2636,9 +2710,9 @@ class c_host_business_logic:
         """
             Event when the host server stopped.
 
-            Receive:    None
+            Receive: None
 
-            Returns:    None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_server_stop" ]
@@ -2653,7 +2727,7 @@ class c_host_business_logic:
             - client_socket     - Client socket
             - client_address    - Client address
 
-            Returns:    None
+            Returns: None
         """
 
         # Create a new client handle
@@ -2690,7 +2764,7 @@ class c_host_business_logic:
             Receive:    
             - event - Event information
 
-            Returns:    None
+            Returns: None
         """
 
         if event( "remove" ) == 1:
@@ -2711,7 +2785,7 @@ class c_host_business_logic:
             Receive:    
             - event - Event information
 
-            Returns:    None
+            Returns: None
         """
 
         command: c_command = event( "command" )
@@ -2730,9 +2804,9 @@ class c_host_business_logic:
         """
             Event when the host files are refreshed.
 
-            Receive :   None
+            Receive: None
 
-            Returns :   None
+            Returns: None
         """
 
         files = self._files.get_files( )
@@ -2753,10 +2827,10 @@ class c_host_business_logic:
         """
             Event when the the host user request file.
 
-            Receive :
+            Receive:
             - file - File's reference
 
-            Returns :   None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_file_set" ]
@@ -2769,10 +2843,10 @@ class c_host_business_logic:
         """
             Event callback for updating a file
 
-            Receive :
+            Receive:
             - file - File's reference
 
-            Returns :   None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_file_update" ]
@@ -2786,11 +2860,11 @@ class c_host_business_logic:
         """
             Event callback for accepting the line
 
-            Receive :
+            Receive:
             - file      - File's name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_accept_line" ]
@@ -2805,11 +2879,11 @@ class c_host_business_logic:
         """
             Event callback for locking a line.
 
-            Receive :
+            Receive:
             - file      - File's name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         if file != self._host_client.selected_file( ):
@@ -2828,11 +2902,11 @@ class c_host_business_logic:
         """
             Event callback for unlocking a line.
 
-            Receive :
+            Receive:
             - file      - File's name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         if file != self._host_client.selected_file( ):
@@ -2850,12 +2924,12 @@ class c_host_business_logic:
         """
             Event callback for updating line/lines.
 
-            Receive :
+            Receive:
             - file      - File's name
             - line      - Line number
             - new_lines - New lines
 
-            Returns :   None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_line_update" ]
@@ -2871,11 +2945,11 @@ class c_host_business_logic:
         """
             Event callback for deleting line.
 
-            Receive :
+            Receive:
             - file      - File's name
             - line      - Line number
 
-            Returns :   None
+            Returns: None
         """
 
         event: c_event = self._events[ "on_line_delete" ]
@@ -2902,13 +2976,13 @@ class c_host_business_logic:
         """
             Add function to be called on specific event.
 
-            Receive :
+            Receive:
             - event_type                    - Event name
             - callback                      - Function to execute
             - index                         - Function index
             - allow_arguments [optional]    - Allow function to get arguments
 
-            Returns :   None
+            Returns: None
         """
 
         if not event_type in self._events:
@@ -2925,12 +2999,12 @@ class c_host_business_logic:
         """
             Correct the host file locked line on change.
 
-            Receive :
+            Receive:
             - file      - File's reference
             - line      - Changed line number
             - new_lines - New lines that changed
 
-            Returns :   None
+            Returns: None
         """
 
         client_line: int = self._host_client.selected_line( )
@@ -2949,10 +3023,10 @@ class c_host_business_logic:
         """
             Search client by username.
 
-            Receive :
+            Receive:
             - username - Client's username
 
-            Returns :   Client object on find or None on fail
+            Returns:   Client object on find or None on fail
         """
 
         for client in self._clients:

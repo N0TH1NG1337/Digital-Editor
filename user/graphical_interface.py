@@ -17,7 +17,7 @@ LOADING_MIN_TIME:   int     = 2
 
 class c_user_gui:
 
-    # region : Privates attributes
+    # region : Protected attributes
 
     _application:           c_application
     _logic:                 c_user_business_logic
@@ -56,12 +56,13 @@ class c_user_gui:
 
     def __init__( self, should_debug: bool = False ):
         """
-            Default constructor for the user interface.
+        Default constructor for the user interface.
 
-            Receive :   
-            - should_debug [optional] - Should enable debug logging
+        Receive:   
+        - should_debug (bool, optional): Should enable debug logging
 
-            Returns :   User GUI object
+        Returns:   
+        - c_user_gui: User GUI object
         """
 
         if should_debug:
@@ -76,11 +77,11 @@ class c_user_gui:
 
     def __initialize_application( self ):
         """
-            Initialize the application object.
+        Initialize the application object.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._application_config = application_config_t( )
@@ -100,11 +101,11 @@ class c_user_gui:
 
     def __initialize_logic( self ):
         """
-            Initialize the logic object.
+        Initialize the logic object.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._logic = c_user_business_logic( )
@@ -114,11 +115,11 @@ class c_user_gui:
     
     def __initialize_logic_callbacks( self ):
         """
-            Initialize user business logic callbacks.
+        Initialize user business logic callbacks.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._logic.set_event( "on_post_disconnect",    self.__event_post_disconnect,       "gui_post_disconnect",      False )
@@ -138,41 +139,37 @@ class c_user_gui:
     
     def __initialize_resources( self ):
         """
-            Initialize the resources for the application.
+        Initialize the resources for the application.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         execution_directory = os.getcwd( )
 
         self._general_font = self._application.create_font( "general", FONT, 20 )
 
-        self._application.create_image( "WallpaperBlur",    execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ), [IMAGE_FILTER_BLUR] )
-        self._application.create_image( "Wallpaper",        execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ) )
+        self._application.create_image( "wallpaper_blurred",    execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ), [ IMAGE_FILTER_BLUR ] )
+        self._application.create_image( "wallpaper",            execution_directory + PHOTO_WALLPAPER,      vector( 5784, 3254 ) )
 
-        self._application.create_image( "Username",         execution_directory + ICON_USERNAME,        vector( 30, 30 ) )
-        self._application.create_image( "Password",         execution_directory + ICON_PASSWORD,        vector( 30, 30 ) )
-        self._application.create_image( "Next",             execution_directory + ICON_NEXT,            vector( 30, 30 ) )
-        self._application.create_image( "Prev",             execution_directory + ICON_PREV,            vector( 30, 30 ) )
-
-        self._application.create_image( "Folder",           execution_directory + ICON_FOLDER,          vector( 30, 30 ) )
-        self._application.create_image( "File",             execution_directory + ICON_FILE,            vector( 30, 30 ) )
-
-        self._application.create_image( "Code",             execution_directory + ICON_PORT,            vector( 30, 30 ) )
-        self._application.create_image( "Copy",             execution_directory + ICON_COPY,            vector( 30, 30 ) )
-
+        self._application.create_image( "icon_username",        execution_directory + ICON_USERNAME,        DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_password",        execution_directory + ICON_PASSWORD,        DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_next",            execution_directory + ICON_NEXT,            DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_previous",        execution_directory + ICON_PREV,            DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_folder",          execution_directory + ICON_FOLDER,          DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_file",            execution_directory + ICON_FILE,            DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_port",            execution_directory + ICON_PORT,            DEFAULT_ICON_SIZE )
+        self._application.create_image( "icon_copy",            execution_directory + ICON_COPY,            DEFAULT_ICON_SIZE )
         self._application.create_image( "icon_refresh",         execution_directory + ICON_REFRESH,         DEFAULT_ICON_SIZE )
 
-        self._application.create_image( "TitleWelcome",     execution_directory + TITLE_ICON_WELCOME,   vector( 700, 200 ) )
-
-        self._application.create_image( "TitleConnection",  execution_directory + TITLE_ICON_CONNECTION,vector( 500, 170 ) )
-        self._application.create_image( "TitleLoading",     execution_directory + TITLE_ICON_LOADING,   vector( 500, 170 ) )
+        self._application.create_image( "title_welcome",        execution_directory + TITLE_ICON_WELCOME,   vector( 700, 200 ) )
+        self._application.create_image( "title_connection",     execution_directory + TITLE_ICON_CONNECTION,vector( 500, 170 ) )
+        self._application.create_image( "title_loading",        execution_directory + TITLE_ICON_LOADING,   vector( 500, 170 ) )
 
         self._temp[ "setup_process" ]  = 0
         
-        self._application_config.wallpaper = self._application.image( "WallpaperBlur" )
+        self._application_config.wallpaper = self._application.image( "wallpaper_blurred" )
 
     # endregion
 
@@ -180,11 +177,11 @@ class c_user_gui:
 
     def __scene_loadup_initialize( self ):
         """
-            Initialize the Loadup Scene.
+        Initialize the Loadup Scene.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._scene_loadup_config = scene_config_t( )
@@ -199,11 +196,11 @@ class c_user_gui:
     
     def __scene_loadup_draw( self ):
         """
-            Main draw function for Loadup Scene.
+        Main draw function for Loadup Scene.
 
-            Receive : Event object
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         render:         c_renderer      = self._application.render( )
@@ -212,7 +209,7 @@ class c_user_gui:
         fade:           float           = animations.value( "Fade" )
         screen:         vector          = self._application.window_size( )
 
-        img:            c_image         = self._application.image( "TitleWelcome" )
+        img:            c_image         = self._application.image( "title_welcome" )
         img_size:       vector          = img.size( )
 
         image_pos:      vector  = ( screen - img_size ) / 2
@@ -222,11 +219,12 @@ class c_user_gui:
 
     def __scene_loadup_update( self, event ):
         """
-            Update the Loadup Scene on any press.
+        Update the Loadup Scene on any press.
 
-            Receive : Event object
+        Receive: 
+        - event (callable): Event information
 
-            Returns : None
+        Returns: None
         """
 
         if event( "action" ) == glfw.PRESS:
@@ -238,11 +236,11 @@ class c_user_gui:
 
     def __scene_setup_initialize( self ):
         """
-            Initialize the Setup Scene.
+        Initialize the Setup Scene.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._scene_setup_config = scene_config_t( )
@@ -255,8 +253,8 @@ class c_user_gui:
         self.__scene_setup_initialize_elements( )
 
         animations: c_animations = self._scene_setup.animations()
-        animations.prepare( "TitleConnection",  vector( ) )
-        animations.prepare( "TitleLoading",     vector( ) )
+        animations.prepare( "title_connection",  vector( ) )
+        animations.prepare( "title_loading",     vector( ) )
 
         animations.prepare( "ButtonNext",   250 )
         animations.prepare( "InstructionsHeight", 0 )
@@ -269,17 +267,17 @@ class c_user_gui:
     
     def __scene_setup_initialize_elements( self ):
         """
-            Setup the elements for the Setup Scene.
+        Setup the elements for the Setup Scene.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
-        username_icon:      c_image = self._application.image( "Username" )
-        password_icon:      c_image = self._application.image( "Password" )
-        code_icon:          c_image = self._application.image( "Code" )
-        next_icon:          c_image = self._application.image( "Next" )
+        username_icon:      c_image = self._application.image( "icon_username" )
+        password_icon:      c_image = self._application.image( "icon_password" )
+        code_icon:          c_image = self._application.image( "icon_port" )
+        next_icon:          c_image = self._application.image( "icon_next" )
 
         text_input_config                       = text_input_config_t( )
         text_input_config.color_background.a    = 0
@@ -308,14 +306,14 @@ class c_user_gui:
 
     def __scene_setup_draw( self ):
         """
-            Main draw function for Setup Scene.
+        Main draw function for Setup Scene.
 
-            Receive : Event object
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
-        wallpaper:  c_image         = self._application.image( "Wallpaper" )
+        wallpaper:  c_image         = self._application.image( "wallpaper" )
         screen:     vector          = self._application.window_size( )
 
         box_size    = screen * 0.8
@@ -342,8 +340,8 @@ class c_user_gui:
         render.pop_clip_rect( )
 
         steps = {
-            0: "TitleConnection",
-            1: "TitleLoading"
+            0: "title_connection",
+            1: "title_loading"
         }
 
         selected:           int = self._temp[ "setup_process" ]
@@ -371,7 +369,7 @@ class c_user_gui:
         render:     c_renderer      = self._application.render( )
         animations: c_animations    = self._scene_setup.animations( )
 
-        fade:       float           = animations.value( "Fade" ) * animations.value( "TitleConnection" ).y
+        fade:       float           = animations.value( "Fade" ) * animations.value( "title_connection" ).y
 
         # Render the instructions here
         wrapped_text: str = render.wrap_text( self._general_font, "Enter the project code that you received from a host", screen.x * 0.4 - 40 )
@@ -383,11 +381,11 @@ class c_user_gui:
 
     def __scene_setup_adjust_elements( self ):
         """
-            Adjust the scene elements positions.
+        Adjust the scene elements positions.
 
-            Receive : Event object
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         animations: c_animations    = self._scene_setup.animations( )
@@ -412,6 +410,13 @@ class c_user_gui:
 
 
     def __scene_setup_control_steps( self ):
+        """
+            Control setup process scene elements.
+
+            Receive: None
+
+            Returns: None
+        """
 
         progress_index: int = self._temp[ "setup_process" ]
         if progress_index == 0:
@@ -433,11 +438,11 @@ class c_user_gui:
 
     def __scene_setup_next_step( self ):
         """
-            Next setup step.
+        Continiue to next setup step.
 
-            Receive :   None
+        Receive:   None
 
-            Returns :   None
+        Returns:   None
         """
 
         self._temp[ "setup_process" ] = math.clamp( self._temp[ "setup_process" ] + 1, 0, 1 )
@@ -450,7 +455,14 @@ class c_user_gui:
     
     @safe_call( c_debug.log_error )
     def __scene_setup_update( self ):
-        
+        """
+        Update the elements visibility on setup process.
+
+        Receive: None
+
+        Returns: None
+        """
+
         process_index = self._temp[ "setup_process" ]
 
         changes = {
@@ -477,11 +489,11 @@ class c_user_gui:
     @standalone_execute
     def __project_start( self ):
         """
-            Start the hosting program.
+        Start the hosting program.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         time.sleep( LOADING_MIN_TIME )
@@ -507,11 +519,11 @@ class c_user_gui:
 
     def __scene_project_initialize( self ):
         """
-            Initialize the Project Scene.
+        Initialize the Project Scene.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._scene_project_config = scene_config_t( )
@@ -529,20 +541,20 @@ class c_user_gui:
 
     def __scene_project_initialize_elements( self ):
         """
-            Setup the elements for the Project Scene.
+        Setup the elements for the Project Scene.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
-        file_icon:      c_image = self._application.image( "Folder" )
-        close_icon:     c_image = self._application.image( "Prev" )
+        file_icon:      c_image = self._application.image( "icon_folder" )
+        close_icon:     c_image = self._application.image( "icon_previous" )
         refresh_icon:   c_image = self._application.image( "icon_refresh" )
 
         solution_config             = solution_explorer_config_t( )
-        solution_config.folder_icon = self._application.image( "Folder" )
-        solution_config.item_icon   = self._application.image( "File" )
+        solution_config.folder_icon = self._application.image( "icon_folder" )
+        solution_config.item_icon   = self._application.image( "icon_file" )
 
         top_bar_config                  = list_config_t( )
         top_bar_config.disable_pressed  = True
@@ -575,11 +587,11 @@ class c_user_gui:
 
     def __scene_project_animate_tabs( self ):
         """
-            Main draw function for Project Scene.
+        Main draw function for Project Scene.
 
-            Receive : Event object
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         animations: c_animations    = self._scene_project.animations( )
@@ -590,11 +602,11 @@ class c_user_gui:
     
     def __scene_project_adjust_elements( self ):
         """
-            Adjust the scene elements positions.
+        Adjust the scene elements positions.
 
-            Receive : Event object
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         screen:     vector          = self._application.window_size( )
@@ -611,11 +623,11 @@ class c_user_gui:
     
     def __update_sidebar_elements( self ):
         """
-            Update the sidebar elements.
+        Update the sidebar elements.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         elements_visible = {
@@ -632,11 +644,11 @@ class c_user_gui:
 
     def __callback_on_press_files( self, _ ):
         """
-            Callback for the files button.
+        Callback for the files button.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         if self._opened_what == 1:
@@ -649,17 +661,24 @@ class c_user_gui:
 
     def __callback_on_press_close( self, _ ):
         """
-            Callback for the close button.
+        Callback for the close button.
 
-            Receive : None
+        Receive: None
 
-            Returns : None
+        Returns: None
         """
 
         self._logic.disconnect( )
 
     
     def __callback_on_press_refresh( self ):
+        """
+        Callback to refresh the files.
+
+        Receive: None
+
+        Returns: None
+        """
         
         self._logic.request_files( )
         
@@ -669,12 +688,11 @@ class c_user_gui:
 
     def __event_post_disconnect( self ):
         """
-            After client successfully disconnect.
+        After client successfully disconnect.
 
-            Receive :   
-            - event - Event information
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._editor.discard_action( )
@@ -690,12 +708,11 @@ class c_user_gui:
     
     def __event_register_files( self ):
         """
-            After client successfully register new files.
+        After client successfully register new files.
 
-            Receive :   
-            - event - Event information
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._solution_explorer.clear( )
@@ -703,11 +720,12 @@ class c_user_gui:
     
     def __event_clear_editor( self, event ):
         """
-            Event callback for clearing the editor.
+        Event callback for clearing the editor.
 
-            Receive :   None
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:           str     = event( "file" )
@@ -721,12 +739,12 @@ class c_user_gui:
 
     def __event_add_editor_line( self, event ):
         """
-            Event callback for adding new line.
+        Event callback for adding new line.
 
-            Receive :
-            - event - Event information
+        Receive :
+        - event (callable): Event information
 
-            Returns :   None
+        Returns:   None
         """
 
         line_text:  str     = event( "line_text" )
@@ -735,12 +753,12 @@ class c_user_gui:
     
     def __event_editor_request_line( self, event ):
         """
-            Client requests line from the server.
+        Client requests line from the server.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:   str     = event( "file" )
@@ -751,12 +769,12 @@ class c_user_gui:
 
     def __event_accept_line( self, event ):
         """
-            Response from the host if the line can be used by us.
+        Response from the host if the line can be used by us.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:   str     = event( "file" )
@@ -768,12 +786,12 @@ class c_user_gui:
     
     def __event_lock_line( self, event ): 
         """
-            Response from host to client in order to lock a line.
+        Response from host to client in order to lock a line.
 
-            Receive : 
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         line:       int     = event( "line" )
@@ -784,27 +802,27 @@ class c_user_gui:
     
     def __event_unlock_line( self, event ):
         """
-            Response from host to client in order to unlock a line.
+        Response from host to client in order to unlock a line.
 
-            Receive : 
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
-        line:       int     = event( "line" )
+        line: int = event( "line" )
 
         self._editor.unlock_line( line )
     
 
     def __event_discard_line( self, event ):
         """
-            Message to the host in order to discard line changes.
+        Message to the host in order to discard line changes.
 
-            Receive :   
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:  str = event( "file" )
@@ -815,17 +833,16 @@ class c_user_gui:
     
     def __event_update_line( self, event ):
         """
-            Message to the host in order to commit changes.
+        Message to the host in order to commit changes.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:   str     = event( "file" )
         line:   int     = event( "line" )
-
         lines:  list    = event( "lines" )
 
         self._logic.update_line( file, line, lines )
@@ -835,12 +852,12 @@ class c_user_gui:
     
     def __event_delete_line( self, event ):
         """
-            Message to server in order to delete a line.
+        Message to server in order to delete a line.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:   str     = event( "file" )
@@ -851,12 +868,12 @@ class c_user_gui:
     
     def __event_change_lines( self, event ):
         """
-            Response from host to client in order to change lines.
+        Response from host to client in order to change lines.
 
-            Receive : 
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:  str     = event( "file" )
@@ -868,12 +885,12 @@ class c_user_gui:
     
     def __event_remove_line( self, event ):
         """
-            Response from host to client in order to delete line.
+        Response from host to client in order to delete line.
 
-            Receive : 
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:  str     = event( "file" )
@@ -884,12 +901,12 @@ class c_user_gui:
     
     def __event_verify_offset( self, event ):
         """
-            Response to host, after a line offset change.
+        Response to host, after a line offset change.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file:   str = event( "file" )
@@ -900,12 +917,12 @@ class c_user_gui:
 
     def __event_file_register( self, event ):
         """
-            Update the access level of a file.
+        Update the access level of a file.
 
-            Receive :
-            - event - Event information
+        Receive: 
+        - event (callable): Event information
 
-            Returns :   None
+        Returns: None
         """
 
         file_name:      str = event( "file" )
@@ -944,6 +961,14 @@ class c_user_gui:
 
     
     def __event_file_rename( self, event ):
+        """
+        Rename a specific file name.
+
+        Receive: 
+        - event (callable): Event information
+
+        Returns: None
+        """
         
         old_index: str = event( "old_index" )
         new_index: str = event( "new_index" )
@@ -958,23 +983,19 @@ class c_user_gui:
 
         self._logic.accept_file_rename( old_index, new_index )
 
-
-    def __event_add_log( self, event ):
-
-        pass
     # endregion
 
     # region : Utilities
 
     def __show_error_message( self, message: str, scene: c_scene ):
         """
-            Create and attach error message to a scene.
+        Create and attach error message to a scene.
 
-            Receive :
-            - message - Error message
-            - scene_index - Scene index to attach the error screen
+        Receive :
+        - message (str): Error message
+        - scene_index (int): Scene index to attach the error screen
 
-            Returns :   None
+        Returns:   None
         """
 
         size:   vector = vector( 500, 250 )
@@ -987,7 +1008,7 @@ class c_user_gui:
 
         render: c_renderer  = self._application.render( )
 
-        icon_copy:  c_image     = self._application.image( "Copy" )
+        icon_copy:  c_image     = self._application.image( "icon_copy" )
 
         c_icon_button( new_window, vector( 430, 10 ), icon_copy, lambda: glfw.set_clipboard_string( None, message ) )
 
@@ -1004,6 +1025,13 @@ class c_user_gui:
 
 
     def __disconnect_on_window_close( self ):
+        """
+        Disconnect from host on window close.
+
+        Receive: None
+
+        Returns: None
+        """
 
         if self._logic( "is_connected" ):
             self._logic.disconnect( )
@@ -1011,5 +1039,13 @@ class c_user_gui:
     # endregion
 
     def execute( self ):
+        """
+        Execute the application.
+
+        Receive: None
+
+        Returns: None
+        """
+        
         self._application.run( )
         

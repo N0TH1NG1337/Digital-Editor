@@ -1,10 +1,11 @@
 """
     project     : Digital Editor
-
-    type:       : User Interface
+    type        : User Interface
     file        : Application
 
-    description : Main Application class.
+    description : Defines the main Application class, which manages the
+                  lifecycle, windowing, rendering, and event handling
+                  for the Digital Editor application.
 """
  
 import OpenGL.GL as gl
@@ -35,17 +36,17 @@ from user_interface.widgets.text_input          import *
 from user_interface.widgets.select_list         import *
 from user_interface.widgets.path_select         import *
 from user_interface.widgets.editor              import *
-from user_interface.widgets.color_picker        import *
+# from user_interface.widgets.color_picker        import * # No use for now
 from user_interface.widgets.solution_explorer   import *
 from user_interface.widgets.slider              import *
 from user_interface.widgets.label               import *
 
 
 class application_config_t:
-    back_color_1:   color       = color( 30, 30, 50 ) # ( 30, 30, 50 ) #( 203, 185, 213 ) # 20, 20, 24
-    back_color_2:   color       = color( 30, 30, 70 ) # ( 30, 30, 70 ) #( 253, 231, 236 )
-    back_color_3:   color       = color( 30, 30, 39 ) # ( 30, 30, 39 ) #( 156, 140, 182 )
-    back_color_4:   color       = color( 20, 20, 24 ) # ( 20, 20, 24 ) #( 224, 205, 224 )
+    back_color_1:   color       = color( 30, 30, 50 )
+    back_color_2:   color       = color( 30, 30, 70 )
+    back_color_3:   color       = color( 30, 30, 39 )
+    back_color_4:   color       = color( 20, 20, 24 )
 
     wallpaper:      c_image     = None
 
@@ -74,12 +75,19 @@ class c_application:
 
     def __init__( self, config: application_config_t = None ):
         """
-            Default constructor for application
+        Default constructor for the Application class.
 
-            Receives:   
-            - config [optional] - Application config
+        Initializes the application with optional configuration, sets up
+        the rendering context, scene management, error handling, and mouse
+        position tracking.
 
-            Returns:    Application object
+        Receives:
+        - config (application_config_t, optional): Application-specific
+                                                    configuration settings.
+                                                    If None, default configuration
+                                                    is used. Defaults to None.
+
+        Returns: Application object
         """
 
         # Application handle must be at first None
@@ -105,15 +113,22 @@ class c_application:
 
     def initialize_window( self, title: str, position: vector, size: vector, vsync: bool = True ) -> bool:
         """
-            Initialize application window
+        Initializes the application window with the specified title, position,
+        size, and optional vertical synchronization.
 
-            Receives:   
-            - title             - Application title
-            - position          - Application position on the screen
-            - size              - Application size
-            - vsync [optional]  - Enable vsync on the application
+        Receives:
+        - title (str): The title to be displayed in the application window's
+                       title bar.
+        - position (vector): The initial position (x, y coordinates) of the
+                           application window on the screen.
+        - size (vector): The initial size (width, height) of the application
+                         window.
+        - vsync (bool, optional): A boolean indicating whether vertical
+                                   synchronization should be enabled for the
+                                   application's rendering. Defaults to True.
 
-            Returns:    Result state
+        Returns:
+        - bool: True if the window was initialized successfully; False otherwise.
         """
 
         # 1. Load GLFW context
@@ -148,11 +163,13 @@ class c_application:
     @safe_call( c_debug.log_error )
     def __init_glfw( self ) -> bool:
         """
-            Initialize GLFW context
+        Initializes the GLFW (Graphics Library Framework) context.
+        GLFW is used for window creation and input handling.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    Result state
+        Returns:
+        - bool: True if GLFW was initialized successfully; False otherwise.
         """
 
         if not glfw.init( ):
@@ -166,11 +183,15 @@ class c_application:
     @safe_call( c_debug.log_error )
     def __init_window( self ) -> bool:
         """
-            Initialize window's application
+        Initializes the application window with OpenGL context.
 
-            Receives:   None
+        Sets up GLFW window hints, creates the window, makes the OpenGL context current,
+        disables vsync if specified, and sets the window position.
 
-            Returns:    Result state
+        Receives: None
+
+        Returns:
+        - bool: True if the window was initialized successfully; False otherwise.
         """
 
         # Set up glfw window hints
@@ -218,11 +239,13 @@ class c_application:
     @safe_call( c_debug.log_error )
     def __init_backend( self ) -> bool:
         """
-            Initialize imgui context and OpenGL renderer backend.
+        Initializes the ImGui context and the GLFW + OpenGL renderer backend
+        for ImGui.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    Result state
+        Returns:
+        - bool: True if the backend was initialized successfully; False otherwise.
         """
 
         # Create ImGui context
@@ -241,14 +264,15 @@ class c_application:
     @safe_call( c_debug.log_error )
     def create_font( self, index: str, path: str, size: int ) -> c_font:
         """
-            Create new font object, save and return it
+        Creates a new font object, loads it from a file, adds it to the application's font cache, and returns it.
 
-            Receives:   
-            - index     - Font index
-            - path      - Font path
-            - size      - Font height
+        Receives:
+        - index (str): The unique index to identify the font.
+        - path (str): The file path to the font file (e.g., .ttf).
+        - size (int): The desired height of the font in pixels.
 
-            Returns:    Font object
+        Returns:
+        - c_font: The newly created and loaded font object.
         """
 
         # Create new font object
@@ -271,18 +295,19 @@ class c_application:
     @safe_call( c_debug.log_error )
     def create_image( self, index: str, path: str, size: vector, flags: list = [ ] ) -> c_image:
         """
-            Create new image object, save and return it
+        Creates a new image object, loads it from a file, saves it to the application's image cache, and returns it.
 
-            Receives:   
-            - index             - Image index
-            - path              - Image path
-            - size              - Image size
-            - flags [optional]  - Image flags
+        Receives:
+        - index (str): The unique index to identify the image.
+        - path (str): The file path to the image file.
+        - size (vector): The desired size (width and height) of the image.
+        - flags (list, optional): A list of flags to apply to the image loading process. Defaults to an empty list.
 
-            Returns:    Image object
+        Returns:
+        - c_image: The newly created and loaded image object.
 
-            Warning ! setting other size here from original image size will kill it.
-            change image size in c_renderer.image( ..., size=vector( other_size ) )
+        Warning! Setting a different size here than the original image size during loading can negatively impact image quality.
+                 To render the image at a different size, use the 'size' parameter in the 'c_renderer.image()' function.
         """
 
         # Create new image object
@@ -301,12 +326,13 @@ class c_application:
 
     def font( self, index: str ) -> c_font:
         """
-            Search and returns Font object.
+        Searches the application's font cache for a font object with the given index and returns it.
 
-            Receives:   
-            - index     - Font index
+        Receives:
+        - index (str): The unique index of the font to retrieve.
 
-            Returns:    Font object
+        Returns:
+        - c_font: The font object associated with the given index, or None if the font is not found.
         """
 
         fonts:  dict = self._data[ "fonts" ]
@@ -319,12 +345,13 @@ class c_application:
 
     def image( self, index: str ) -> c_image:
         """
-            Search and returns Image object.
+        Searches the application's image cache for an image object with the given index and returns it.
 
-            Receives:   
-            - index     - Image index
+        Receives:
+        - index (str): The unique index of the image to retrieve.
 
-            Returns:    Image object
+        Returns:
+        - c_image: The image object associated with the given index, or None if the image is not found.
         """
 
         images: dict = self._data[ "images" ]
@@ -340,12 +367,15 @@ class c_application:
 
     def new_scene( self, config: scene_config_t = None ) -> c_scene:
         """
-            Create and attach new scene to the application
+        Creates a new scene object, attaches it to the application's scene list, and returns the new scene object.
 
-            Receives:   
-            - config [optional] - Scene config settings
+        Receives:
+        - config (scene_config_t, optional): Configuration settings for the new scene. 
+                                             If None, default scene configuration is used. 
+                                             Defaults to None.
 
-            Returns:    Scene object
+        Returns:
+        - c_scene: The newly created and attached scene object.
         """
 
         # Create new scene
@@ -362,13 +392,15 @@ class c_application:
 
     def active_scene( self, new_index: int = None ) -> c_scene:
         """
-            Returns the active scene ptr.
-            used mainly to change input handle between different scenes.
+        Returns the currently active scene object. Optionally sets a new active scene by its index.
 
-            Receives:   
-            - new_index [optional] - New scene index
+        Receives:
+        - new_index (int, optional): The index of the scene to set as active. 
+                                     If None, the current active scene is returned. 
+                                     Defaults to None.
 
-            Returns:    Scene object
+        Returns:
+        - c_scene: The currently active scene object.
         """
 
         if new_index is None:
@@ -380,12 +412,13 @@ class c_application:
     @safe_call( None )
     def search_scene( self, index: int ) -> c_scene:
         """
-            Search a specific scene.
+        Searches for a specific scene within the application's scene list based on its index.
 
-            Receive :
-            - index - Scene index
+        Receive :
+        - index (int): The index of the scene to search for.
 
-            Returns :   Scene object or None
+        Returns :
+        - c_scene: The scene object at the specified index, or None if no scene exists at that index.
         """
 
         return self._scenes[ index ]
@@ -393,11 +426,11 @@ class c_application:
 
     def next_scene( self ) -> None:
         """
-            Moves to the next scene
+        Moves the application to the next scene in the scene list.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         self._active_scene = math.clamp( self._active_scene + 1, 0, len( self._scenes ) - 1 )
@@ -405,11 +438,11 @@ class c_application:
 
     def previous_scene( self ) -> None:
         """
-            Moves to the previous scene
+        Moves the application to the previous scene in the scene list.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
         
         self._active_scene = math.clamp( self._active_scene - 1, 0, len( self._scenes ) - 1 )
@@ -420,11 +453,12 @@ class c_application:
 
     def initialize_events( self ) -> None:
         """
-            Initialize events and set them up.
+        Initializes the event handling mechanisms for the application, 
+        setting up callbacks for various input events.
 
-            Receives:   None
+        Receives: None
 
-            Returns:    None
+        Returns: None
         """
 
         # Create handle
@@ -466,12 +500,16 @@ class c_application:
     
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
-            Add function to be called on specific event.
+        Adds a callback function to be executed when a specific event type occurs.
 
-            Receive :
-            - event_type    - Event name
-            - callback      - Function to execute
-            - index         - Function index
+        Receive :
+        - event_type (str): The name of the event to listen for (e.g., "mouse_button_down", "key_press").
+        - callback (any): The function to be called when the event occurs.
+        - index (str): A unique identifier for this specific callback within the event type.
+        - allow_arguments (bool, optional): A flag indicating whether the callback function should receive event-specific arguments. Defaults to True.
+
+        Raises:
+        - Exception: If the provided 'event_type' is not a valid event type that the application is listening for.
         """
 
         if not event_type in self._events:
@@ -483,16 +521,18 @@ class c_application:
     
     def __event_keyboard_input( self, window, key, scancode, action, mods ) -> None:
         """
-            Keyboard input callback.
+        Keyboard input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - key         - GLFW Key
-            - scancode    - GLFW Scan code
-            - action      - GLFW Action
-            - mods        - To be honest I have no idea what is this for
+        Receive:
+        - window: GLFW Window object that received the event.
+        - key (int): The keyboard key that was pressed or released (GLFW key code).
+        - scancode (int): The system-specific scancode of the key.
+        - action (int): GLFW action code indicating the state change (GLFW.PRESS,
+                          GLFW.RELEASE, GLFW.REPEAT).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt,
+                      Super) were held down.
 
-            Returns:    None
+        Returns: None
         """
 
         self.active_scene( ).event_keyboard_input( window, key, scancode, action, mods )
@@ -510,13 +550,13 @@ class c_application:
 
     def __event_char_input( self, window, char ) -> None:
         """
-            Char input callback.
+        Character input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - char        - char code
+        Receive:
+        - window: GLFW Window object that received the event.
+        - char (int): Unicode code point of the character entered.
 
-            Returns:    None
+        Returns: None
         """
 
         self.active_scene( ).event_char_input( window, char )
@@ -531,14 +571,14 @@ class c_application:
 
     def __event_mouse_position_change( self, window, x, y ) -> None:
         """
-            Mouse position change callback.
+        Mouse position change callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x           - x-axis of mouse position
-            - y           - y-axis of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x (float): The new x-coordinate of the mouse cursor within the window.
+        - y (float): The new y-coordinate of the mouse cursor within the window.
 
-            Returns:    None
+        Returns: None
         """
 
         self._mouse_position.x = x
@@ -547,11 +587,11 @@ class c_application:
     
     def __event_mouse_position( self ) -> None:
         """
-            Mouse position callback.
+        Updates the application's internal record of the current mouse cursor position.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         # This solution is much better, 
@@ -573,15 +613,15 @@ class c_application:
     
     def __event_mouse_input( self, window, button, action, mods ) -> None:
         """
-            Mouse buttons input callback
+        Mouse button input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - button      - Mouse button
-            - action      - Button action
-            - mods        - no idea of mouse position
+        Receive:
+        - window: GLFW Window object that received the event.
+        - button (int): The mouse button that was pressed or released (GLFW mouse button code).
+        - action (int): GLFW action code indicating the state change (GLFW.PRESS, GLFW.RELEASE).
+        - mods (int): Bit field describing which modifier keys (Shift, Ctrl, Alt, Super) were held down during the mouse event.
 
-            Returns:    None
+        Returns: None
         """
 
         self.active_scene( ).event_mouse_input( window, button, action, mods )
@@ -598,14 +638,14 @@ class c_application:
 
     def __event_mouse_scroll( self, window, x_offset, y_offset ) -> None:
         """
-            Mouse scroll input callback
+        Mouse scroll input callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x_offset    - x-axis of mouse wheel change (?)
-            - y_offset    - y-axis of mouse wheel change (?)
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x_offset (float): The amount of horizontal scrolling.
+        - y_offset (float): The amount of vertical scrolling.
 
-            Returns:    None
+        Returns: None
         """
 
         self.active_scene( ).event_mouse_scroll( window, x_offset, y_offset )
@@ -621,14 +661,14 @@ class c_application:
 
     def __event_window_resize( self, window, width, height ) -> None:
         """
-            Window resize callback
+        Window resize callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - width       - new width of window
-            - height      - new height of window
+        Receive:
+        - window: GLFW Window object that received the event.
+        - width (int): The new width of the window, in screen coordinates.
+        - height (int): The new height of the window, in screen coordinates.
 
-            Returns:    None
+        Returns: None
         """
 
         self.active_scene( ).event_window_resize( )
@@ -644,15 +684,15 @@ class c_application:
 
     def __event_window_position( self, window, x_pos, y_pos ) -> None:
         """
-            Window position change callback.
-            relative to the top left corner of the monitor it displayed on
+        Window position change callback function.
+        Reports the new position of the window relative to the top-left corner of the monitor it is displayed on.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - x_pos       - x-axis position of the monitor
-            - y_pos       - y-axis position of the monitor
+        Receive:
+        - window: GLFW Window object that received the event.
+        - x_pos (int): The new x-coordinate of the window on the monitor.
+        - y_pos (int): The new y-coordinate of the window on the monitor.
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "window_position" ]
@@ -666,13 +706,14 @@ class c_application:
 
     def __event_window_maximize( self, window, maximized ) -> None:
         """
-            Window maximized or not callback
+        Window maximization state change callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - maximized   - is window maximized or not
+        Receive:
+        - window: GLFW Window object that received the event.
+        - maximized (int): GLFW boolean value indicating whether 
+                           the window was maximized (GLFW_TRUE) or unmaximized (GLFW_FALSE).
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "window_maximize" ]
@@ -685,13 +726,14 @@ class c_application:
 
     def __event_path_drop( self, window, paths ) -> None:
         """
-            Window maximized or not callback
+        File path drop callback function.
 
-            Receives:   
-            - window ptr  - GLFW Window
-            - paths       - list paths of files that were droped
+        Receive:
+        - window: GLFW Window object that received the event.
+        - paths (list): A list of strings, where each string is the absolute path 
+                        of a file or directory that was dropped onto the window.
 
-            Returns:    None
+        Returns: None
         """
 
         event: c_event = self._events[ "path_drop" ]
@@ -707,11 +749,12 @@ class c_application:
 
     def run( self ) -> None:
         """
-            Main application window loop execution
+        The main loop of the application, responsible for continuously rendering frames,
+        handling events, and updating the active scene.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         # Check if we have window initialized
@@ -753,38 +796,27 @@ class c_application:
 
     def __draw_background( self ) -> None:
         """
-            Render background for application
+        Renders the background of the application window.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         size:       vector  = self.window_size( )
         wallpaper:  c_image = self._config.wallpaper
 
-        fade:       float   = 1
-
         if wallpaper is not None:
-            fade = 0.1
             self._render.image( wallpaper, vector( ), color( ), size )
-
-        #self._render.gradiant(
-        #    vector( ), size, 
-        #    self._config.back_color_1 * fade,
-        #    self._config.back_color_2 * fade,
-        #    self._config.back_color_3 * fade,
-        #    self._config.back_color_4 * fade
-        #)
 
 
     def __draw_scenes( self ) -> None:
         """
-            Draw all scenes
+        Iterates through all the scenes managed by the application and triggers their rendering process.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         for scene in self._scenes:
@@ -796,11 +828,12 @@ class c_application:
 
     def __process_input( self ) -> None:
         """
-            Pulls and process window events and input
+        Polls for and processes pending window events (like keyboard input, mouse movements, etc.)
+        and updates the application's input state.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         self.__event_mouse_position( )
@@ -811,11 +844,12 @@ class c_application:
 
     def __pre_new_frame( self ) -> None:
         """
-            Before .new_frame was called
+        Performs any necessary actions or updates that need to occur immediately 
+        before ImGui's `new_frame()` function is called at the beginning of a new rendering frame.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         event: c_event = self._events[ "pre_draw" ]
@@ -828,11 +862,13 @@ class c_application:
 
     def __post_new_frame( self ) -> None:
         """
-            After new frame was done, render it
+        Performs actions immediately after ImGui's `new_frame()` has been called and 
+        before the rendering of ImGui elements for the current frame. 
+        Typically used for setup or state updates that depend on the new frame being initiated.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         imgui.render( )
@@ -846,11 +882,11 @@ class c_application:
 
     def __clean_buffer( self ) -> None:
         """
-            Clears color buffer
+        Clears the color buffer of the OpenGL context with a black color.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         gl.glClearColor( 0, 0, 0, 1 )
@@ -859,11 +895,12 @@ class c_application:
 
     def __unload( self ) -> None:
         """
-            Application unload function
+        Performs necessary cleanup operations when the application is shutting down,
+        such as destroying the ImGui context and terminating GLFW.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         event: c_event = self._events[ "unload" ]
@@ -874,30 +911,19 @@ class c_application:
         self._impl.shutdown( )
         glfw.terminate( )
 
-
     # endregion
 
     # region : Utilities
 
-    def config( self ) -> application_config_t:
-        """
-            Access the application config.
-
-            Receive :   None
-
-            Returns :   Config object
-        """
-
-        return self._config
-
-
     def render( self ) -> c_renderer:
         """
-            Access application render functions.
+        Provides access to the application's rendering object, 
+        which contains functions for drawing various graphical elements.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   Render object
+        Returns :
+        - c_renderer: The application's renderer object.
         """
 
         return self._render
@@ -905,12 +931,13 @@ class c_application:
 
     def window_size( self ) -> vector:
         """
-            Get window size.
-            Note ! Doesnt include the top bar windows adds.
+        Retrieves the current size of the application window's 
+        client area (excluding window decorations like the title bar).
 
-            Receive :   None
+        Receive : None
 
-            Returns :   Vector object
+        Returns :
+        - vector: A vector object representing the width and height of the window's client area.
         """
 
         return vector( ).raw( glfw.get_window_size( self._app ) )
@@ -918,11 +945,11 @@ class c_application:
 
     def maximize_window( self ) -> None:
         """
-            Set window to be maximized or disable it.
+        Maximizes the application window to fill the screen.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         glfw.maximize_window( self._app )
@@ -930,11 +957,12 @@ class c_application:
     
     def restore_window( self ) -> None:
         """
-            Disable maximize or other staff.
+        Restores the application window from a maximized or 
+        minimized state to its normal size.
 
-            Receive :   None
+        Receive : None
 
-            Returns :   None
+        Returns : None
         """
 
         glfw.restore_window( self._app )
@@ -942,13 +970,15 @@ class c_application:
 
     def close_window( self, avoid_glfw_terminate: bool = False ) -> None:
         """
-            Close application window.
-            Moreover, cleans up the leftover
+        Closes the application window and performs cleanup of resources,
+        including marking the window for closure and optionally terminating the GLFW context.
 
-            Receives:   
-            - avoid_glfw_terminate [optional] - Dont terminate glfw context on call
+        Receives:
+        - avoid_glfw_terminate (bool, optional): If True, the GLFW context will not be terminated.
+                                                    This can be useful if you plan to reuse the GLFW context later.
+                                                    Defaults to False.
 
-            Returns:    None
+        Returns: None
         """
 
         if self._app is not None:
@@ -957,4 +987,10 @@ class c_application:
         if not avoid_glfw_terminate:
             glfw.terminate( )
 
+
+    def set_window_icon( self, icon: c_image ):
+        images = [ icon( ) ]
+
+        glfw.set_window_icon( self._app, len( images ), images )
+    
     # endregion

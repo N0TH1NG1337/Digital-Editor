@@ -12,6 +12,7 @@
 import  OpenGL.GL   as      gl
 from    PIL         import  Image, ImageFilter
 import  numpy
+import  glfw
 
 from utilities.vector       import vector
 from utilities.wrappers     import safe_call
@@ -95,19 +96,43 @@ class c_image:
         # Return on success
         return self
 
+
+    def load_glfw( self, path: str ) -> any:
+        """
+        Loads an image from specific path as GLFWImage object.
+
+        Receive:
+        - path (str): The file path of the image to load.
+        - size (vector): A Vector object representing the desired dimensions (width, height) of the image.
+        - flags (list, optional): A list of image processing flags. Defaults to an empty list.
+
+        Returns:
+        - GLFWImage: Image object pointer
+        """
+
+        # Attach wanted size
+        self._size.x = 0
+        self._size.y = 0
+
+        # Open and get image data
+        image           = Image.open( path ).convert( "RGBA" )
+        self._id = image
+
+        return self
+
     # endregion
 
     # region : Access
 
     def __call__( self ):
         """
-        Returns the OpenGL texture ID of the loaded image.
+        Returns the OpenGL/GLFWImage texture ID of the loaded image.
 
         Receive:
         - None
 
         Returns:
-        - int: The OpenGL texture ID associated with this Image object.
+        - any: The OpenGL/GLFWImage texture associated with this Image object.
         """
 
         return self._id

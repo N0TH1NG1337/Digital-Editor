@@ -61,18 +61,18 @@ class c_single_input_logic:
 
     # region : Protected attributes
 
-    _parent:                any                     # Parent object - c_scene / c_window
+    _parent:                any     # c_scene / c_window
 
-    _position:              vector                  # Relative to parent position
-    _relative_position:     vector                  # Relative to application position
+    _position:              vector                  
+    _relative_position:     vector                  
 
-    _size:                  vector                  # Input logic size
+    _size:                  vector                  
 
-    _input:                 str                     # Actual value
-    _font:                  c_font                  # Render font
+    _input:                 str                     
+    _font:                  c_font                  
 
-    _render:                c_renderer              # Renderer object
-    _animations:            c_animations            # Animation object
+    _render:                c_renderer              
+    _animations:            c_animations            
 
     _is_hovered:            bool
     _is_typing:             bool
@@ -93,8 +93,25 @@ class c_single_input_logic:
 
     # endregion
 
+    # region : Initialization
+
     def __init__( self, parent: any, position: vector, size: vector, font: c_font, default_value: str = "", is_password: bool = False, config: text_input_config_t = None ):
-        
+        """
+            Initializes the single-line text input logic.
+
+            Receives:
+            - parent (any): The parent object or container for this input logic.
+            - position (vector): The initial position (x, y) of the input.
+            - size (vector): The initial size (width, height) of the input.
+            - font (c_font): The font object to use for rendering the text.
+            - default_value (str, optional): The initial text value of the input. Defaults to "".
+            - is_password (bool, optional): A flag indicating if the input should obscure text (e.g., for passwords). Defaults to False.
+            - config (text_input_config_t, optional): Configuration settings for the text input. If None, default configuration is used. Defaults to None.
+
+            Returns:
+            - c_single_input_logic: The newly initialized single input logic object.
+        """
+
         # Set config
         self._config = config is None and text_input_config_t( ) or config
 
@@ -123,14 +140,28 @@ class c_single_input_logic:
         # Initialize default and first values for the widget 
         self.__init_bones( )
 
-    # region : Initialization
 
     def __init_attachment( self ):
-        
+        """
+        Initializes the rendering attachment for the text input logic,
+        linking it to the parent's rendering context.
+
+        Receives: None
+
+        Returns: None
+        """
+
         self._render = self._parent.render( )
 
 
     def __init_animations( self ):
+        """
+        Initializes the animation system for the text input widget,
+
+        Receives: None
+
+        Returns: None
+        """
 
         # Create standalone animations handler
         self._animations = c_animations( )
@@ -147,7 +178,15 @@ class c_single_input_logic:
 
 
     def __init_bones( self ):
-        
+        """
+        Initializes default and initial values for internal state variables
+        of the text input logic, such as hover state, typing state, and cursor/selection positions.
+
+        Receives: None
+
+        Returns: None
+        """
+
         self._relative_position = self._position.copy( )
 
         self._is_hovered    = False
@@ -169,12 +208,17 @@ class c_single_input_logic:
     # region : Drawing
 
     def draw( self, fade: float ):
-        
-        # This thing will be a little bit complicated.
-        # In here we want to avoid and minimize as possible the performance loss
+        """
+        Draws the text input logic on the screen.
 
-        # Therefore, most of the operations we perform in a raw way here, without creating a lot of 
-        # functions and etc
+        This method handles the rendering of the text, cursor, and selection highlights.
+        It prioritizes performance by minimizing function calls within the drawing loop.
+
+        Receives:
+        - fade (float): The current fade value for the widget (0.0 for invisible, 1.0 for fully visible).
+
+        Returns: None
+        """
 
         if fade == 0:
             return
@@ -201,7 +245,7 @@ class c_single_input_logic:
             self._cursor_index.x = self.__relative_to_index( self._cursor_index.y, visible_text )
             self._cursor_index.y = None
 
-        show_cursor: bool = self._is_typing and ( self._selection_position.x is None and self._selection_position.y is None )
+        show_cursor:    bool  = self._is_typing and ( self._selection_position.x is None and self._selection_position.y is None )
 
         # Animate the cursor index when typing and not
         index_fade:     float = self._animations.perform( "index_fade", show_cursor and 1 or 0, speed) * fade
@@ -234,6 +278,15 @@ class c_single_input_logic:
 
 
     def __update_relative_position( self ):
+        """
+        Updates the absolute position of the text input widget based on its
+        relative position to its parent.
+
+        Receives: None
+
+        Returns: None
+        """
+
         parent_position:            vector  = self._parent.relative_position( )
 
         self._relative_position.x = parent_position.x + self._position.x
@@ -241,6 +294,19 @@ class c_single_input_logic:
 
     
     def __update_offset( self, position: vector, edges: vector, cursor_text_size: vector, visible_text_size: vector ):
+        """
+        Updates the horizontal offset of the text within the input field
+        to ensure the cursor and selected text remain visible as the user types
+        or interacts with the input.
+
+        Receives:
+        - position (vector): The current screen position of the text input field.
+        - edges (vector): A vector representing the left and right edges of the visible input area.
+        - cursor_text_size (vector): The size (width, height) of the text up to the cursor.
+        - visible_text_size (vector): The total size (width, height) of the currently displayed text.
+
+        Returns: None
+        """
         
         if (visible_text_size.x < self._size.x):
             self._offset = 0
@@ -280,6 +346,14 @@ class c_single_input_logic:
 
     
     def __update_selection( self ):
+        """
+        Updates the end position of the text selection based on the current
+        mouse position while a selection is being made.
+
+        Receives: None
+
+        Returns: None
+        """
         
         if self._selection_position.z == 0:
             return
@@ -291,6 +365,18 @@ class c_single_input_logic:
     
 
     def __draw_text( self, fade: float, position: vector, text: str, offset: float ):
+        """
+        Renders the input text within the text input field.
+
+        Receives:
+        - fade (float): The current fade value for the widget.
+        - position (vector): The screen position where the text should be drawn.
+        - text (str): The text string to render.
+        - offset (float): The horizontal offset to apply to the text rendering.
+
+        Returns: None
+        """
+
         color_input:        color  = self._config.color_input
         self._text_size:    vector = self._render.measure_text( self._font, text )
 
@@ -298,6 +384,16 @@ class c_single_input_logic:
 
 
     def __draw_cursor( self, fade: float, position: vector, offset: float ):
+        """
+        Renders the cursor within the text input field.
+
+        Receives:
+        - fade (float): The current fade value for the widget.
+        - position (vector): The screen position where the cursor should be drawn.
+        - offset (float): The horizontal offset for the cursor position.
+
+        Returns: None
+        """
 
         if fade == 0:
             return
@@ -312,6 +408,17 @@ class c_single_input_logic:
 
     
     def __draw_selection( self, fade: float, position: vector, offset: float, text: str ):
+        """
+        Renders the text selection highlight within the input field.
+
+        Receives:
+        - fade (float): The current fade value for the widget.
+        - position (vector): The screen position of the text input field.
+        - offset (float): The horizontal offset of the text.
+        - text (str): The currently displayed text.
+
+        Returns: None
+        """
 
         if fade == 0:
             self._selection_position.x = None
@@ -358,6 +465,16 @@ class c_single_input_logic:
 
 
     def __get_visible_text( self ) -> str:
+        """
+        Returns the text that should be displayed in the input field.
+        If the input is a password field, it partially obscures the text
+        based on whether the input is currently being held.
+
+        Receives: None
+
+        Returns:
+        - str: The text to be displayed.
+        """
 
         if self._is_password:
             length: int = len( self._input )
@@ -373,10 +490,35 @@ class c_single_input_logic:
     
 
     def __get_cursor_text( self ) -> str:
+        """
+        Returns the portion of the visible text that appears before the cursor.
+
+        Receives: None
+
+        Returns:
+        - str: The text before the cursor.
+        """
+
         return self.__get_visible_text( )[ :self._cursor_index.x ]
 
     
     def __relative_to_index( self, relative_width: float, text: str ) -> int:
+        """
+        Calculates the character index in the text based on a given relative width.
+        This is used to determine the cursor or selection position based on mouse coordinates.
+
+        Note: This method iterates through the text, measuring the width of substrings
+              to find the index that corresponds to the given relative width. It includes
+              logic to handle potential discrepancies between individual character widths
+              and the width of the entire text.
+
+        Receives:
+        - relative_width (float): The horizontal distance from the start of the text input area.
+        - text (str): The currently displayed text.
+
+        Returns:
+        - int: The character index in the text that corresponds to the given relative width.
+        """
         
         # Credit - My friend
         # The use of https://github.com/BalazsJako/ImGuiColorTextEdit/blob/master/TextEditor.cpp#L324
@@ -412,6 +554,15 @@ class c_single_input_logic:
     # region : Input handle
 
     def event_mouse_position( self, event ):
+        """
+        Callback for mouse position change
+
+        Receives:
+        - event (callable): An function for receiving information
+                             about the event
+
+        Returns: None
+        """
 
         x = event( "x" )
         y = event( "y" )
@@ -425,6 +576,19 @@ class c_single_input_logic:
 
 
     def event_mouse_input( self, event ):
+        """
+        Callback for mouse button input events.
+
+        Handles left and right mouse button presses and releases within the
+        text input area, managing focus, text selection, and potential
+        contextual actions (like holding for password reveal).
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the mouse event.
+
+        Returns: None
+        """
         
         button = event( "button" )
         action = event( "action" )
@@ -464,6 +628,19 @@ class c_single_input_logic:
 
 
     def event_char_input( self, event ):
+        """
+        Callback for character input events.
+
+        Handles the input of printable characters when the text input
+        is in the typing state, inserting the entered character at the
+        current cursor position.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the character event.
+
+        Returns: None
+        """
         
         if not self._is_typing:
             return
@@ -472,6 +649,19 @@ class c_single_input_logic:
 
 
     def event_keyboard_input( self, event ):
+        """
+        Callback for keyboard input events.
+
+        Handles various keyboard actions, including character input,
+        cursor movement, text deletion, clipboard operations (copy, paste),
+        and control key combinations, when the text input is in the typing state.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the keyboard event.
+
+        Returns: None
+        """
         
         if not self._is_typing:
             return
@@ -493,6 +683,17 @@ class c_single_input_logic:
     # region : Utilities
 
     def value( self, new_value: str = None ) -> str:
+        """
+        Gets or sets the current text value of the input field.
+        When setting a new value, it also moves the cursor to the end of the text.
+
+        Receives:
+        - new_value (str, optional): The new text value to set for the input.
+                                      If None, the current value is returned. Defaults to None.
+
+        Returns:
+        - str: The current text value of the input field.
+        """
 
         if new_value is None:
             return self._input
@@ -503,6 +704,17 @@ class c_single_input_logic:
     
 
     def is_typing( self, new_value: bool = None ) -> bool:
+        """
+        Gets or sets the typing state of the input field.
+
+        Receives:
+        - new_value (bool, optional): The new typing state to set.
+                                       If None, the current typing state is returned.
+                                       Defaults to None.
+
+        Returns:
+        - bool: The current typing state of the input field.
+        """
 
         if new_value is None:
             return self._is_typing
@@ -512,6 +724,17 @@ class c_single_input_logic:
     
 
     def position( self, new_value: vector = None ) -> vector:
+        """
+        Gets or sets the local position of the text input field.
+
+        Receives:
+        - new_value (vector, optional): The new position (x, y) to set.
+                                        If None, the current position is returned.
+                                        Defaults to None.
+
+        Returns:
+        - vector: The current local position of the text input field.
+        """
 
         if new_value is None:
             return self._position
@@ -522,7 +745,18 @@ class c_single_input_logic:
     
 
     def size( self, new_value: vector = None ) -> vector:
+        """
+        Gets or sets the size (width and height) of the text input field.
 
+        Receives:
+        - new_value (vector, optional): The new size (width, height) to set.
+                                        If None, the current size is returned.
+                                        Defaults to None.
+
+        Returns:
+        - vector: The current size of the text input field.
+        """
+        
         if new_value is None:
             return self._size
         
@@ -532,21 +766,57 @@ class c_single_input_logic:
 
 
     def fixed_size( self ) -> vector:
+        """
+        Returns the current fixed size of the text input field, where the
+        width might be animated, but the height remains constant.
+
+        Receives: None
+
+        Returns:
+        - vector: A vector representing the current fixed size (animated width, original height).
+        """
 
         return vector( self._animations.value( "width" ), self._size.y )
     
 
     def text_width( self ) -> float:
+        """
+        Returns the current animated width of the text content within the
+        input field.
+
+        Receives: None
+
+        Returns:
+        - float: The current animated width of the text content.
+        """
 
         return self._animations.value( "text_width" )
     
 
     def is_hovered( self ) -> bool:
+        """
+        Returns the current hover state of the text input field.
+
+        Receives: None
+
+        Returns:
+        - bool: True if the input is hovered, False otherwise.
+        """
 
         return self._is_hovered
     
 
     def insert( self, text: str ):
+        """
+        Inserts a given text string at the current cursor position within the input field,
+        replacing any currently selected text. The cursor position is then updated
+        to the end of the inserted text.
+
+        Receives:
+        - text (str): The text string to insert.
+
+        Returns: None
+        """
 
         self.__remove_selected( )
 
@@ -555,6 +825,17 @@ class c_single_input_logic:
 
     
     def pop( self ):
+        """
+        Deletes the character immediately before the current cursor position.
+        If text is currently selected, it deletes the selected text instead.
+        The cursor position is updated accordingly after deletion.
+
+        Receives: None
+
+        Returns:
+        - str: The character that was deleted, or None if no character was deleted
+               (e.g., at the beginning of the input or if nothing was selected).
+        """
 
         if self.is_something_selected( ):
             self._input             = self._input[ :self._selection_index.x ] + self._input[ self._selection_index.y: ]
@@ -575,6 +856,18 @@ class c_single_input_logic:
 
 
     def __handle_ctrl( self, key: int, action: int ):
+        """
+        Handles the state of the Control (Ctrl) key.
+
+        Sets the internal `_is_ctrl` flag to True when either the left or
+        right Control key is pressed and to False when either is released.
+
+        Receives:
+        - key (int): The GLFW key code of the key event.
+        - action (int): The GLFW action code (press or release).
+
+        Returns: None
+        """
         
         if key != glfw.KEY_LEFT_CONTROL and key != glfw.KEY_RIGHT_CONTROL:
             return
@@ -587,6 +880,19 @@ class c_single_input_logic:
 
 
     def __handle_default_actions( self, key: int, is_repeat: bool ):
+        """
+        Handles default keyboard actions such as backspace (delete),
+        left arrow (move cursor left), and right arrow (move cursor right).
+
+        Receives:
+        - key (int): The GLFW key code of the key event.
+        - is_repeat (bool): True if the key is being held down (repeat action),
+                           False otherwise.
+
+        Returns:
+        - str or None: The character that was popped (deleted) if the
+                       backspace key was pressed, otherwise None.
+        """
 
         # Remove action
         if key == glfw.KEY_BACKSPACE:
@@ -604,6 +910,19 @@ class c_single_input_logic:
 
     
     def __handle_clipboard( self, key: int ):
+        """
+        Handles clipboard operations (copy and paste) when the Control key
+        is being held down.
+
+        - Ctrl+V: Pastes text from the clipboard into the input field at the
+                  current cursor position, replacing any selected text.
+        - Ctrl+C: Copies the currently selected text to the clipboard.
+
+        Receives:
+        - key (int): The GLFW key code of the key event.
+
+        Returns: None
+        """
 
         if not self._is_ctrl:
             return
@@ -622,6 +941,15 @@ class c_single_input_logic:
         
 
     def __reset_selection( self ):
+        """
+        Resets the text selection state by clearing the selection indices
+        and positions. This effectively deselects any currently selected text.
+
+        Receives: None
+
+        Returns: None
+        """
+
         self._selection_index.x = -1
         self._selection_index.y = -1
 
@@ -630,6 +958,15 @@ class c_single_input_logic:
 
     
     def get_selection_string( self ) -> str:
+        """
+        Returns the currently selected text as a string.
+
+        Receives: None
+
+        Returns:
+        - str: The selected text. Returns an empty string if no text is selected.
+        """
+
         if self._selection_index.x == -1 or self._selection_index.y == -1:
             return ""
         
@@ -637,10 +974,28 @@ class c_single_input_logic:
 
     
     def is_something_selected( self ):
+        """
+        Checks if any text is currently selected in the input field.
+
+        Receives: None
+
+        Returns:
+        - bool: True if text is selected, False otherwise.
+        """
+
         return self._selection_index.x != -1 and self._selection_index.y != -1
     
 
     def __remove_selected( self ):
+        """
+        Removes the currently selected text from the input field.
+        After removal, the cursor is positioned at the beginning of
+        where the selection was, and the selection is reset.
+
+        Receives: None
+
+        Returns: None
+        """
 
         if not self.is_something_selected( ):
             return
@@ -688,7 +1043,25 @@ class c_text_input:
     # endregion
 
     def __init__( self, parent: any, position: vector, height: int, size_of_input: vector, font: c_font, icon: c_image, text: str, default_value: str = "", is_password: bool = False, config: text_input_config_t = None ):
-        
+        """
+        Initializes a new text input.
+
+        Receives:
+        - parent (any): The parent object or container for this text input.
+        - position (vector): The initial position (x, y) of the text input.
+        - height (int): The height of the text input widget.
+        - size_of_input (vector): The size (width, height) of the editable input area.
+        - font (c_font): The font object to use for rendering text.
+        - icon (c_image): The image object to display as an icon.
+        - text (str): The label text to display.
+        - default_value (str, optional): The initial text to display in the input field. Defaults to "".
+        - is_password (bool, optional): A flag indicating if the input should obscure text. Defaults to False.
+        - config (text_input_config_t, optional): Configuration settings for the text input. Defaults to None.
+
+        Returns:
+        - c_text_input: The newly initialized single input logic object.
+        """
+
         # Set config
         self._config = config is None and text_input_config_t( ) or config
 
@@ -719,6 +1092,14 @@ class c_text_input:
     # region : Initialization
 
     def __init_attachment( self ):
+        """
+        Initializes the attachment of the text input widget to its parent,
+        including obtaining the renderer and registering event handlers.
+
+        Receives: None
+
+        Returns: None
+        """
         
         # Get renderer
         self._render    = self._parent.render( )
@@ -735,6 +1116,15 @@ class c_text_input:
 
 
     def __init_animations( self ):
+        """
+        Initializes the animation system for the text input widget,
+        preparing animation values for properties like fade, background width,
+        hover and typing states, label visibility, and separator position.
+
+        Receives: None
+
+        Returns: None
+        """
 
         # Create standalone animations handler
         self._animations = c_animations( )
@@ -746,12 +1136,20 @@ class c_text_input:
         self._animations.prepare( "hover",  0 )
         self._animations.prepare( "typing", 0 )
 
-
         self._animations.prepare( "label",      0 )
         self._animations.prepare( "separate",   0 )
 
 
     def __init_bones( self ):
+        """
+        Initializes default and initial state values for the text input widget,
+        such as visibility, disabled state, hover state, typing intention,
+        and initial mouse and text size vectors.
+
+        Receives: None
+
+        Returns: None
+        """
         
         # At first, copy the position and set as relative vector
         self._relative_position = self._position.copy( )
@@ -768,12 +1166,22 @@ class c_text_input:
         self._mouse_position    = vector( )
         self._text_size         = vector( )
 
-
     # endregion
 
     # region : Drawing
 
     def draw( self, fade: float ):
+        """
+        Draws the complete text input widget, including its background and the
+        editable input field. It first performs necessary calculations and
+        updates animations before rendering the visual elements.
+
+        Receives:
+        - fade (float): The current fade value of the parent,
+                        which is multiplied by the internal fade animation value.
+
+        Returns: None
+        """
         
         # Perform some calculations before drawing
         self.__perform_calculations( )
@@ -791,6 +1199,15 @@ class c_text_input:
 
 
     def __perform_calculations( self ):
+        """
+        Performs pre-drawing calculations, such as updating the widget's
+        absolute position based on its parent, measuring the size of the label text,
+        positioning the input field, and setting the typing state of the input handle.
+
+        Receives: None
+
+        Returns: None
+        """
         
         pad:        int = self._config.pad
         separate:   int = self._config.separate
@@ -811,6 +1228,15 @@ class c_text_input:
         
 
     def __perform_animations( self ):
+        """
+        Updates the animation values for various visual properties of the
+        text input widget, such as fade, hover effect, and typing indicator,
+        based on the widget's current state (visibility, disabled, hovered, typing).
+
+        Receives: None
+
+        Returns: None
+        """
         
         self._animations.update( )
 
@@ -853,6 +1279,16 @@ class c_text_input:
 
 
     def __draw_background( self, fade: float ):
+        """
+        Draws the background elements of the text input widget, including
+        the main background, shadow, icon, separator, and label, with
+        their respective colors and fade effects.
+
+        Receives:
+        - fade (float): The current overall fade value for the widget.
+
+        Returns: None
+        """
         
         pad:        int = self._config.pad
         separate:   int = self._config.separate
@@ -865,7 +1301,7 @@ class c_text_input:
         color_icon:         color = self._config.color_icon
         color_label:        color = self._config.color_label
 
-        icon_size:  vector = self._icon.size( )
+        icon_size:          vector = self._icon.size( )
 
         icon_position:      vector = vector( self._position.x + pad, self._position.y + ( self._height - icon_size.y ) / 2 )
         separate_position:  vector = vector( icon_position.x + icon_size.x + pad, self._position.y + self._height / 2 )
@@ -909,6 +1345,16 @@ class c_text_input:
 
 
     def __draw_input( self, fade: float ):
+        """
+        Draws the editable input field portion of the text input widget,
+        applying a clipping rectangle to ensure the text and cursor are
+        contained within the visual bounds of the input area.
+
+        Receives:
+        - fade (float): The current overall fade value for the widget.
+
+        Returns: None
+        """
         
         self._render.push_clip_rect( self._position, vector( self._position.x + self._animations.value( "background_width" ), self._position.y + self._height ), True )
 
@@ -921,6 +1367,15 @@ class c_text_input:
     # region : Input handle
 
     def __event_mouse_position( self, event ) -> None:
+        """
+        Handles mouse position events for the entire text input widget.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the mouse event.
+
+        Returns: None
+        """
 
         if not self._is_visible or self._is_disabled:
             return
@@ -943,6 +1398,15 @@ class c_text_input:
             
 
     def __event_mouse_input( self, event ) -> None:
+        """
+        Handles mouse button input events for the text input widget.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the mouse event.
+
+        Returns: None
+        """
 
         if not self._is_visible or self._is_disabled:
             return
@@ -957,6 +1421,16 @@ class c_text_input:
 
 
     def __event_char_input( self, event ) -> None:
+        """
+        Handles character input events for the text input widget, forwarding
+        the event to the internal input handling logic.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the character event.
+
+        Returns: None
+        """
 
         if not self._is_visible or self._is_disabled:
             return
@@ -965,6 +1439,17 @@ class c_text_input:
 
 
     def __event_keyboard_input( self, event ) -> None:
+        """
+        Handles keyboard input events for the text input widget, forwarding
+        the event to the internal input handling logic and managing the
+        typing state based on Enter and Escape key presses.
+
+        Receives:
+        - event (callable): A function that, when called with a string key,
+                          returns information about the keyboard event.
+
+        Returns: None
+        """
         
         if not self._is_visible or self._is_disabled:
             return
@@ -983,20 +1468,51 @@ class c_text_input:
     # region : Utilities
 
     def position( self, new_value: vector = None ) -> vector:
+        """
+        Gets or sets the local position of the text input widget.
+
+        Receives:
+        - new_value (vector, optional): The new position (x, y) to set.
+                                        If None, the current position is returned.
+                                        Defaults to None.
+
+        Returns:
+        - vector: The current local position of the text input widget.
+        """
 
         if new_value is None:
             return self._position
         
-        self._position = new_value.copy( )
+        self._position.x = new_value.x
+        self._position.y = new_value.y
         return new_value
     
 
     def size( self ) -> vector:
+        """
+        Returns the current size (width and height) of the text input widget.
+
+        Receives: None
+
+        Returns:
+        - vector: A vector representing the current size (animated width, fixed height).
+        """
 
         return vector( self._animations.value( "background_width" ), self._height )
 
     
     def visible( self, new_value: bool = None ) -> bool:
+        """
+        Gets or sets the visibility state of the text input widget.
+
+        Receives:
+        - new_value (bool, optional): The new visibility state to set.
+                                       If None, the current visibility state is returned.
+                                       Defaults to None.
+
+        Returns:
+        - bool: The current visibility state of the text input widget.
+        """
 
         if new_value is None:
             return self._is_visible
@@ -1006,6 +1522,14 @@ class c_text_input:
 
     
     def get( self ) -> str:
+        """
+        Retrieves the current text value from the internal input handling logic.
+
+        Receives: None
+
+        Returns:
+        - str: The current text value in the input field.
+        """
 
         return self._handle.value( )
 

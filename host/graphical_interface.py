@@ -199,6 +199,9 @@ class c_host_gui:
         self._temp[ "setup_process" ] = 0
         
         self._application_config.wallpaper = self._application.image( "wallpaper_blurred" )
+
+        window_icon = c_image( ).load_glfw( execution_directory + "\\resources\\window_icon.png" )
+        self._application.set_window_icon( window_icon )
         
     # endregion
 
@@ -937,7 +940,7 @@ class c_host_gui:
         window_config.bar_title     = "Share connection"
         window_config.title_font    = self._general_font
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 400, 150 ), window_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 400, 170 ), window_config )
         
         c_button( new_window, vector( 10, 10 ), 40, self._general_font, self._application.image( "icon_copy" ), "Copy Code", lambda: glfw.set_clipboard_string( None, self._logic.generate_code( ) ) )
 
@@ -949,7 +952,11 @@ class c_host_gui:
             fade:   float       = new_window.animations( ).value( "Fade" )
             code:   str         = self._logic.generate_code( )
 
-            render.text( font, vector( 10, 70 ), color( 255, 255, 255, 255 ) * fade, code )
+            text:       str     = render.wrap_text( self._general_font, f"Or you can manually copy this code and share it with others:", 380 )
+            text_size:  vector  = render.measure_text( self._general_font, text )
+
+            render.text( font, vector( 10, 70 ), color( 255, 255, 255, 255 ) * fade, text )
+            render.text( font, vector( 10, 90 + text_size.y ), color( 255, 255, 255, 255 ) * fade, code )
 
         new_window.set_event( "draw", draw_code, "Draw Code", False )
 
@@ -971,7 +978,7 @@ class c_host_gui:
         new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 420, 380 ), window_config )
 
         list_config = list_config_t( )
-        list_config.slots_count = 6
+        list_config.slots_count = 7
         list_config.back_color = list_config.back_color * 0
 
         clients_list: c_list = c_list( new_window, vector( 10, 10 ), 400, self._general_font, list_config )
@@ -1149,19 +1156,19 @@ class c_host_gui:
             "Hide": ( FILE_ACCESS_LEVEL_HIDDEN, self._application.image( "icon_lock" ) )
         }
 
-        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 910, 600 ), window_config )
+        new_window = self._scene_project.create_window( vector( 300, 160 ), vector( 950, 600 ), window_config )
 
         path: c_path_select = c_path_select( new_window, self._general_font, vector( 10, 10 ), vector( 500, 580 ), path_icons )
         path.parse_path( self._logic( "normal_path" ) )
 
-        name_input:     c_text_input    = c_text_input( new_window, vector( 520, 10 ), 40, vector( 200, 30 ), self._general_font, self._application.image( "icon_file" ), "icon_file name", "__name__" )
-        file_type:      c_list          = c_list( new_window, vector( 520, 70 ), 250, self._general_font, list_config )
-        access_list:    c_list          = c_list( new_window, vector( 520, 240 ), 250, self._general_font, list_config )
+        name_input:     c_text_input    = c_text_input( new_window, vector( 520, 10 ), 40, vector( 180, 30 ), self._general_font, self._application.image( "icon_file" ), "File name", "__name__" )
+        file_type:      c_list          = c_list( new_window, vector( 520, 70 ), 410, self._general_font, list_config )
+        access_list:    c_side_list     = c_side_list( new_window, vector( 520, 240 ), 410, self._general_font, list_config )
 
         for any_type in types:
             any_type: str = any_type
 
-            file_type.add_item( any_type, self._application.image( "icon_file" ) )
+            file_type.add_item( any_type, self._application.image( "icon_port" ) )
         
         for access_type in access_levels:
             values: tuple = access_levels[ access_type ]
@@ -1180,7 +1187,7 @@ class c_host_gui:
 
             new_window.show( False )
 
-        c_button( new_window, vector( 520, 550 ), 40, self._general_font, self._application.image( "icon_file" ), "Done", callback_on_complete_file )
+        c_button( new_window, vector( 520, 550 ), 40, self._general_font, self._application.image( "icon_check" ), "Create File", callback_on_complete_file )
 
 
     @static_arguments
@@ -1195,7 +1202,7 @@ class c_host_gui:
         # TODO ! Limit the chars amount
         window_config.bar_title = f"{ file_index } details"
 
-        new_window: c_window = self._scene_project.create_window( vector( 400, 400 ), vector( 470, 400 ), window_config )
+        new_window: c_window = self._scene_project.create_window( vector( 400, 400 ), vector( 500, 300 ), window_config )
 
         success, information = self._logic.find_file_information( file_index )
 
@@ -1206,15 +1213,15 @@ class c_host_gui:
         list_config.check_mark = self._application.image( "icon_check" )
         list_config.slots_count = 3
 
-        file_name: c_text_input = c_text_input( new_window, vector( 10, 10 ), 40, vector( 200, 30 ), self._general_font, self._application.image( "icon_file" ), "icon_file name", information[ 0 ] )
-        file_type: c_list       = c_list( new_window, vector( 10, 60 ), 220, self._general_font, list_config )
-        file_access: c_list     = c_list( new_window, vector( 240, 60 ), 220, self._general_font, list_config )
+        file_name:      c_text_input    = c_text_input( new_window, vector( 10, 10 ), 40, vector( 200, 30 ), self._general_font, self._application.image( "icon_file" ), "icon_file name", information[ 0 ] )
+        file_type:      c_list          = c_list( new_window, vector( 10, 60 ), 235, self._general_font, list_config )
+        file_access:    c_list          = c_list( new_window, vector( 255, 60 ), 235, self._general_font, list_config )
 
         types: list = [ "py - Python", "cpp - C++", "hpp - C++", "c - C", "h - C", "cs - C#", "txt - Text" ]
         for any_type in types:
             any_type: str = any_type
 
-            file_type.add_item( any_type, self._application.image( "icon_file" ) )
+            file_type.add_item( any_type, self._application.image( "icon_port" ) )
 
             if any_type.startswith( information[ 1 ] ):
                 file_type.set_value( any_type )
@@ -1245,7 +1252,7 @@ class c_host_gui:
 
             new_window.show( False )
 
-        c_button( new_window, vector( 10, 350 ), 40, self._general_font, self._application.image( "icon_file" ), "Update", callback_on_file_details_update )
+        c_button( new_window, vector( 10, 250 ), 40, self._general_font, self._application.image( "icon_check" ), "Update File details", callback_on_file_details_update )
 
     # endregion
 
