@@ -17,7 +17,7 @@ REGISTRATION_RESPONSE       = "RegRes"
 # However, it will be created for each user seperatly on the host side.
 
 # In order to make sure everything works together, the host must provide fixed and static path for database
-# Which will be create if not exists.
+# Which will be created if not exists.
 
 # Otherwise, the protocol will load and connect to that database.
 # Now lets change a little bit the protocol.
@@ -25,10 +25,10 @@ REGISTRATION_RESPONSE       = "RegRes"
 # First, instead of a single file, there will be a folder as database.
 # The folder will contain a file that called .index
 # This file will be a json file that will have a specification, for each user its id.
-# The id will be the user file name that will be encrypted with AES and host connected username ?
+# The id will be the user file name that will be encrypted with ChaCha20 and host connected password.
 
 from protocols.security import c_security
-from utilities.wrappers import safe_call
+from utilities.wrappers import safe_call, standalone_execute
 from utilities.debug    import *
 
 import datetime
@@ -56,11 +56,11 @@ class c_database:
 
     def __init__( self ):
         """
-            Initialize database.
+        Initialize database.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   None
+        Returns: None
         """
 
         self._last_error    = ""
@@ -69,12 +69,12 @@ class c_database:
 
     def load_path( self, path: str ):
         """
-            Load path for database.
+        Load path for database.
 
-            Receive :
-            - path      - Path to database
+        Receive:
+        - path (str): Path to database
 
-            Returns :   None
+        Returns: None
         """
 
         self._database_path = path
@@ -83,13 +83,14 @@ class c_database:
 
     def connect( self, username: str, password: str ):
         """
-            Connect to database.
+        Connect to database.
 
-            Receive :
-            - username  - Username of creator
-            - password  - Password of creator
+        Receive :
+        - username (str): Username of creator
+        - password (str) Password of creator
 
-            Returns :   None
+        Returns: 
+        - bool: Result if success or fail
         """
 
         success, error = c_registration.validate_username( username )
@@ -160,11 +161,11 @@ class c_database:
 
     def disconnect( self ):
         """
-            Disconnect from database.
+        Disconnect from database.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   None
+        Returns: None
         """
 
         # Open the index file and save the ids to the host index
@@ -180,15 +181,129 @@ class c_database:
 
     # endregion
 
+    # region : Database operations
+
+    def get_users_list( self ) -> list:
+        """
+        Get registered users list under a connected host.
+
+        Receive: None
+
+        Returns:
+        - list: List of usernames of users.
+        """
+
+        result: list = [ ]
+        
+        for username in self._ids:
+
+            if username != "self":
+                result.append( username )
+
+        return result
+    
+
+    def get_user_information( self, username: str, clear_sensetive: bool = False ) -> dict:
+        """
+        Get a specific user information from the file.
+
+        Receive:
+        - username (str): The user username to find
+        - clear_sensetive (bool, optional): Should remove from the returned value sensetive information
+
+        Returns:
+        - dict: Full user information.
+        """
+
+        if username not in self._ids:
+            return None
+
+        index = self.get_id( username )
+
+        file_index: str = f"{ index }.unk"
+        user_path: str = os.path.join( self.get_database_path( ), DATABASE_NAME, file_index )
+
+        security: c_security = c_security( )
+
+        with open( user_path, "rb" ) as file:
+            data: bytes = security.fast_decrypt( 
+                file.read( ), 
+                self._host_password.encode( ), 
+                bytes.fromhex( self._host_salt ) 
+            )
+            
+        user_information = json.loads( data.decode( ) )
+        del data
+        
+        if clear_sensetive:
+            del user_information[ "__Creator" ]
+            del user_information[ "p1" ]
+            del user_information[ "p2" ]
+
+        return user_information
+    
+
+    @standalone_execute
+    def update_user_information( self, username: str, indexes: list, value: any ):
+        """
+        Update a specific value in the user file.
+
+        Receive:
+        - username (str): Username to index a specific user
+        - indexes (list): Indexes that creates a path to the ref of the value
+        - value (any): Any value to update/set.
+
+        Returns: None
+        """
+
+        if username not in self._ids:
+            return
+        
+        index = self.get_id( username )
+
+        file_index: str = f"{ index }.unk"
+        user_path: str = os.path.join( self.get_database_path( ), DATABASE_NAME, file_index )
+
+        security: c_security = c_security( )
+
+        with open( user_path, "rb" ) as file:
+            data: bytes = security.fast_decrypt( 
+                file.read( ), 
+                self._host_password.encode( ), 
+                bytes.fromhex( self._host_salt ) 
+            )
+            
+        user_information = json.loads( data.decode( ) )
+        del data
+
+        # Get the last pointer in dict
+        current_ptr = user_information
+        for i in range( len( indexes ) - 1 ):
+            current_index = indexes[ i ]
+            current_ptr = current_ptr[ current_index ]
+
+        # Update the value
+        current_ptr[ indexes[ -1 ] ] = value
+        
+        # Update the file
+        with open( user_path, "wb" ) as file:
+            file.write( security.fast_encrypt( 
+                json.dumps( user_information ).encode( ), 
+                self._host_password.encode( ), 
+                bytes.fromhex( self._host_salt ) 
+            ) )
+
+    # endregion
+
     # region : Utilities
 
     def __init_database( self ):
         """
-            Initialize database.
+        Initialize database.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   None
+        Returns: None
         """
 
         database_dir: str = os.path.join( self._database_path, DATABASE_NAME )
@@ -212,12 +327,12 @@ class c_database:
 
     def __create_user_file( self, username: str ):
         """
-            Create a user file.
+        Create a user file.
 
-            Receive :
-            - username  - Username of the user
+        Receive :
+        - username (str): Username of the user
 
-            Returns :   None
+        Returns: None
         """
 
         user_id: str = f"{ self._ids[ username ] }.unk"
@@ -246,12 +361,13 @@ class c_database:
 
     def __get_user_index( self, username: str ) -> str:
         """
-            Get the user index.
+        Get the user index.
 
-            Receive :
-            - username  - Username of the user
+        Receive :
+        - username (str): Username of the user
 
-            Returns :   String id
+        Returns: 
+        - str: User uuid
         """
 
         # Now lets check if there is any user in the host index
@@ -268,12 +384,13 @@ class c_database:
 
     def get_id( self, username: str ) -> str:
         """
-            Get the id of the user.
+        Get the id of the user.
 
-            Receive :
-            - username  - Username of the user
+        Receive :
+        - username (str) Username of the user
 
-            Returns :   String id
+        Returns: 
+        - str: String id
         """
 
         return self.__get_user_index( username )
@@ -281,12 +398,13 @@ class c_database:
 
     def check_id( self, username: str ) -> bool:
         """
-            Check if the user id exists.
+        Check if the user id exists.
 
-            Receive :
-            - username  - Username of the user
+        Receive :
+        - username (str): Username of the user
 
-            Returns :   Result if success
+        Returns: 
+        - bool: Result if found
         """
 
         return username in self._ids
@@ -294,28 +412,38 @@ class c_database:
 
     def get_password( self ) -> str:
         """
-            Get the password of the host.
+        Get the password of the host.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   Password of the host
+        Returns: 
+        - str: Password of the host
         """
 
         return self._host_password
     
 
     def get_salt( self ) -> str:
+        """
+        Get host salt. 
+
+        Receive: None
+        
+        Returns:
+        - str: Hex value of the host salt
+        """
 
         return self._host_salt
 
     
     def get_database_path( self ) -> str:
         """
-            Get the database path.
+        Get the database path.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   Database path
+        Returns: 
+        - str: Database path
         """
 
         return self._database_path
@@ -323,17 +451,17 @@ class c_database:
 
     def last_error( self ) -> str:
         """
-            Get the last error that occurred in this protocol.
+        Get the last error that occurred in this protocol.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   String error
+        Returns: 
+        - str: String error
         """
 
         return self._last_error
     
     # endregion
-
 
 
 class c_registration:
@@ -353,28 +481,30 @@ class c_registration:
 
     def __init__( self ):
         """
-            Initialize registration protocol.
+        Initialize registration protocol.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   None
+        Returns: 
+        - c_registration: Registration operations object
         """
 
-        self._database = None
-        self._last_error = ""
-        self._fields = None
+        self._database      = None
+        self._last_error    = ""
+        self._fields        = None
+
 
     def load_database( self, database: c_database ):
         """
-            Load database.
+        Load database.
 
-            Receive :
-            - database  - Database to load
+        Receive :
+        - database (c_database): Database to load
             
-            Returns :   None
+        Returns: None
         """
 
-        self._database = database
+        self._database  = database
 
         self._password  = self._database.get_password( ).encode( )
         self._salt      =  bytes.fromhex( self._database.get_salt( ) )
@@ -385,14 +515,15 @@ class c_registration:
 
     def register_user( self, username: str, password: str, addition_fields: dict = { } ) -> bool:
         """
-            Register a new user.
+        Register a new user.
 
-            Receive :
-            - username          - Username of the user
-            - password          - Password of the user
-            - addition_fields   - Additional fields to add to the user
+        Receive :
+        - username (str): Username of the user
+        - password (str): Password of the user
+        - addition_fields (dict, optional): Additional fields to add to the user
 
-            Returns :   Result if success
+        Returns: 
+        - bool: Result if success
         """
 
         if not self._database:
@@ -458,11 +589,14 @@ class c_registration:
 
     def login_user( self, username: str, password: str ) -> bool:
         """
-            Login a user.
+        Login a user.
 
-            Receive :
-            - username  - Username of the user
-            - password  - Password of the user
+        Receive:
+        - username (str): Username of the user
+        - password (str): Password of the user
+
+        Returns:
+        - bool: Result if success or fail
         """
 
         if not self._database:
@@ -485,22 +619,23 @@ class c_registration:
             self._last_error = "Failed to login user. reason : Username not found."
             return False
         
-        self._index = self._database.get_id( username )
+        #self._index = self._database.get_id( username )
 
-        file_index: str = f"{ self._index }.unk"
-        user_path: str = os.path.join( self._database.get_database_path( ), DATABASE_NAME, file_index )
+        #file_index: str = f"{ self._index }.unk"
+        #user_path: str = os.path.join( self._database.get_database_path( ), DATABASE_NAME, file_index )
 
         security: c_security = c_security( )
 
-        with open( user_path, "rb" ) as file:
-            data: bytes = security.fast_decrypt( 
-                file.read( ), 
-                self._password, 
-                self._salt 
-            )
+        #with open( user_path, "rb" ) as file:
+        #    data: bytes = security.fast_decrypt( 
+        #        file.read( ), 
+        #        self._password, 
+        #        self._salt 
+        #    )
             
-        user_information = json.loads( data.decode( ) )
-        del data
+        #user_information = json.loads( data.decode( ) )
+        #del data
+        user_information = self._database.get_user_information( username )
 
         # Check if the password is correct
         salt, hashed_password = user_information[ "p1" ], user_information[ "p2" ]
@@ -523,11 +658,11 @@ class c_registration:
 
     def update_fields( self ):
         """
-            Update all the fields of the user.
+        Update all the fields of the user.
 
-            Receive :   None
+        Receive: None
             
-            Returns :   None
+        Returns: None
         """
 
         self._index = self._database.get_id( self._username )
@@ -563,7 +698,13 @@ class c_registration:
 
     def get_field( self, field_name: str ) -> any:
         """
-            Get a field of the user.
+        Get a field of the user.
+
+        Receive:
+        - field_name (str): A specific field index
+
+        Returns:
+        - any: The field value
         """
 
         return self._fields[ field_name ]
@@ -571,7 +712,13 @@ class c_registration:
 
     def set_field( self, field_name: str, field_value: any ):
         """
-            Set a field of the user.
+        Set a field of the user.
+
+        Receive:
+        - field_name (str): A specific field index
+        - field_value (any): Any value to update/set
+
+        Returns: None
         """
 
         self._fields[ field_name ] = field_value
@@ -580,12 +727,13 @@ class c_registration:
     @staticmethod
     def validate_username( username: str ) -> tuple:
         """
-            Checks if the username is valid.
+        Checks if the username is valid.
 
-            Receive :
-            - username - User nickname to validate
+        Receive :
+        - username (str): User nickname to validate
 
-            Returns :   Tuple ( Bool, String )
+        Returns: 
+        - tuple: Result and an error value on fail
         """
 
         if not username or username == "":
@@ -612,12 +760,13 @@ class c_registration:
     @staticmethod
     def validate_password( password: str ) -> tuple:
         """
-            Checks if the password is valid.
+        Checks if the password is valid.
 
-            Receive :
-            - password - Password to validate
+        Receive :
+        - password (str): User password to validate
 
-            Returns :   Tuple ( Bool, String )
+        Returns: 
+        - tuple: Result and an error value on fail
         """
 
         if not password or password == "":
@@ -643,11 +792,12 @@ class c_registration:
 
     def last_error( self ) -> str:
         """
-            Get the last error that occurred in this protocol.
+        Get the last error that occurred in this protocol.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   String error
+        Returns: 
+        - str: Last error
         """
 
         return self._last_error
@@ -658,13 +808,14 @@ class c_registration:
 
     def format_message( self, message: str, arguments: list ):
         """
-            Format message for Registration Protocol.
+        Format message for Registration Protocol.
 
-            Receive :
-            - message   - Command to send
-            - arguments - Arguments to follow it
+        Receive :
+        - message (str): Command to send
+        - arguments (list): Arguments to follow it
 
-            Returns :   String value
+        Returns: 
+        - str: Formated value
         """
 
         return f"{ REGISTRATION_HEADER }::{ message }->{ '->'.join( arguments ) }"
@@ -672,12 +823,13 @@ class c_registration:
 
     def parse_message( self, message: str ):
         """
-            Parse information from Registration Protocol message.
+        Parse information from Registration Protocol message.
 
-            Receive :
-            - message - String value to parse
+        Receive :
+        - message (str): String value to parse
 
-            Returns : Tuple ( cmd, list[arguments] )
+        Returns:
+        - tuple: Command and list of arguments
         """
 
         first_parse = message.split( "::" )
@@ -693,11 +845,12 @@ class c_registration:
 
     def header( self ) -> str:
         """
-            Get the protocol header.
+        Get the protocol header.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   String
+        Returns: 
+        - str: Registration protocol header
         """
 
         return REGISTRATION_HEADER

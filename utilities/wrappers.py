@@ -121,10 +121,10 @@ def static_arguments( function ):
     """
 
     @wraps( function )
-    def execute( *args ):
+    def execute( *args, **kwargs ):
 
-        def static( ):
-            return function( *args )
+        def static( *ignored_args, **ignored_kwargs ):
+            return function( *args, **kwargs )
         
         return static
 

@@ -46,7 +46,7 @@ FILE_UPDATE_NAME    = 1
 
 class c_virtual_file:
 
-    # NOTE ! Virtual files can be or reference to a real file or just empty name without content
+    # NOTE ! Virtual files can be reference to a real file or just empty name without content
 
     _name:                  str     # File's name. Including the type.
     _log_changes:           bool    # Should log changes of the file
@@ -63,13 +63,14 @@ class c_virtual_file:
 
     def __init__( self, name: str, access_level: int = 0, log_changes: bool = True ):
         """
-            Default constructor for virtual file object.
+        Default constructor for virtual file object.
 
-            Receive:
-            - name                      - File's name
-            - log_changes [optional]    - Enable logging for any file changes.
+        Receive:
+        - name (str) File's name
+        - log_changes (bool, optional) Enable logging for any file changes.
 
-            Returns : Virtual File object
+        Returns: 
+        - c_virtual_file: Virtual file object.
         """
 
         self._name          = name
@@ -86,11 +87,11 @@ class c_virtual_file:
 
     def __create_logging_file( self ):
         """
-            Create a file to log each change for this file.
+        Create a file to log each change for this file.
 
-            Receive :   None
+        Receive:  None
 
-            Returns :   None
+        Returns:  None
         """
 
         if not self._log_changes:
@@ -118,12 +119,14 @@ class c_virtual_file:
 
     def create( self, path: str, message: str = "\n" ):
         """
-            Create new empty file.
+        Create new empty file.
 
-            Receive :   
-            - path - Path for that new file
+        Receive:  
+        - path (str) Path for that new file
+        - message (str, optional): Default value to add to an empty file
 
-            Returns :   None or string on fail
+        Returns:  
+        - any: None or string on fail
         """
 
         file_path = f"{ path }\\{ self._name }"
@@ -147,13 +150,14 @@ class c_virtual_file:
 
     def copy( self, path_from: str, path_to: str ):
         """
-            Copy existing file into new file.
+        Copy existing file into new file.
 
-            Receive :
-            - path_from     - Path to an original file
-            - path_to       - New path for the new file
+        Receive :
+        - path_from (str): Path to an original file
+        - path_to (str): New path for the new file
 
-            Returns :   None or string on fail
+        Returns:  
+        - any: None or string on fail
         """
 
         file_path_from: str = f"{ path_from }\\{ self._name }"
@@ -173,20 +177,18 @@ class c_virtual_file:
 
         except Exception as e:
             return str( e )
-        
-        return None
     
 
     def attach( self, path: str ):
         """
-            Unlike .copy( ) or .create( ), here we know that we have file
-            that previously was a c_virtual_file, and now we just need to attach
-            it for the object.
+        Unlike .copy( ) or .create( ), here we know that we have file
+        that previously was a c_virtual_file, and now we just need to attach
+        it for the object.
 
-            Receive : 
-            - path - File's path
+        Receive:
+        - path (str): File's path
 
-            Returns :   None 
+        Returns: None 
         """
 
         self._normal_path = path
@@ -196,15 +198,17 @@ class c_virtual_file:
     
     def copy_instance( self, original: any ):
         """
-            Copy one virtual_file information into this instance.
+        Copy one virtual_file information into this instance.
 
-            Receive :
-            - original  - Original instance of the virtual file
+        Receive :
+        - original (c_virtual_file) Original instance of the virtual file
 
-            Returns :   Self instance
+        Returns:  
+        - c_virtual_file: This object
         """
 
-        
+        # The funny thing that unlike other programing lng,
+        # This works becuase in python there is no private/protected attr types
         self._original_path = original._original_path
         self._normal_path   = original._normal_path
         self._locked_lines  = original._locked_lines
@@ -218,13 +222,14 @@ class c_virtual_file:
     @safe_call( c_debug.log_error )
     def name( self, should_parse: bool = False ) -> any:
         """
-            Returns the file's name.
-            Can return ( file_name, file_type ) or full file name.
+        Returns the file's name.
+        Can return ( file_name, file_type ) or full file name.
 
-            Receive :
-            - should_parse [optional] - Should the returns value will be the name parsed into name and type
+        Receive :
+        - should_parse (bool, optional): Should the returns value will be the name parsed into name and type
 
-            Returns :   String or tuple
+        Returns:  
+        - any: str on full name or tuple on split
         """
 
         if not should_parse:
@@ -236,14 +241,25 @@ class c_virtual_file:
     
 
     @safe_call( c_debug.log_error )
-    def update_name( self, new_name: str ) -> bool:
-        
-        file_path:  str = f"{ self._normal_path }\\{ self._name }"
+    def update_name( self, new_name: str, should_operate: bool = False ) -> bool:
+        """
+        Update name for the virutal file.
+
+        Receive:
+        - new_name (str): New name for the file. Including type
+        - should_operate (bool, optional): Should perform .raname call
+
+        Returns:
+        - bool: True on success or None of fail
+        """
+
+        file_path: str = f"{ self._normal_path }\\{ self._name }"
         name_path: str = f"{ self._normal_path }\\{ new_name }"
 
-        os.rename( file_path, name_path )
+        if should_operate:
+            os.rename( file_path, name_path )
 
-        if self._log_changes:
+        if should_operate and self._log_changes:
             file_name, file_type = self.name( True )
 
             file_path = f"{ self._normal_path }\\{ file_name }_changes.txt"
@@ -258,12 +274,13 @@ class c_virtual_file:
 
     def access_level( self, new_value: int = None ) -> int:
         """
-            Get/Set virtual file's access level.
+        Get/Set virtual file's access level.
 
-            Receive :   
-            - new_value [optional] - New access level for virtual_file
+        Receive:  
+        - new_value (int, optional): New access level for virtual_file
 
-            Returns :   int - Access level
+        Returns:  
+        - int: Current access level
         """
 
         if new_value is None:
@@ -275,11 +292,13 @@ class c_virtual_file:
 
     def size( self, virtual_content: bool = False ) -> int:
         """
-            Get virtual file's content size.
+        Get virtual file's content size.
 
-            Receive :   None
+        Receive:  
+        - virtual_content (bool, optional): Count the virtual content and not the real file
 
-            Returns :   File's size
+        Returns:  
+        - int: File's size
         """
 
         if virtual_content:
@@ -294,6 +313,9 @@ class c_virtual_file:
             raise Exception( "Invalid file path" )
         
         file_path:  str = f"{ self._normal_path }\\{ self._name }"
+        if not os.path.exists( file_path ):
+            return -1
+        
         size:       int = os.path.getsize( file_path )
 
         return size
@@ -304,13 +326,14 @@ class c_virtual_file:
 
     def read( self, start: int, end: int ) -> any:
         """
-            Read specific chunk from the file.
+        Read specific chunk from the file.
 
-            Receive :
-            - start - Start byte of the chunk
-            - end   - End file of the chunk
+        Receive :
+        - start (int): Start byte of the chunk
+        - end (int): End file of the chunk
 
-            Returns :   Bytes
+        Returns:  
+        - bytes: A specific content from the real file
         """
 
         if self._normal_path is None:
@@ -328,11 +351,12 @@ class c_virtual_file:
 
     def read_lines( self ) -> list:
         """
-            Reads file's data and converts into Lines.
+        Reads file's data and converts into Lines.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   List [ str ]
+        Returns:  
+        - list: List of string that represents the file content lines
         """
 
         if self._normal_path is None:
@@ -352,12 +376,12 @@ class c_virtual_file:
 
     def add_content_line( self, line: str ):
         """
-            Add line for the file.
+        Add line for the file.
 
-            Receive :
-            - line - Text of a specific line
+        Receive :
+        - line (str): Text of a specific line
 
-            Returns :   None
+        Returns: None
         """
         
         self._content.append( line )
@@ -365,11 +389,11 @@ class c_virtual_file:
     
     def clear_content( self ):
         """
-            Clear file's content.
+        Clear file's content.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._content.clear( )
@@ -377,11 +401,12 @@ class c_virtual_file:
 
     def read_file_content( self ) -> list:
         """
-            Read from file's content.
+        Read from file's content.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   List with lines
+        Returns: 
+        - list: Virtual file content
         """
 
         return self._content
@@ -393,16 +418,17 @@ class c_virtual_file:
     @safe_call( c_debug.log_error )
     def change_line( self, line: int, new_lines: list, change_log: dict ) -> bool:
         """
-            Preform change in files lines.
+        Preform change in files lines.
 
-            Receive :
-            - line          - Line to change
-            - new_lines     - New lines to add
-            - change_log    - Ready to add change log
+        Receive :
+        - line (int): Line to change
+        - new_lines (list) New lines to add
+        - change_log (dict): Ready to add change log
 
-            Returns :   Result
+        Returns: 
+        - bool: Result if success or fail
 
-            Note ! This function removes the [line] and adds the new_lines[0] instead.
+        Note ! This function removes the [line] and adds the new_lines[0] instead.
         """
 
         if self._normal_path is None:
@@ -467,12 +493,14 @@ class c_virtual_file:
     @safe_call( c_debug.log_error )
     def remove_line( self, line: int, change_log: dict ) -> bool:
         """
-            Remove a specific line from the file.
+        Remove a specific line from the file.
 
-            Receive :
-            - line_number - The line index to remove
+        Receive :
+        - line (int): Line to remove
+        - change_log (dict): Ready to add change log
 
-            Returns :   None
+        Returns: 
+        - bool: Result if success or fail
         """
 
         if self._normal_path is None:
@@ -527,12 +555,13 @@ class c_virtual_file:
 
     def is_line_locked( self, line: int) -> bool:
         """
-            Check if a specific line is locked.
+        Check if a specific line is locked.
 
-            Receive :
-            - line - Line number
+        Receive :
+        - line (int): Line number
 
-            Returns :   Result
+        Returns:  
+        - bool: Result
         """
 
         # I dont want to use .index and catch Exception...
@@ -546,12 +575,12 @@ class c_virtual_file:
 
     def lock_line( self, line: int ):
         """
-            Lock specific line.
+        Lock specific line.
 
-            Receive :
-            - line - Line number
+        Receive :
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         self._locked_lines.append( line )
@@ -559,12 +588,12 @@ class c_virtual_file:
 
     def unlock_line( self, line: int ):
         """
-            Unlock specific line.
+        Unlock specific line.
 
-            Receive :
-            - line - Line number
+        Receive:
+        - line (int): Line number
 
-            Returns :   None
+        Returns: None
         """
 
         #if not self.is_line_locked( line ):
@@ -575,11 +604,12 @@ class c_virtual_file:
 
     def locked_lines( self ) -> list:
         """
-            Get the locked lines of the file.
+        Get the locked lines of the file.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   List
+        Returns: 
+        - list: List of locked lines
         """ 
 
         return self._locked_lines
@@ -596,11 +626,12 @@ class c_files_manager_protocol:
 
     def __init__( self ):
         """
-            Default constructor for Files protocol.
+        Default constructor for Files protocol.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Protocl object
+        Returns: 
+        - c_files_manager_protocol: Protocol object
         """
 
         self._last_error    = ""
@@ -612,11 +643,12 @@ class c_files_manager_protocol:
 
     def get_files( self ) -> dict:
         """
-            Get all registered files.
+        Get all registered files.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Dict with files
+        Returns: 
+        - dict: A dict with virtual files refs.
         """
 
         return self._files
@@ -624,11 +656,12 @@ class c_files_manager_protocol:
     
     def share_files( self ) -> str:
         """
-            Share files names.
+        Share files names.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   List with files
+        Returns: 
+        - list: List of files indexes
         """
 
         files_list = [ ]
@@ -649,13 +682,14 @@ class c_files_manager_protocol:
     
     def format_message( self, message: str, arguments: list ):
         """
-            Format message for Files Protocol.
+        Format message for Files Protocol.
 
-            Receive :
-            - message   - Command to send
-            - arguments - Arguments to follow it
+        Receive :
+        - message (str): Command to send
+        - arguments (list): Arguments to follow it
 
-            Returns :   String value
+        Returns:  
+        - str: Formated string value
         """
 
         message: str = base64.b64encode( message.encode( ) ).decode( )
@@ -668,12 +702,13 @@ class c_files_manager_protocol:
 
     def parse_message( self, message: str ):
         """
-            Parse information from Files Protocol message.
+        Parse information from Files Protocol message.
 
-            Receive :
-            - message - String value to parse
+        Receive :
+        - message - String value to parse
 
-            Returns : Tuple ( cmd, list[arguments] )
+        Returns:
+        - tuple: Command and list of arguments
         """
 
         first_parse = message.split( "::" )
@@ -682,7 +717,7 @@ class c_files_manager_protocol:
         for index in range( 0, len( information ) ):
             information[ index ] = base64.b64decode( information[ index ].encode( ) ).decode( )
 
-        command     = information[ 0 ]
+        command = information[ 0 ]
 
         # Remove command from arguments
         information.pop( 0 )
@@ -695,12 +730,15 @@ class c_files_manager_protocol:
 
     def create_new_file( self, name: str, access_level: int = 0, log_changes: bool = True ) -> c_virtual_file:
         """
-            Create new virtual file instance.
+        Create new virtual file instance.
 
-            Receive :
-            - name - File name
+        Receive :
+        - name (str) File name
+        - access_level (int, optional): Access level of the file
+        - log_changes (bool, optional): Should log changes
 
-            Returns : Virtual File object
+        Returns:
+        - c_virtual_file: Virtual File object
         """
 
         new_file = c_virtual_file( name, access_level, log_changes )
@@ -711,12 +749,13 @@ class c_files_manager_protocol:
     
     def copy( self, virtual_file: c_virtual_file ) -> c_virtual_file:
         """
-            Copy virtual files content into a new instance in this handle.
+        Copy virtual files content into a new instance in this handle.
 
-            Receive :
-            - virtual_file  - Original copy of the virtual file instance
+        Receive :
+        - virtual_file (c_virtual_file): Original copy of the virtual file instance
 
-            Returns :   New instance of virtual file
+        Returns:  
+        - c_virtual_file: New instance of virtual file
         """
 
         new_file = c_virtual_file( virtual_file.name( ), virtual_file.access_level( ), True )
@@ -732,12 +771,13 @@ class c_files_manager_protocol:
 
     def search_file( self, name: str ) -> c_virtual_file:
         """
-            Search a virtual file based on name.
+        Search a virtual file based on name.
 
-            Receive :
-            - name - File's name
+        Receive :
+        - name (str): File's name
 
-            Returns :   File object or None on fail
+        Returns:  
+        - c_virtual_file: File object or None on fail
         """
 
         if name in self._files:
@@ -748,11 +788,11 @@ class c_files_manager_protocol:
 
     def clear_all( self ):
         """
-            Clears all the files content.
+        Clears all the files content.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         for file_name in self._files:
@@ -762,34 +802,65 @@ class c_files_manager_protocol:
 
     def remove_file( self, name: str ):
         """
-            Unregister a specific file from the files protocol.
+        Unregister a specific file from the files protocol.
 
-            Receive :
-            - name - File's name
+        Receive :
+        - name (str): File's name
 
-            Returns :   None
+        Returns: None
         """
 
         del self._files[ name ]
 
     
-    def update_name( self, old_index: str, new_index: str ) -> c_virtual_file:
+    def update_name( self, old_index: str, new_index: str, should_operate: bool = False ) -> c_virtual_file:
+        """
+        Update a virtual file name.
+
+        Receive: 
+        - old_index (str): Old file name
+        - new_index (str): New file name
+        - should_operate (bool, optional): Should use .rename operation
+
+        Returns:
+        - c_virtual_file: Updated file ref
+        """
 
         file: c_virtual_file = self.search_file( old_index )
         if not file:
             return None
         
+        file.update_name( new_index, should_operate )
+        
         self._files[ new_index ] = file
         del self._files[ old_index ]
         
-        file.update_name( new_index )
         return file
 
+
     def get_header( self ) -> str:
+        """
+        Get protocol's header.
+
+        Receive: None
+
+        Returns:
+        - str: Files protocol message header
+        """
+
         return FILES_MANAGER_HEADER
     
 
     def get_last_error( self ):
+        """
+        Get last error that occured in the protocol.
+
+        Receive: None
+
+        Returns:
+        - str: Error message
+        """
+        
         return self._last_error
 
     # endregion

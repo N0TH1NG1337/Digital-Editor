@@ -34,30 +34,32 @@ class c_connection:
 
     def __init__( self ):
         """
-            Default constructor for connection object.
+        Default constructor for connection object.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Connection object
+        Returns: 
+        - c_connection: Connection object
         """
 
         self._ip        = INVALID
         self._port      = INVALID
-
         self._socket    = INVALID
 
 
     @safe_call( None )
     def start( self, type_socket: int, ip: str, port: int, timeout: int = -1 ) -> bool:
         """
-            Start connection based on type, ip and port.
+        Start connection based on type, ip and port.
 
-            Receive :
-            - type_socket   - Connection type
-            - ip            - Ip to search / attach
-            - port          - Port for connection 
+        Receive :
+        - type_socket (int): Connection type
+        - ip (str): Ip to search / attach
+        - port (int): Port for connection 
+        - timeout (int, optional): Timeout for connection setup
 
-            Returns :   Result of connection
+        Returns:  
+        - bool: Result of connection
         """
 
         self._ip    = ip
@@ -83,31 +85,31 @@ class c_connection:
 
     def attach( self, ip: str, port: int, socket_obj: socket ):
         """
-            Attach connection details for current object.
+        Attach connection details for current object.
 
-            Receive :
-            - ip            - Ip value of details
-            - port          - Port value of details
-            - socket_obj    - Socket object of the connection
+        Receive :
+        - ip            - Ip value of details
+        - port          - Port value of details
+        - socket_obj    - Socket object of the connection
 
-            Returns :   Connection object with details
+        Returns:  
+        - c_connection: Connection object with details
         """
 
-        self._ip = ip
-        self._port = port
-
-        self._socket = socket_obj
+        self._ip        = ip
+        self._port      = port
+        self._socket    = socket_obj
 
         return self
 
 
     def end( self ):
         """
-            End connection.
+        End connection.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         if self._socket is INVALID:
@@ -121,11 +123,12 @@ class c_connection:
 
     def address( self ) -> tuple:
         """
-            Get address of this connection.
+        Get address of this connection.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Address tuple (ip: str, port: int)
+        Returns: 
+        - tuple: Address information (ip: str, port: int)
         """
 
         return self._ip, self._port
@@ -133,11 +136,12 @@ class c_connection:
 
     def __call__( self ) -> socket:
         """
-            Receive Socket object of the connection. 
+        Receive Socket object of the connection. 
 
-            Receive :   None
+        Receive: None
 
-            Returns :   Socket object
+        Returns: 
+        - socket: Socket object
         """
 
         return self._socket
@@ -149,27 +153,29 @@ class c_network_protocol:
 
     def __init__( self, connection: c_connection = None ):
         """
-            Default constructor for Network Protocol.
+        Default constructor for Network Protocol.
 
-            Receive : 
-            - connection [optional] - Ready connection object.
+        Receive:
+        - connection (c_connection, optional) - Ready connection object.
 
-            Returns : Network Protocol object
+        Returns:
+        - c_network_protocol: Network Protocol object
         """
 
-        self._connection    = connection is None and c_connection( ) or connection
+        self._connection = connection is None and c_connection( ) or connection
 
 
     def start_connection( self, type_connection: int, ip: str, port: int, timeout: int = -1 ) -> bool:
         """
-            Start connection based on type, ip and port.
+        Start connection based on type, ip and port.
 
-            Receive :
-            - type_connection   - Connection type
-            - ip                - Ip to search / attach
-            - port              - Port for connection 
+        Receive:
+        - type_connection (int): Connection type
+        - ip (str): Ip to search / attach
+        - port (port) Port for connection 
 
-            Returns :   None
+        Returns: 
+        - bool: Result of the connection setup
         """
 
         return self._connection.start( type_connection, ip, port, timeout )
@@ -177,11 +183,11 @@ class c_network_protocol:
 
     def end_connection( self ):
         """
-            End connection.
+        End connection.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._connection.end( )
@@ -189,11 +195,11 @@ class c_network_protocol:
 
     def look_for_connections( self ):
         """
-            Look / Listen for connections.
+        Look / Listen for connections.
 
-            Receive :   None
+        Receive: None
 
-            Returns :   None
+        Returns: None
         """
 
         self._connection( ).listen( )
@@ -201,12 +207,13 @@ class c_network_protocol:
 
     def accept_connection( self, timeout: float = -1 ) -> tuple:
         """
-            Accept connection from client.
+        Accept connection from client.
 
-            Receive : 
-            - timeout [optional] - Timeout waiting for new client
+        Receive:
+        - timeout (float, optional): Timeout waiting for new client
 
-            Returns :   Client details (socket, (ip, port) )
+        Returns:  
+        - tuple: Client details (socket, (ip, port) )
         """
         
         if timeout == -1:
@@ -223,15 +230,17 @@ class c_network_protocol:
 
             # If timed out
             return None, None
+        
 
     def get_raw_details( self, length: int ) -> list:
         """
-            Convert raw bytes length into config for sending it by chunks.
+        Convert raw bytes length into config for sending it by chunks.
 
-            Receive :
-            - length - Raw bytes amount
+        Receive :
+        - length (int): Raw bytes amount
 
-            Returns :   List
+        Returns:  
+        - list: List of instructions
         """
 
         result = [ ]
@@ -252,16 +261,18 @@ class c_network_protocol:
             total = total + size
 
         return result
+    
 
     @safe_call( c_debug.log_error )
     def send_bytes( self, raw_bytes: bytes ) -> bool:
         """
-            Send full raw bytes.
+        Send full raw bytes.
 
-            Receive :
-            - raw_bytes - Full length bytes to send
+        Receive :
+        - raw_bytes (bytes): Full length bytes to send
 
-            Returns :   None
+        Returns: 
+        - bool: True on success
         """
 
         connection_object = self._connection( )
@@ -278,8 +289,18 @@ class c_network_protocol:
 
         return True
 
+
     @safe_call( None ) 
     def receive_chunk( self, timeout: int = -1 ) -> bytes:
+        """
+        Receive single chunk of bytes.
+
+        Receive:
+        - timeout (int, optional): Timeout for receiving the bytes
+
+        Returns:
+        - bytes: Received bytes
+        """
 
         if self._connection( ) is INVALID:
             return None
@@ -294,12 +315,13 @@ class c_network_protocol:
 
     def __receive_fixed( self, length: int ) -> bytes:
         """
-            Utility to pop from buffer fixed length of data.
+        Utility to pop from buffer fixed length of data.
 
-            Receive : 
-            - length - Length of the bytes seq
+        Receive:
+        - length (int): Length of the bytes seq
 
-            Returns :   Bytes
+        Returns:  
+        - bytes: Raw bytes
         """
 
         received_raw_data = b''     
@@ -314,17 +336,30 @@ class c_network_protocol:
     
 
     def get_message_header( self, length: int ) -> bytes:
+        """
+        Format a message header, ready to send,
+
+        Receive:
+        - length (int): Length of the chunk
+
+        Returns:
+        - bytes: Ready to send header
+        """
 
         return str( length ).zfill( HEADER_SIZE ).encode( )
     
     
     def is_valid( self, try_ping: bool = False ) -> bool:
         """
-            Is connection still valid.
+        Is connection still valid.
 
-            Receive :   None
+        Receive: 
+        - try_ping (bool, optional): Should try to send something. Useful in term of real connection check.
+                                     if the connection is aborted or closed, not always the other side will know it.
+                                     As a result, trying to send something will make it throw error on fail.
 
-            Returns :   Result
+        Returns:
+        - bool: Result if success or fail
         """
 
         if try_ping:
@@ -340,17 +375,18 @@ class c_network_protocol:
 
     def get_address( self, raw_ip: bool = False ) -> tuple:
         """
-            Get address of current connection.
+        Get address of current connection.
 
-            Receive :   
-            - raw_ip [optional] - Raw registered IP
+        Receive:  
+        - raw_ip (bool, optional), Raw registered IP
 
-            Returns :   Tuple ( ip, port )
+        Returns:  
+        - tuple: ( ip, port )
         """
 
         # Use this method to get ip since for server we specify 0.0.0.0
-        host_name = socket.gethostname( )
-        ip_addr = socket.gethostbyname( host_name )
+        host_name   = socket.gethostname( )
+        ip_addr     = socket.gethostbyname( host_name )
         
         if raw_ip:
             ip_addr = self._connection.address( )[ 0 ]

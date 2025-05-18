@@ -918,6 +918,9 @@ class c_client_handle:
         self._selected_file = file
 
         file_size:  int     = file.size()
+        if file_size == -1:
+            return
+        
         config:     list    = self._network.get_raw_details( file_size )
 
         self.send_quick_message( self._files.format_message( FILES_COMMAND_SET_FILE, [ file.name( ), str( file_size ) ] ) )
@@ -1305,7 +1308,7 @@ class c_client_handle:
             return self.lower_trust_factor( 10, "Unauthorized request" )
 
         command.clear_arguments( )
-        command.add_arguments( FILE_UPDATE_CONTENT )
+        command.add_arguments( FILE_UPDATE_NAME )
         command.add_arguments( old_index )
         command.add_arguments( new_index )
 
@@ -2160,7 +2163,7 @@ class c_host_business_logic:
         new_index:          str = arguments[ 1 ]
         new_default_level:  int = arguments[ 2 ]
 
-        file: c_virtual_file = self._files.update_name( old_index, new_index )
+        file: c_virtual_file = self._files.update_name( old_index, new_index, True )
         file.access_level( new_default_level )
 
         self.__broadcast_for_shareable_clients( None, client, self.__broadcast_change_file_name, old_index, new_index )
@@ -2366,6 +2369,14 @@ class c_host_business_logic:
 
     
     def complete_setup_files( self ):
+        """
+        Complete the process of file setups. 
+        Invokes process to dump and register the project files.
+
+        Receive: None
+
+        Returns: None
+        """
 
         self.__setup_files( )
 
@@ -2373,6 +2384,16 @@ class c_host_business_logic:
 
 
     def create_empty_file( self, path: str, name: str, access_level: int = FILE_ACCESS_LEVEL_HIDDEN ):
+        """
+        Creates empty file in the project path and registers it for all the clients.
+
+        Receive: 
+        - path: (str): Path where to place this new file
+        - name: (str): New name for the file
+        - access_level: (int, optional): default access level for the new file for all clients
+
+        Returns: None
+        """
 
         # Need to parse the data.
         # We assume that this file is places in the .original_path\\DEFAULT_FOLDER
@@ -2412,11 +2433,11 @@ class c_host_business_logic:
 
     def __setup_path( self ):
         """
-            Setup Folder for files.
+        Setup Folder for files.
 
-            Receive: None
+        Receive: None
 
-            Returns: None
+        Returns: None
         """
 
         original_path   = self._information[ "original_path" ]
@@ -2430,11 +2451,11 @@ class c_host_business_logic:
 
     def __setup_files( self ):
         """
-            Setup files of the project.
+        Setup files of the project.
 
-            Receive: None
+        Receive: None
 
-            Returns: None
+        Returns: None
         """
 
         # Here need to make a copy of each file to the new path.
@@ -2454,12 +2475,12 @@ class c_host_business_logic:
 
     def __dump_path( self, path: str ):
         """
-            Dump specific path.
+        Dump specific path.
 
-            Receive: 
-            - path - Full path to a folder to dump
+        Receive: 
+        - path (str): Full path to a folder to dump
 
-            Returns: None
+        Returns: None
         """
         
         original_path           = self._information[ "original_path" ]
@@ -2499,6 +2520,15 @@ class c_host_business_logic:
     
 
     def __dump_previous_path( self, path: str ):
+        """
+        Dump specific path that was dumped before.
+        Can be used to refresh registered files.
+
+        Receive: 
+        - path (str): Full path to a folder to dump
+
+        Returns: None
+        """
 
         normal_path     = self._information[ "normal_path" ]
         access_level    = self._information[ "default_access" ]
@@ -2539,12 +2569,12 @@ class c_host_business_logic:
     @static_arguments
     def request_file( self, file_name: str ):
         """
-            Trigger the set file event to receive a file's content.
+        Trigger the set file event to receive a file's content.
 
-            Receive:
-            - file_name - File's name
+        Receive:
+        - file_name (str): File's name
 
-            Returns: None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2562,13 +2592,13 @@ class c_host_business_logic:
 
     def request_line( self, file_name: str, line: int ):
         """
-            Request specific line.
+        Request specific line.
 
-            Receive: 
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2591,13 +2621,13 @@ class c_host_business_logic:
     @standalone_execute
     def discard_line( self, file_name: str, line: int ):
         """
-            Message of discard changes.
+        Message of discard changes.
 
-            Receive: 
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2616,14 +2646,14 @@ class c_host_business_logic:
 
     def update_line( self, file_name: str, line: int, lines: list ):
         """
-            Update lines for all clients.
+        Update lines for all clients.
 
-            Receive:
-            - file_name - File name
-            - line      - Line number
-            - lines     - List of changed lines
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
+        - lines (list): List of the new lines
 
-            Returns: None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2641,13 +2671,13 @@ class c_host_business_logic:
     
     def delete_line( self, file_name: str, line: int ):
         """
-            Delete the line for all clients.
+        Delete the line for all clients.
 
-            Receive:
-            - file_name - File name
-            - line      - Line number
+        Receive: 
+        - file_name (str): File name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         file: c_virtual_file = self._files.search_file( file_name )
@@ -2663,7 +2693,16 @@ class c_host_business_logic:
 
     
     def find_file_information( self, file_name: str ) -> tuple:
-        
+        """
+        Search and file information about a specific registered file.
+
+        Receive:
+        - file_name (str): File name/index
+
+        Returns:
+        - tuple: Containing Result, Regular file name, file type, file size and file access level
+        """
+
         file: c_virtual_file = self._files.search_file( file_name )
         if not file:
             return False, ( "Failed to find file" )
@@ -2676,7 +2715,17 @@ class c_host_business_logic:
     
 
     def update_file_details( self, old_index: str, new_index: str, new_default_level: int ):
-        
+        """
+        Updates a specific file information such as name and default access level.
+
+        Receive:
+        - old_index: (str): Old name of the file
+        - new_index: (str): New name for the file
+        - new_default_level: (int): New default access level for the file
+
+        Returns: None
+        """
+
         file: c_virtual_file = self._files.search_file( old_index )
         if not file:
             return
@@ -2695,11 +2744,11 @@ class c_host_business_logic:
 
     def __event_host_start( self ):
         """
-            Event when the host server started.
+        Event when the host server started.
 
-            Receive: None
+        Receive: None
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_server_start" ]
@@ -2708,11 +2757,11 @@ class c_host_business_logic:
     
     def __event_host_stop( self ):
         """
-            Event when the host server stopped.
+        Event when the host server stopped.
 
-            Receive: None
+        Receive: None
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_server_stop" ]
@@ -2721,13 +2770,13 @@ class c_host_business_logic:
     
     def __event_client_connected( self, client_socket: socket, client_address: tuple ):
         """
-            Event when a client connected to the server.
+        Event when a client connected to the server.
 
-            Receive:    
-            - client_socket     - Client socket
-            - client_address    - Client address
+        Receive:    
+        - client_socket (socket): Client socket
+        - client_address (tuple): Client address
 
-            Returns: None
+        Returns: None
         """
 
         # Create a new client handle
@@ -2759,12 +2808,12 @@ class c_host_business_logic:
     
     def __event_client_disconnected( self, event ):
         """
-            Event when a client disconnected from the server.
+        Event when a client disconnected from the server.
 
-            Receive:    
-            - event - Event information
+        Receive:    
+        - event (callable): Event information
 
-            Returns: None
+        Returns: None
         """
 
         if event( "remove" ) == 1:
@@ -2780,12 +2829,12 @@ class c_host_business_logic:
     
     def __event_client_command( self, event ):
         """
-            Event when a client sent a command.
+        Event when a client sent a command.
 
-            Receive:    
-            - event - Event information
+        Receive:    
+        - event (callable): Event information
 
-            Returns: None
+        Returns: None
         """
 
         command: c_command = event( "command" )
@@ -2802,11 +2851,11 @@ class c_host_business_logic:
     
     def __event_files_refresh( self ):
         """
-            Event when the host files are refreshed.
+        Event when the host files are refreshed.
 
-            Receive: None
+        Receive: None
 
-            Returns: None
+        Returns: None
         """
 
         files = self._files.get_files( )
@@ -2825,12 +2874,12 @@ class c_host_business_logic:
 
     def __event_file_set( self, file: c_virtual_file ):
         """
-            Event when the the host user request file.
+        Event when the the host user request file.
 
-            Receive:
-            - file - File's reference
+        Receive:
+        - file (c_virtual_file): File's reference
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_file_set" ]
@@ -2841,12 +2890,12 @@ class c_host_business_logic:
     
     def __event_file_update( self, file: c_virtual_file ):
         """
-            Event callback for updating a file
+        Event callback for updating a file
 
-            Receive:
-            - file - File's reference
+        Receive:
+        - file (c_virtual_file): File's reference
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_file_update" ]
@@ -2858,13 +2907,13 @@ class c_host_business_logic:
     
     def __event_accept_line( self, file: str, line: int ):
         """
-            Event callback for accepting the line
+        Event callback for accepting the line
 
-            Receive:
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_accept_line" ]
@@ -2877,13 +2926,14 @@ class c_host_business_logic:
     
     def __event_line_lock( self, file: str, line: int, locked_by: str = "?" ):
         """
-            Event callback for locking a line.
+        Event callback for locking a line.
 
-            Receive:
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int) Line number
+        - locked_by (str, optional): Username of the client that locked this line
 
-            Returns: None
+        Returns: None
         """
 
         if file != self._host_client.selected_file( ):
@@ -2900,13 +2950,13 @@ class c_host_business_logic:
 
     def __event_line_unlock( self, file: str, line: int ):
         """
-            Event callback for unlocking a line.
+        Event callback for unlocking a line.
 
-            Receive:
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         if file != self._host_client.selected_file( ):
@@ -2922,14 +2972,14 @@ class c_host_business_logic:
 
     def __event_line_update( self, file: str, line: int, lines: list ):
         """
-            Event callback for updating line/lines.
+        Event callback for updating line/lines.
 
-            Receive:
-            - file      - File's name
-            - line      - Line number
-            - new_lines - New lines
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
+        - lines (list): New lines list
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_update" ]
@@ -2943,13 +2993,13 @@ class c_host_business_logic:
     
     def __event_line_delete( self, file: str, line: int ):
         """
-            Event callback for deleting line.
+        Event callback for deleting line.
 
-            Receive:
-            - file      - File's name
-            - line      - Line number
+        Receive:
+        - file (str): File's name
+        - line (int): Line number
 
-            Returns: None
+        Returns: None
         """
 
         event: c_event = self._events[ "on_line_delete" ]
@@ -2961,6 +3011,17 @@ class c_host_business_logic:
 
 
     def __event_added_log( self, message: str, log_type: int = ENUM_LOG_INFO, user: str = "system", time: str = "unk_time" ):
+        """
+        Event for adding a new log on the host log system.
+
+        Receive:
+        - message: (str): Message to log
+        - log_type: (int, optional): Message type
+        - user: (str, optional): Who submited this log
+        - time: (str, optional): When this log was submited
+
+        Returns: None
+        """
 
         event: c_event = self._events[ "on_added_log" ]
 
@@ -2974,15 +3035,15 @@ class c_host_business_logic:
 
     def set_event( self, event_type: str, callback: any, index: str, allow_arguments: bool = True ):
         """
-            Add function to be called on specific event.
+        Add function to be called on specific event.
 
-            Receive:
-            - event_type                    - Event name
-            - callback                      - Function to execute
-            - index                         - Function index
-            - allow_arguments [optional]    - Allow function to get arguments
+        Receive:
+        - event_type (str): Event name
+        - callback (function): Function to execute
+        - index (str): Function index
+        - allow_arguments (bool, optional): Allow function to get arguments
 
-            Returns: None
+        Returns: None
         """
 
         if not event_type in self._events:
@@ -2997,14 +3058,14 @@ class c_host_business_logic:
 
     def __correct_host_offset( self, file: c_virtual_file, line: int, new_lines: int ):
         """
-            Correct the host file locked line on change.
+        Correct the host file locked line on change.
 
-            Receive:
-            - file      - File's reference
-            - line      - Changed line number
-            - new_lines - New lines that changed
+        Receive:
+        - file (c_virtual_file): File's reference
+        - line (int): Changed line number
+        - new_lines (int): Amount of lines that changed
 
-            Returns: None
+        Returns: None
         """
 
         client_line: int = self._host_client.selected_line( )
@@ -3019,15 +3080,20 @@ class c_host_business_logic:
             self._host_client.selected_line( client_line + count_new_lines )
 
 
-    def find_client( self, username: str ) -> c_client_handle:
+    def find_client( self, username: str, in_database: bool = False ) -> any:
         """
-            Search client by username.
+        Search client by username.
 
-            Receive:
-            - username - Client's username
+        Receive:
+        - username (str): Client's username
+        - in_database (bool, optional): Should search client in active list or in database
 
-            Returns:   Client object on find or None on fail
+        Returns:
+        - any: c_client_handle if in_database is False, or Dict if true
         """
+
+        if in_database:
+            return self._database.get_user_information( username, True )
 
         for client in self._clients:
             client: c_client_handle = client
@@ -3039,12 +3105,63 @@ class c_host_business_logic:
     
 
     def get_host_client( self ) -> c_client_handle:
+        """
+        Get access to host client handle.
+
+        Receive: None
+
+        Returns:
+        - c_client_handle: Host client pointer
+        """
 
         return self._host_client
     
 
+    def host_registered_users( self ) -> list:
+        """
+        Get registered users that are registered under the current host.
+
+        Receive: None
+
+        Returns:
+        - list: List of registered users for this host
+
+        Warning! Can be used only after the host is registered or logged in.
+        """
+
+        return self._database.get_users_list( )
+
+
+    def update_registered_user( self, username: str, indexes: list, value: any ):
+        """
+        Update registered user that is registered under the current host.
+
+        Receive: 
+        - username: (str): User username 
+        - indexes: (list): Path in the user file to the value position
+        - value: (any): Value to update/add
+
+        Returns: None
+
+        Warning! Can be used only after the host is registered or logged in.
+        """
+
+        return self._database.update_user_information( username, indexes, value )
+
+
     def log_information( self, message: str, save_in_app: bool = True, log_type: int = ENUM_LOG_INFO, user: str = "system" ):
-        
+        """
+        Commit log message.
+
+        Receive:
+        - message (str): Message of the log
+        - save_in_app (bool, optional): Should display in application
+        - log_type (int, optional): Message type
+        - user (str, optional): Who commited this log
+
+        Returns: None
+        """
+
         if save_in_app:
             self.__event_added_log( message, log_type, user, time.strftime( "%y-%m-%d %H:%M:%S", time.localtime( ) ) )
 
@@ -3056,7 +3173,16 @@ class c_host_business_logic:
 
 
     def __call__( self, index: str ):
-        
+        """
+        Access any information that is stored on the host bl information dict.
+
+        Receive:
+        - index (str): Index of the specific information
+
+        Returns:
+        - any: Any type of information that is saved, or None on fail
+        """
+
         if index in self._information:
             return self._information[ index ]
         
@@ -3065,5 +3191,13 @@ class c_host_business_logic:
     # endregion
 
     def clients( self ) -> list:
+        """
+        Get active clients list.
+
+        Receive: None
+
+        Returns:
+        - list: Active clients list
+        """
 
         return self._clients
