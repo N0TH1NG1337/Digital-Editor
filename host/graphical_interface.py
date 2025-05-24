@@ -1144,7 +1144,7 @@ class c_host_gui:
         def draw_client( ):
             fade = animations.value( "Fade" )
             render.text( self._general_font, vector( 10, 10 ), color( ) * fade,     f"user\t{ username }" )
-            render.text( self._general_font, vector( 10, 40 ), color( ) * fade,     f"date\t{ user[ "__Creation_Date" ] }" )
+            render.text( self._general_font, vector( 10, 40 ), color( ) * fade,     f"date\t{ user[ '__Creation_Date' ] }" )
             render.text( self._general_font, vector( 10, 70 ), color( ) * fade,     f"trust " )
 
         user_info_window.set_event( "draw", draw_client, "render", False )

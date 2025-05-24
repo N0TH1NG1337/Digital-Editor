@@ -6,12 +6,14 @@ $requirementsFile = "requirements.txt"
 $runScriptPath = "execute.ps1"
 
 # TO EXECUTE : Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+# Note ! Because on some mechines python is not a keyword, we will use py...
+# This is python for windows defined keywork path that works fine
 
 Clear-Host
 
 try {
     # 1. Create the virtual environment
-    python -m venv virtual_env 
+    py -m venv virtual_env 
 }
 catch {
 
@@ -31,7 +33,7 @@ catch {
 
 try {
     # Check
-    python -m pip install --upgrade pip
+    py -m pip install --upgrade pip
 
     # 3. Install requirements
     pip install -r $requirementsFile
